@@ -40,6 +40,8 @@ const { modules } = Astro.props;
   }
 
   .year {
+    /* A long module label must not squeeze the year into two lines (overflow-wrap: anywhere, global.css). */
+    flex-shrink: 0;
     font-family: var(--font-mono);
     color: var(--color-text-muted);
   }

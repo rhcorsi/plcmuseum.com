@@ -42,6 +42,8 @@ const { lang, label, current, layout = 'bar' } = Astro.props;
   }
 
   .caption {
+    /* Never shrinks beside the scrolling list: with overflow-wrap: anywhere (global.css) it would break mid-word. */
+    flex-shrink: 0;
     font-size: var(--text-xs);
     color: var(--color-text-muted);
     text-transform: uppercase;
