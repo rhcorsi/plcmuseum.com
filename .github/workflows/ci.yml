@@ -13,9 +13,13 @@ concurrency:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    outputs:
+      has_lockfile: ${{ steps.lockfile.outputs.present }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
+      - id: lockfile
+        run: echo "present=$([ -f pnpm-lock.yaml ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - uses: pnpm/action-setup@v4
         with: { version: 10 }
       - uses: actions/setup-node@v4
@@ -47,7 +51,7 @@ jobs:
         with: { name: dist, path: dist, retention-days: 7 }
   e2e:
     needs: checks
-    if: hashFiles('pnpm-lock.yaml') != ''
+    if: needs.checks.outputs.has_lockfile == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
