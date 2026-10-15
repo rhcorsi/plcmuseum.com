@@ -90,7 +90,8 @@
   --stage-gap: 1.5rem;
   --stage-tilt: 50deg;
   --stage-scale-side: 0.8;
-  /* Card width on the stage, the step between neighbors (plus --stage-gap) and how far back each step recedes. */
+  /* Card width on the stage (resolved against the stage), the step between neighbors as a share of the card's own
+     width inside translateX (plus --stage-gap), and how far back each step recedes. */
   --stage-item-width: min(70%, 26rem);
   --stage-pitch: 65%;
   --stage-depth: 1.5rem;

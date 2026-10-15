@@ -63,11 +63,13 @@ export type ExhibitCard = {
  * controls and live region, and drives the existing items through classes, ARIA attributes and CSS custom properties
  * set with element.style.setProperty(). `exhibits` is the same data, for lookups and announcements.
  *
- * While the stage is active the list is a listbox driven by aria-activedescendant. Each option is named
- * "name, manufacturer, yearLabel", and the link inside it leaves the accessibility tree and the tab order
- * (aria-hidden="true", tabindex="-1") so no interactive control is nested in an option. Enter, a click on the centered
- * option (also the click assistive technology sends to the option) and the island's Open link all follow that link;
- * the Open link names the centered exhibit through aria-describedby.
+ * While the stage is active the list is a listbox driven by aria-activedescendant: each `<li>` gets role="none" and
+ * its link `a.card` becomes the option (role="option", aria-selected, tabindex="-1"), so no interactive control is
+ * nested in an option. The option keeps the name and description StageList gives the link (name, manufacturer and
+ * yearLabel; the tagline). Enter and the island's Open link follow the centered link, and a click on the option is a
+ * click on the link; the Open link names the exhibit with aria-describedby="stage-name-<id>". When the stage
+ * deactivates (unmount, or a switch to reduced motion) the island restores every attribute it set. The live region
+ * exists in both motion modes and announces only centering the visitor causes, an EXHIBIT_SELECT_EVENT included.
  */
 export type CoverFlowProps = {
   exhibits: ExhibitCard[];
@@ -79,8 +81,9 @@ export type CoverFlowProps = {
   /** Control and announcement strings, resolved by the page with t(); islands never import src/i18n/utils.ts. */
   labels: { prev: string; next: string; open: string };
   /**
-   * For composition inside React and for tests; pages listen to CENTER_CHANGE_EVENT instead. Parents may pass a new
-   * function on every render: the island calls the latest one and never re-attaches because of it.
+   * For composition inside React and for tests; pages listen to CENTER_CHANGE_EVENT instead. Called whenever that
+   * event is dispatched, the initial emission included. Parents may pass a new function, or new but equal props, on
+   * every render: the island calls the latest callback and attaches once per listId, so it never re-centers on its own.
    */
   onCenterChange?: (id: string) => void;
 };
@@ -121,14 +124,16 @@ export type StoryFormProps = {
 /**
  * Emitted by CoverFlow once the centered exhibit settles (debounced 120 ms), and once after the island attaches, with
  * the initial exhibit and in both motion modes, so the header and Era UI can sync. Only centering the visitor causes is
- * announced in the live region; the initial emission is not.
+ * announced in the live region; the initial emission is not. Islands hydrate independently, so a listener that may
+ * attach later also reads the initial exhibit from the list's `data-initial-id`.
  */
 export const CENTER_CHANGE_EVENT = 'plcmuseum:center-change';
 export type CenterChangeDetail = { id: string; decade: Decade; era: EraTheme };
 
 /**
  * Emitted by TimelineScrubber when the visitor picks an exhibit. CoverFlow centers it (scrolls it into view under
- * reduced motion) and leaves focus where it is in both motion modes: the sender keeps focus (WCAG 3.2.2).
+ * reduced motion), announces it in its live region, and leaves focus where it is in both motion modes: the sender
+ * keeps focus (WCAG 3.2.2) and does not announce the pick itself.
  */
 export const EXHIBIT_SELECT_EVENT = 'plcmuseum:exhibit-select';
 export type ExhibitSelectDetail = { id: string };
@@ -159,7 +164,11 @@ export const STORAGE_KEYS = {
 export const STAGE_HOOKS = {
   /** `<ol>` with an id (CoverFlowProps.listId) and `data-initial-id`; one per page. */
   list: 'stage-list',
-  /** `<li>` with `data-id`, `data-decade`, `data-era`, `data-year`; its id attribute is `stage-item-<id>`. */
+  /**
+   * `<li>` with `data-id`, `data-decade`, `data-era`, `data-year`; its id attribute is `stage-item-<id>`. Its link
+   * `a.card` has the id `stage-link-<id>`, is named by `stage-name-<id>`, `stage-maker-<id>` and `stage-year-<id>`,
+   * and is described by `stage-tagline-<id>`.
+   */
   item: 'stage-item',
   /**
    * `<span aria-hidden="true">` first in each item, holding `year` (digits only) for the decorative watermark behind the

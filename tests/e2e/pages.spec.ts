@@ -74,6 +74,21 @@ test('/dev/coverflow renders the 12 fixtures, two of them as silhouettes', async
   expect(errors).toEqual([]);
 });
 
+// STAGE_HOOKS: the link CoverFlow turns into the listbox option has a stable id, is named by name, maker and year,
+// and is described by the tagline, so the option keeps a complete name without the island computing one.
+test('/dev/coverflow stage links carry the ids, name and description of the contract', async ({ page }) => {
+  await open(page, '/dev/coverflow');
+  for (const item of await page.locator('.stage-list .stage-item').all()) {
+    const id = await item.getAttribute('data-id');
+    const part = async (kind: string) => ((await item.locator(`#stage-${kind}-${id}`).textContent()) ?? '').trim();
+    const [name, maker, year, tagline] = await Promise.all(['name', 'maker', 'year', 'tagline'].map(part));
+    for (const text of [name, maker, year, tagline]) expect(text, `${id} part`).not.toBe('');
+    const link = item.locator(`a.card#stage-link-${id}`);
+    await expect(link).toHaveAccessibleName(`${name} ${maker} ${year}`);
+    await expect(link).toHaveAccessibleDescription(tagline);
+  }
+});
+
 test('/dev/coverflow?era=1980s switches the era theme', async ({ page }) => {
   const errors = trackErrors(page);
   await open(page, '/dev/coverflow?era=1980s');
