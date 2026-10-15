@@ -3,7 +3,12 @@ import { CENTER_CHANGE_EVENT, EXHIBIT_SELECT_EVENT, type CenterChangeDetail } fr
 
 declare global {
   interface Window {
-    coverFlowTest: { items: Element[]; changes: CenterChangeDetail[]; layoutShifts: number[] };
+    coverFlowTest: {
+      items: Element[];
+      changes: CenterChangeDetail[];
+      layoutShifts: number[];
+      layoutShiftSources?: unknown[];
+    };
   }
 }
 
@@ -21,8 +26,22 @@ async function openStage(page: Page, { reduced = false, era = '1980s', theme = '
     observed.coverFlowTest = { items: [], changes: [], layoutShifts: [] };
     new PerformanceObserver((entries) => {
       for (const entry of entries.getEntries()) {
-        const shift = entry as PerformanceEntry & { hadRecentInput: boolean; value: number };
-        if (!shift.hadRecentInput) observed.coverFlowTest.layoutShifts.push(shift.value);
+        const shift = entry as PerformanceEntry & {
+          hadRecentInput: boolean;
+          value: number;
+          sources: { node?: Node; previousRect: DOMRectReadOnly; currentRect: DOMRectReadOnly }[];
+        };
+        if (!shift.hadRecentInput) {
+          observed.coverFlowTest.layoutShifts.push(shift.value);
+          (observed.coverFlowTest.layoutShiftSources ??= []).push({
+            value: shift.value,
+            sources: shift.sources.map(({ node, previousRect, currentRect }) => ({
+              node: node instanceof Element ? node.outerHTML.slice(0, 160) : node?.nodeName,
+              previous: previousRect.toJSON(),
+              current: currentRect.toJSON(),
+            })),
+          });
+        }
       }
     }).observe({ type: 'layout-shift', buffered: true });
     const observer = new MutationObserver(() => {
@@ -555,6 +574,7 @@ test.describe('coverflow', () => {
       await page.waitForTimeout(1000);
       expect(
         await page.evaluate(() => window.coverFlowTest.layoutShifts.reduce((total, value) => total + value, 0)),
+        JSON.stringify(await page.evaluate(() => window.coverFlowTest.layoutShiftSources)),
       ).toBeLessThan(0.05);
       expect(
         await page
