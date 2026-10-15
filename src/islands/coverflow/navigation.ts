@@ -1,4 +1,4 @@
-import type { CenterChangeDetail, ExhibitCard } from '../contracts';
+import type { CenterChangeDetail, CoverFlowProps, ExhibitCard } from '../contracts';
 
 export function wrapIndex(index: number, count: number): number {
   return count > 0 ? ((index % count) + count) % count : 0;
@@ -24,18 +24,41 @@ export function keyboardIndex(key: string, index: number, count: number): number
   }
 }
 
+export function transitionDurationMs(value: string): number {
+  return Math.max(
+    0,
+    ...value.split(',').map((duration) => {
+      const milliseconds = parseFloat(duration) * (duration.trim().endsWith('ms') ? 1 : 1000);
+      return Number.isFinite(milliseconds) ? milliseconds : 0;
+    }),
+  );
+}
+
+export function notifyCenterChange(
+  card: Pick<ExhibitCard, 'id' | 'decade' | 'era'>,
+  callback: { current: CoverFlowProps['onCenterChange'] },
+  dispatch: (detail: CenterChangeDetail) => void,
+) {
+  dispatch({ id: card.id, decade: card.decade, era: card.era });
+  callback.current?.(card.id);
+}
+
 /** Wait for the visual transition, then coalesce changes for the contract's 120 ms. */
-export function settledChange(notify: (detail: CenterChangeDetail) => void) {
+export function settledChange(notify: (detail: CenterChangeDetail, announce: boolean) => void) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let lastId: string | undefined;
   const cancel = () => clearTimeout(timer);
   return {
-    schedule(card: Pick<ExhibitCard, 'id' | 'decade' | 'era'>, transitionMs = 0) {
+    initial(card: Pick<ExhibitCard, 'id' | 'decade' | 'era'>) {
+      lastId = card.id;
+      notify({ id: card.id, decade: card.decade, era: card.era }, false);
+    },
+    schedule(card: Pick<ExhibitCard, 'id' | 'decade' | 'era'>, transitionMs = 0, announce = false) {
       cancel();
       timer = setTimeout(() => {
         if (lastId === card.id) return;
         lastId = card.id;
-        notify({ id: card.id, decade: card.decade, era: card.era });
+        notify({ id: card.id, decade: card.decade, era: card.era }, announce);
       }, transitionMs + 120);
     },
     cancel,

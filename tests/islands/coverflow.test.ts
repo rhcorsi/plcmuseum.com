@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { keyboardIndex, relativeOffset, settledChange, wrapIndex } from '../../src/islands/coverflow/navigation';
+import {
+  keyboardIndex,
+  notifyCenterChange,
+  relativeOffset,
+  settledChange,
+  transitionDurationMs,
+  wrapIndex,
+} from '../../src/islands/coverflow/navigation';
 
 describe('coverflow navigation', () => {
   it('wraps at both ends, including repeated laps and empty or single-item lists', () => {
@@ -28,6 +35,16 @@ describe('coverflow navigation', () => {
     expect(keyboardIndex('Tab', 3, 12)).toBeNull();
     expect(keyboardIndex('Enter', 3, 12)).toBeNull();
   });
+
+  it.each([
+    ['0.75s, 0.75s', 750],
+    ['750ms', 750],
+    ['0s', 0],
+    ['150ms, 0.75s, 400ms', 750],
+    ['0.2s, 900ms, 0s', 900],
+  ])('waits for the longest transition in %s', (value, expected) => {
+    expect(transitionDurationMs(value)).toBe(expected);
+  });
 });
 
 describe('coverflow settled changes', () => {
@@ -36,20 +53,36 @@ describe('coverflow settled changes', () => {
 
   afterEach(() => vi.useRealTimers());
 
+  it('emits the initial selection silently before immediate navigation starts its debounce', () => {
+    vi.useFakeTimers();
+    const callback = vi.fn();
+    const changes = settledChange(callback);
+    changes.initial(first);
+    expect(callback).toHaveBeenCalledExactlyOnceWith(first, false);
+    changes.schedule(second, 750, true);
+    vi.advanceTimersByTime(869);
+    expect(callback).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
+    expect(callback.mock.calls).toEqual([
+      [first, false],
+      [second, true],
+    ]);
+  });
+
   it('waits for the transition and 120 ms, coalescing rapid changes into the final contract payload', () => {
     vi.useFakeTimers();
     const callback = vi.fn();
     const changes = settledChange(callback);
-    changes.schedule(first, 750);
+    changes.schedule(first, 750, false);
     vi.advanceTimersByTime(700);
-    changes.schedule(second, 750);
+    changes.schedule(second, 750, true);
     vi.advanceTimersByTime(869);
     expect(callback).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
-    expect(callback).toHaveBeenCalledExactlyOnceWith(second);
+    expect(callback).toHaveBeenCalledExactlyOnceWith(second, true);
   });
 
-  it('suppresses unchanged selections but announces a return after a different settled selection', () => {
+  it('suppresses unchanged selections but emits a return after a different settled selection', () => {
     vi.useFakeTimers();
     const callback = vi.fn();
     const changes = settledChange(callback);
@@ -74,5 +107,36 @@ describe('coverflow settled changes', () => {
     changes.cancel();
     vi.runAllTimers();
     expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('keeps the final input announcement policy when changes are coalesced', () => {
+    vi.useFakeTimers();
+    const callback = vi.fn();
+    const changes = settledChange(callback);
+    changes.schedule(first, 750, true);
+    changes.schedule(second, 750, false);
+    vi.runAllTimers();
+    expect(callback).toHaveBeenCalledExactlyOnceWith(second, false);
+  });
+
+  it('uses the latest callback without repeating equal selections or resetting the settled exhibit', () => {
+    vi.useFakeTimers();
+    const original = vi.fn();
+    const latest = vi.fn();
+    const callbackRef = { current: original };
+    const dispatch = vi.fn();
+    const changes = settledChange((detail) => notifyCenterChange(detail, callbackRef, dispatch));
+    changes.initial(first);
+    expect(original).toHaveBeenCalledExactlyOnceWith(first.id);
+
+    changes.schedule(second, 750, true);
+    callbackRef.current = latest;
+    vi.runAllTimers();
+    expect(latest).toHaveBeenCalledExactlyOnceWith(second.id);
+    changes.schedule({ ...second }, 750, true);
+    vi.runAllTimers();
+    expect(dispatch.mock.calls).toEqual([[first], [second]]);
+    expect(original).toHaveBeenCalledTimes(1);
+    expect(latest).toHaveBeenCalledTimes(1);
   });
 });

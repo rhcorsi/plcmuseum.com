@@ -1,8 +1,14 @@
-.coverflow-controls:not([hidden]) {
+.coverflow-controls {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-4);
+  block-size: var(--space-8);
+  visibility: hidden;
+}
+
+.coverflow-controls[data-enhanced='true'] {
+  visibility: visible;
 }
 
 .coverflow-controls button,
@@ -48,7 +54,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .coverflow-controls {
+  .coverflow-controls[data-enhanced='false'] {
     display: none;
   }
 }

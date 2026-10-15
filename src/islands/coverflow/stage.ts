@@ -1,16 +1,17 @@
 import { EXHIBIT_SELECT_EVENT, STAGE_HOOKS, type ExhibitCard } from '../contracts';
-import { keyboardIndex, relativeOffset, settledChange, wrapIndex } from './navigation';
+import { keyboardIndex, relativeOffset, settledChange, transitionDurationMs, wrapIndex } from './navigation';
 
 type StageOptions = {
   list: HTMLElement;
+  controls?: HTMLElement | null;
   exhibits: ExhibitCard[];
   initialId: string;
   onActive: (card: ExhibitCard) => void;
-  onSettled: (card: ExhibitCard) => void;
+  onSettled: (card: ExhibitCard, announce: boolean) => void;
   onEnhanced: (enhanced: boolean) => void;
 };
 
-export function enhanceStage({ list, exhibits, initialId, onActive, onSettled, onEnhanced }: StageOptions) {
+export function enhanceStage({ list, controls, exhibits, initialId, onActive, onSettled, onEnhanced }: StageOptions) {
   const items = Array.from(list.querySelectorAll<HTMLElement>(`.${STAGE_HOOKS.item}`));
   const links = items.map((item) => item.querySelector<HTMLAnchorElement>('a.card'));
   // A mismatched server list remains usable instead of enhancing the wrong exhibits.
@@ -33,22 +34,38 @@ export function enhanceStage({ list, exhibits, initialId, onActive, onSettled, o
   let wheelLocked = false;
   let swipe: { id: number; x: number; y: number } | undefined;
   let suppressClick = false;
-  const notifications = settledChange(({ id }) => {
+  let announceCenter = false;
+  let initialized = false;
+  let previousCenter = center;
+  let visible = new Set<number>();
+  const offsets = new Map<number, number>();
+  const frames = new Set<number>();
+  const notifications = settledChange(({ id }, announce) => {
     const card = exhibits.find((entry) => entry.id === id);
-    if (card) onSettled(card);
+    if (card) onSettled(card, announce);
   });
 
   const attributes = [list, ...items, ...links]
     .filter((element): element is HTMLElement => element !== null)
     .map((element) => ({
       element,
-      values: ['role', 'tabindex', 'aria-activedescendant', 'aria-selected', 'aria-label', 'aria-orientation'].map(
-        (name) => [name, element.getAttribute(name)] as const,
-      ),
+      values: [
+        'role',
+        'tabindex',
+        'aria-activedescendant',
+        'aria-selected',
+        'aria-orientation',
+        'aria-posinset',
+        'aria-setsize',
+      ].map((name) => [name, element.getAttribute(name)] as const),
     }));
 
   function restore() {
-    list.classList.remove('is-coverflow');
+    for (const frame of frames) cancelAnimationFrame(frame);
+    frames.clear();
+    visible.clear();
+    offsets.clear();
+    list.classList.remove('is-coverflow', 'is-initializing');
     for (const { element, values } of attributes) {
       for (const [name, value] of values) {
         if (value === null) element.removeAttribute(name);
@@ -56,52 +73,75 @@ export function enhanceStage({ list, exhibits, initialId, onActive, onSettled, o
       }
     }
     for (const item of items) {
-      item.classList.remove('is-center', 'is-near');
+      item.classList.remove('is-center', 'is-near', 'is-parked', 'is-jumping');
       for (const name of ['offset', 'distance', 'direction', 'order']) item.style.removeProperty(`--coverflow-${name}`);
       if (!item.style.length) item.removeAttribute('style');
     }
   }
 
+  function afterPaint(callback: () => void) {
+    const first = requestAnimationFrame(() => {
+      frames.delete(first);
+      const second = requestAnimationFrame(() => {
+        frames.delete(second);
+        callback();
+      });
+      frames.add(second);
+    });
+    frames.add(first);
+  }
+
   function paint() {
     const card = exhibits[center];
-    const activeItem = items[center];
-    if (!card || !activeItem) return;
+    const activeLink = links[center];
+    if (!card || !activeLink) return;
     onActive(card);
     if (!enhanced) return;
-    list.setAttribute('aria-activedescendant', activeItem.id);
-    for (const [index, item] of items.entries()) {
-      const offset = relativeOffset(index, center, items.length);
+    list.setAttribute('aria-activedescendant', activeLink.id);
+    links[previousCenter]?.setAttribute('aria-selected', 'false');
+    activeLink.setAttribute('aria-selected', 'true');
+    previousCenter = center;
+    const nextVisible = new Set([-1, 0, 1].map((step) => wrapIndex(center + step, items.length)));
+    // Only the old and new neighbors can change. Parked cards receive no repeated DOM writes.
+    for (const index of new Set([...visible, ...nextVisible])) {
+      const item = items[index];
+      if (!item) continue;
+      const offset = Math.max(-2, Math.min(2, relativeOffset(index, center, items.length)));
+      const near = nextVisible.has(index);
+      const previousOffset = offsets.get(index);
+      if (!visible.has(index) || (previousOffset !== undefined && Math.abs(previousOffset - offset) > 1)) {
+        item.classList.add('is-jumping');
+        afterPaint(() => item.classList.remove('is-jumping'));
+      }
       item.classList.toggle('is-center', offset === 0);
-      item.classList.toggle('is-near', Math.abs(offset) <= 1);
-      item.setAttribute('aria-selected', String(offset === 0));
+      item.classList.toggle('is-near', near);
+      item.classList.toggle('is-parked', !near);
       item.style.setProperty('--coverflow-offset', String(offset));
       item.style.setProperty('--coverflow-distance', String(Math.abs(offset)));
       item.style.setProperty('--coverflow-direction', String(Math.sign(offset)));
-      item.style.setProperty('--coverflow-order', String(items.length - Math.abs(offset)));
+      item.style.setProperty('--coverflow-order', String(2 - Math.abs(offset)));
+      offsets.set(index, offset);
     }
+    visible = nextVisible;
   }
 
-  function select(index: number) {
+  function select(index: number, announce = false) {
     const next = wrapIndex(index, exhibits.length);
     if (next === center) return;
     center = next;
+    announceCenter = announce;
     paint();
     const card = exhibits[center];
     const item = items[center];
     if (!card || !item) return;
-    const duration = enhanced
-      ? getComputedStyle(item)
-          .transitionDuration.split(',')
-          .reduce((longest, value) => {
-            const milliseconds = parseFloat(value) * (value.trim().endsWith('ms') ? 1 : 1000);
-            return Math.max(longest, milliseconds || 0);
-          }, 0)
-      : 0;
-    notifications.schedule(card, duration);
+    const duration = enhanced ? transitionDurationMs(getComputedStyle(item).transitionDuration) : 0;
+    notifications.schedule(card, duration, announce);
   }
 
   function setMotion() {
-    const hadFocus = document.activeElement === list;
+    const focused = document.activeElement;
+    const hadFocus = !!focused && (list.contains(focused) || !!controls?.contains(focused));
+    const focusedLink = links.findIndex((link) => link === focused);
     notifications.cancel();
     restore();
     enhanced = !reducedMotion.matches;
@@ -110,21 +150,49 @@ export function enhanceStage({ list, exhibits, initialId, onActive, onSettled, o
     swipe = undefined;
     suppressClick = false;
     if (enhanced) {
-      list.classList.add('is-coverflow');
+      if (focusedLink >= 0) {
+        center = focusedLink;
+        announceCenter = false;
+      }
+      list.classList.add('is-coverflow', 'is-initializing');
       list.setAttribute('role', 'listbox');
       list.setAttribute('aria-orientation', 'horizontal');
       list.tabIndex = 0;
       items.forEach((item, index) => {
-        item.setAttribute('role', 'option');
-        item.setAttribute('aria-label', exhibits[index]?.name ?? '');
+        item.classList.add('is-parked');
+        item.setAttribute('role', 'none');
         const link = links[index];
-        if (link) link.tabIndex = -1;
+        if (link) {
+          link.setAttribute('role', 'option');
+          link.setAttribute('aria-selected', 'false');
+          link.setAttribute('aria-posinset', String(index + 1));
+          link.setAttribute('aria-setsize', String(items.length));
+          link.tabIndex = -1;
+        }
       });
-    } else if (hadFocus) links[center]?.focus({ preventScroll: true });
+      afterPaint(() => list.classList.remove('is-initializing'));
+    }
     paint();
     onEnhanced(enhanced);
+    if (hadFocus) {
+      if (enhanced) list.focus({ preventScroll: true });
+      else {
+        links[center]?.focus({ preventScroll: true });
+        items[center]?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      }
+    }
     const card = exhibits[center];
-    if (card) notifications.schedule(card);
+    if (card) {
+      if (initialized) notifications.schedule(card, 0, announceCenter);
+      else {
+        initialized = true;
+        notifications.initial(card);
+      }
+    }
+  }
+
+  function onFocusIn(event: FocusEvent) {
+    if (enhanced && links.some((link) => link === event.target)) list.focus({ preventScroll: true });
   }
 
   function onKeyDown(event: KeyboardEvent) {
@@ -169,7 +237,7 @@ export function enhanceStage({ list, exhibits, initialId, onActive, onSettled, o
     const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? list.clientWidth : 1;
     wheelDistance += event.deltaX * unit;
     if (Math.abs(wheelDistance) < 40) return;
-    select(center + Math.sign(wheelDistance));
+    select(center + Math.sign(wheelDistance), true);
     wheelLocked = true;
   }
 
@@ -186,7 +254,7 @@ export function enhanceStage({ list, exhibits, initialId, onActive, onSettled, o
     swipe = undefined;
     if (Math.abs(x) < 40 || Math.abs(x) <= Math.abs(y)) return;
     suppressClick = true;
-    select(center - Math.sign(x));
+    select(center - Math.sign(x), true);
   }
 
   function cancelPointer() {
@@ -196,15 +264,14 @@ export function enhanceStage({ list, exhibits, initialId, onActive, onSettled, o
   function onSelect(event: DocumentEventMap[typeof EXHIBIT_SELECT_EVENT]) {
     const index = exhibits.findIndex((card) => card.id === event.detail?.id);
     if (index < 0) return;
-    select(index);
+    select(index, true);
     if (!enhanced) {
       items[index]?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
-      links[index]?.focus({ preventScroll: true });
     }
   }
 
-  setMotion();
   list.addEventListener('keydown', onKeyDown);
+  list.addEventListener('focusin', onFocusIn);
   list.addEventListener('click', onClick);
   list.addEventListener('wheel', onWheel, { passive: false });
   list.addEventListener('pointerdown', onPointerDown);
@@ -212,13 +279,15 @@ export function enhanceStage({ list, exhibits, initialId, onActive, onSettled, o
   window.addEventListener('pointercancel', cancelPointer);
   reducedMotion.addEventListener('change', setMotion);
   document.addEventListener(EXHIBIT_SELECT_EVENT, onSelect);
+  setMotion();
 
   return {
-    move: (step: number) => select(center + step),
+    move: (step: number) => select(center + step, true),
     destroy() {
       notifications.cancel();
       restore();
       list.removeEventListener('keydown', onKeyDown);
+      list.removeEventListener('focusin', onFocusIn);
       list.removeEventListener('click', onClick);
       list.removeEventListener('wheel', onWheel);
       list.removeEventListener('pointerdown', onPointerDown);

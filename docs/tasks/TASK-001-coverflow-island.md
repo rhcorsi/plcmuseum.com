@@ -76,6 +76,7 @@ Notes from the Phase 0 integration:
 
 - Resolved by the owner on 2026-10-15: the required decorative year has no existing markup hook. May StageList add one `aria-hidden="true"` span per item while retaining all existing markup, ids and data attributes? Owner approved this specific addition in the task chat.
 - Visual baseline handoff: can the architect generate and approve Linux baselines before enabling `toHaveScreenshot` with `maxDiffPixelRatio: 0.001`? This host has Windows Chromium but no usable Linux browser runtime. The task's fallback is used: 26 Windows captures are committed and linked in the PR, and screenshot assertions are not introduced.
+- Resolved by the owner on 2026-10-15: `tests/e2e/pages.spec.ts` checks the accessible names of all 12 fixture links, including cards now parked with `visibility: hidden` as the revised contract requires. The owner authorized one line, `await page.emulateMedia({ reducedMotion: 'reduce' })`, before that test opens the fixture, so it verifies the static StageList names. This is the only exception to the task's test paths. The CoverFlow suite separately checks exposed option names and the retained ARIA references on all 12 cards.
 
 ## Implementation notes (implementer)
 
@@ -107,5 +108,28 @@ Limits for integration review:
 - Playwright verified the browser's reduced-motion setting both initially and during interaction. A manual Windows accessibility-setting check and physical Android test have not been performed.
 - Lighthouse's unweighted label/content advisory lists the cards, whose accessible names intentionally follow the contract's exhibit-name labels while visible cards also contain credits, year and metadata. Review this with assistive technology during integration; the scored accessibility checks pass.
 - No merge or deployment was performed. No architecture, contracts, content, Worker, configuration, dependencies or other documentation was changed.
+
+### PR #9 review revision (2026-10-15)
+
+This revision follows the architect's review and the contracts merged in `fc24980`. The earlier measurements and screenshot handoff above describe the first implementation; the evidence below supersedes them for the revised code.
+
+- Merged `main`, retaining the stable link/maker ids and the owner-approved watermark with `STAGE_HOOKS.watermark`. The island waits for `DOMContentLoaded` when necessary, removes that listener on cleanup, attaches once per `listId`, and invokes the latest callback through a ref.
+- The links are the listbox options with position/size and selection attributes; items have only `role="none"`. The original link names and descriptions remain intact, option focus returns to the list, and deactivation restores the attributes. Open describes the selected exhibit.
+- The live region remains outside the controls in both motion modes. Initial and keyboard changes are silent; controls, gestures and external picks announce. Silent changes clear the previous text so returning through a control can announce the same exhibit again. The initial event/callback is synchronous after setup, independent of navigation debounce, with external listeners already registered.
+- Reduced-motion external picks scroll without taking focus. Runtime preference changes transfer focus from the list or controls to the selected native link; returning to the stage centers the focused static link. Controls are hidden only after the controller has transferred focus.
+- Controls reserve their block size before hydration. The initial layout uses a short initialization phase with no transitions; cards become visible after their geometry has been painted, while the listbox remains focusable. The unenhanced no-JavaScript or blocked-script fallback stays visible. Measured buffered CLS: 0.000827 at 390 px and 0.000177 at 1280 px, below 0.05.
+- Visual offsets are clamped to plus/minus 2. Distant cards are parked without transitions or repeated property writes; updates touch old/new neighbors only. Offset jumps greater than one step do not animate, including 2/3/4-item wrap-around tests. Width, pitch and depth use the new stage tokens. The watermark offset shares its font-size clamp, leaving all four digits above the card.
+- Removed all 26 committed Windows PNGs. Four museum captures at 390/1280 px in normal/reduced motion are generated as Playwright attachments and were inspected locally. The screenshot question above is superseded by the review: Linux baselines remain the architect's work after TASK-002. Uploading the four images to the PR is still pending because the available browser connection cannot operate the authenticated GitHub editor; no replacement images are committed.
+
+Verification of this revision:
+
+- `pnpm lint` and `pnpm typecheck`: passed, Astro reported zero errors, warnings or hints.
+- `pnpm test --maxWorkers=1 --testTimeout=60000`: all 395 tests passed, including 14 CoverFlow logic tests. Earlier local runs hit the default five-second timeout in unchanged content/tooling subprocess tests; the timeout override is command-line only, with no configuration change.
+- `pnpm build`: passed. The final e2e build also passed with the existing `PLCMUSEUM_E2E_FIXTURES=1` option, which includes the architect's CSP fixture and is not a deployment artifact.
+- Browser regressions cover a parser blocked before the list, immediate external selection from the initial event, exact focus token colors, names and ARIA restoration, live-region policy, both motion modes, gestures, parked writes, short collections, initial animation and buffered CLS.
+- `pnpm test:e2e --workers=2 --output=test-results/final-all`: all 66 tests passed, including 28 CoverFlow checks and 38 existing page/Worker checks. The parser-race test first warms the island module so its hydration can race the intentionally blocked parser even on a cold development server.
+- The full e2e run exposed an existing shared test that expects accessible names on parked hidden links (`tests/e2e/pages.spec.ts`). The owner authorized its one-line reduced-motion setup, recorded in Questions. The production CSP tests, including the existing island-hydration fixture, passed. This does not replace the architect's pending CoverFlow-specific CSP integration test or OS-level reduced-motion check.
+
+The Review section is untouched. No dependency, contract, token, build/CI configuration, content or Worker implementation was edited. No merge of this PR or deployment was performed.
 
 ## Review (Claude Code)

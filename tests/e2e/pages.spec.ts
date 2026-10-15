@@ -77,6 +77,7 @@ test('/dev/coverflow renders the 12 fixtures, two of them as silhouettes', async
 // STAGE_HOOKS: the link CoverFlow turns into the listbox option has a stable id, is named by name, maker and year,
 // and is described by the tagline, so the option keeps a complete name without the island computing one.
 test('/dev/coverflow stage links carry the ids, name and description of the contract', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await open(page, '/dev/coverflow');
   for (const item of await page.locator('.stage-list .stage-item').all()) {
     const id = await item.getAttribute('data-id');

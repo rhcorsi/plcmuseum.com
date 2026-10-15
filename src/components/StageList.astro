@@ -146,11 +146,13 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
 
   @media (prefers-reduced-motion: no-preference) {
     .stage-list.is-coverflow {
+      --coverflow-watermark-size: clamp(5rem, 15vw, 12rem);
+
       position: relative;
       isolation: isolate;
       grid-template-columns: minmax(0, 1fr);
       gap: 0;
-      padding-block: var(--space-8) var(--space-6);
+      padding-block: calc(var(--coverflow-watermark-size) + var(--space-4)) var(--space-6);
       overflow: hidden;
       perspective: var(--stage-perspective);
       touch-action: pan-y pinch-zoom;
@@ -160,13 +162,13 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
       position: relative;
       grid-area: 1 / 1;
       justify-self: center;
-      inline-size: min(70%, 26rem);
+      inline-size: var(--stage-item-width);
       min-inline-size: 0;
       z-index: var(--coverflow-order);
       opacity: 0;
       pointer-events: none;
-      transform: translateX(calc(var(--coverflow-offset) * (65% + var(--stage-gap))))
-        translateZ(calc(var(--coverflow-distance) * var(--stage-gap) * -1))
+      transform: translateX(calc(var(--coverflow-offset) * (var(--stage-pitch) + var(--stage-gap))))
+        translateZ(calc(var(--coverflow-distance) * var(--stage-depth) * -1))
         rotateY(calc(var(--coverflow-direction) * var(--stage-tilt) * -1)) scale(var(--stage-scale-side));
       transition:
         transform var(--motion-stage) var(--motion-ease-stage),
@@ -183,6 +185,12 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
       transform: translateX(0) translateZ(0) rotateY(0) scale(1);
     }
 
+    .is-coverflow .stage-item.is-parked {
+      visibility: hidden;
+      transition: none;
+      will-change: auto;
+    }
+
     .is-coverflow .card {
       position: relative;
       block-size: 100%;
@@ -197,9 +205,9 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
       position: absolute;
       display: block;
       inset-inline: -25%;
-      inset-block-start: calc(var(--space-8) * -1);
+      inset-block-start: calc((var(--coverflow-watermark-size) + var(--space-4)) * -1);
       font-family: var(--font-numeric);
-      font-size: clamp(5rem, 15vw, 12rem);
+      font-size: var(--coverflow-watermark-size);
       line-height: 1;
       text-align: center;
       color: var(--color-text-muted);
@@ -210,6 +218,19 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
 
     .is-coverflow .is-center .stage-watermark {
       opacity: 1;
+    }
+
+    /* Settle geometry before exposing cards on the first paint, keeping the listbox focusable. */
+    .is-coverflow.is-initializing .stage-item {
+      visibility: hidden;
+    }
+
+    .is-coverflow.is-initializing .stage-item,
+    .is-coverflow.is-initializing .stage-watermark,
+    .is-coverflow .stage-item.is-jumping,
+    .is-coverflow .is-jumping .stage-watermark,
+    .is-coverflow .is-parked .stage-watermark {
+      transition: none;
     }
 
     .stage-list.is-coverflow:focus-visible {
