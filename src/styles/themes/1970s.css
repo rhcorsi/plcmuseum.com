@@ -9,22 +9,26 @@
  * Rules for this file:
  * - It is unlayered on purpose (see global.css): it beats every definition in tokens.css, light and dark, without a
  *   specificity fight.
- * - Override semantic tokens only, the names listed in the block below. Never style an element, id or component
- *   class here: components read tokens and never the era (docs/ARCHITECTURE.md section 8).
- * - Motion tokens go in motion.css, so its reduced-motion block keeps winning.
+ * - Override semantic tokens only (docs/DESIGN_SYSTEM.md section 1, excluding --motion-* and --stage-*), and declare
+ *   only values that differ from tokens.css (or from this era's light block, for dark blocks). Never style an element,
+ *   id or component class here: components read tokens and never the era (docs/ARCHITECTURE.md section 8).
+ * - Motion tokens go in motion.css, so its reduced-motion block keeps winning; stage geometry (--stage-*) stays the
+ *   museum's so the stage never moves again when Era UI switches the era.
  * - Color, shadow and radius tokens only repaint. Layout tokens (--font-*, --text-*, --space-*, --border-width) may
  *   reflow on an era switch, but nothing may overflow at 390 px and no font may load late (TASK-002).
- * - Light values go in the block below. Dark values go in these two selectors, with identical values, as in
- *   tokens.css:
+ * - Light values go in the block below. Dark values (only where they differ from light) go in these two selectors,
+ *   with identical values, as in tokens.css:
  *     @media (prefers-color-scheme: dark) {
  *       html[data-era='1970s']:not([data-theme='light']) {}
  *     }
  *     html[data-era='1970s'][data-theme='dark'] {}
- * - Optional decorative layer (CSS gradients, no image over 4 KB, no flicker), only on body::before and only here:
+ * - Optional decorative layer (CSS gradients, no image over 4 KB, no flicker), only on body::before, behind content
+ *   (position: fixed and negative z-index):
  *     @media (prefers-reduced-motion: no-preference) and (prefers-contrast: no-preference) {
  *       html[data-era='1970s'] body::before {}
  *     }
- * - Same contrast targets as tokens.css (tests/styles/tokens.test.ts); state colors keep their meaning in every era.
+ * - Same contrast targets as tokens.css (tests/styles/tokens.test.ts); --color-accent, --color-focus and --color-text
+ *   stay at least 10 CIEDE2000 from every --color-state-* so state colors keep their meaning in every era.
  */
 
 html[data-era='1970s'] {
@@ -37,29 +41,21 @@ html[data-era='1970s'] {
   --color-text-muted: #524e46;
   --color-text-inverse: #f7f4ec;
 
-  --color-accent: #9e1b1b;
-  --color-accent-contrast: #ffffff;
+  --color-accent: #820f1e;
   --color-border: #8c8678;
   --color-focus: #0b57a4;
 
   --color-state-ok: #1e6f35;
   --color-state-warn: #995400;
-  --color-state-alarm: #c42b1c;
+  --color-state-alarm: #cc3b14;
 
   --font-display:
     'Bahnschrift', 'DIN Alternate', 'Franklin Gothic Medium', 'Liberation Sans Narrow', 'Arial Narrow', system-ui,
     sans-serif;
   --font-body: 'Gill Sans', 'Trebuchet MS', 'Segoe UI', 'Noto Sans', 'Liberation Sans', system-ui, sans-serif;
-  --font-mono: 'Courier New', Courier, 'Liberation Mono', ui-monospace, monospace;
+  --font-mono:
+    ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Courier New', Courier, 'Liberation Mono', monospace;
   --font-numeric: 'DSEG7 Classic', 'Cascadia Mono', 'Consolas', 'Courier New', ui-monospace, monospace;
-
-  --text-xs: clamp(0.75rem, 0.726rem + 0.109vw, 0.8125rem);
-  --text-sm: clamp(0.875rem, 0.851rem + 0.109vw, 0.9375rem);
-  --text-base: clamp(1rem, 0.951rem + 0.217vw, 1.125rem);
-  --text-lg: clamp(1.125rem, 1.052rem + 0.326vw, 1.3125rem);
-  --text-xl: clamp(1.3125rem, 1.19rem + 0.543vw, 1.625rem);
-  --text-2xl: clamp(1.5625rem, 1.342rem + 0.978vw, 2.125rem);
-  --text-3xl: clamp(1.875rem, 1.435rem + 1.957vw, 3rem);
 
   --radius-sm: 0rem;
   --radius-md: 0.125rem;
@@ -69,20 +65,6 @@ html[data-era='1970s'] {
   --shadow-sm: 0 2px 0 #1a191726, inset 0 1px 0 #ffffffb3;
   --shadow-md: 0 3px 0 #1a191733, 0 4px 8px #1a19171f;
   --shadow-stage: 0 24px 36px -16px #1a191773, 0 4px 0 #1a191733;
-
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-  --space-7: 3rem;
-  --space-8: 4rem;
-
-  --stage-perspective: 1100px;
-  --stage-gap: 1.5rem;
-  --stage-tilt: 42deg;
-  --stage-scale-side: 0.82;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -96,14 +78,14 @@ html[data-era='1970s'] {
     --color-text-muted: #a8a396;
     --color-text-inverse: #141513;
 
-    --color-accent: #ff6b57;
-    --color-accent-contrast: #1a0604;
+    --color-accent: #ff4d6d;
+    --color-accent-contrast: #1a0408;
     --color-border: #5c6158;
-    --color-focus: #ffb020;
+    --color-focus: #66b8ff;
 
     --color-state-ok: #4cc76e;
     --color-state-warn: #f0a830;
-    --color-state-alarm: #ff5449;
+    --color-state-alarm: #ff7a33;
 
     --shadow-sm: 0 2px 0 #00000099, inset 0 1px 0 #ffffff1a;
     --shadow-md: 0 3px 0 #000000b3, 0 6px 12px #00000080;
@@ -121,14 +103,14 @@ html[data-era='1970s'][data-theme='dark'] {
   --color-text-muted: #a8a396;
   --color-text-inverse: #141513;
 
-  --color-accent: #ff6b57;
-  --color-accent-contrast: #1a0604;
+  --color-accent: #ff4d6d;
+  --color-accent-contrast: #1a0408;
   --color-border: #5c6158;
-  --color-focus: #ffb020;
+  --color-focus: #66b8ff;
 
   --color-state-ok: #4cc76e;
   --color-state-warn: #f0a830;
-  --color-state-alarm: #ff5449;
+  --color-state-alarm: #ff7a33;
 
   --shadow-sm: 0 2px 0 #00000099, inset 0 1px 0 #ffffff1a;
   --shadow-md: 0 3px 0 #000000b3, 0 6px 12px #00000080;
@@ -141,7 +123,7 @@ html[data-era='1970s'][data-theme='dark'] {
     position: fixed;
     inset: 0;
     pointer-events: none;
-    z-index: 9999;
+    z-index: -1;
     background: repeating-linear-gradient(0deg, transparent 0px, transparent 3px, #00000008 3px, #00000008 4px);
   }
 }
