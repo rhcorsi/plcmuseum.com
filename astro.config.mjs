@@ -95,17 +95,26 @@ async function collectCspHashes(dir) {
  * - removes the fixture pages under /dev, which exist for component work only (docs/DESIGN_SYSTEM.md section 7),
  *   and every asset no remaining page reaches;
  * - writes csp.json, the island hashes the Worker adds to its Content-Security-Policy header;
- * - with PLCMUSEUM_E2E_FIXTURES=1 (the e2e job only), adds the test page /e2e/islands.
+ * - with PLCMUSEUM_E2E_FIXTURES=1 (the e2e job only), adds one test page per tests/e2e/fixtures/*.astro under /e2e/.
  * @returns {import('astro').AstroIntegration}
  */
 function siteBuild() {
   return {
     name: 'plcmuseum:build',
     hooks: {
-      'astro:config:setup': ({ injectRoute, logger }) => {
+      'astro:config:setup': async ({ injectRoute, logger }) => {
         if (process.env.PLCMUSEUM_E2E_FIXTURES !== '1') return;
-        injectRoute({ pattern: '/e2e/islands', entrypoint: './tests/e2e/fixtures/islands.astro' });
-        logger.warn('PLCMUSEUM_E2E_FIXTURES=1: the test page /e2e/islands is included; never deploy this build');
+        // One test page per .astro file in tests/e2e/fixtures/, so an island task adds its page without editing config.
+        // Helper components in that folder are .tsx or .ts (HydrationProbe.tsx), never .astro.
+        const names = (await readdir(new URL('./tests/e2e/fixtures/', import.meta.url)))
+          .filter((file) => file.endsWith('.astro'))
+          .map((file) => file.slice(0, -'.astro'.length));
+        for (const name of names) {
+          injectRoute({ pattern: `/e2e/${name}`, entrypoint: `./tests/e2e/fixtures/${name}.astro` });
+        }
+        logger.warn(
+          `PLCMUSEUM_E2E_FIXTURES=1: test pages ${names.map((name) => `/e2e/${name}`).join(', ')} are included; never deploy this build`,
+        );
       },
       'astro:build:done': async ({ dir, logger }) => {
         const info = { build: gitSha(), date: new Date().toISOString() };

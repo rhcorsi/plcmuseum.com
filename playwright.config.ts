@@ -1,7 +1,7 @@
 // Two servers, two kinds of tests:
 // - "pages": `astro dev` (drafts and /dev fixture pages included) for page structure, components and fixtures;
 // - "edge": `wrangler dev` over the production build in dist/ for what only the Worker does (redirect, headers,
-//   /api, 404 pages, islands under the CSP). Build first with the e2e fixture page /e2e/islands added, as CI does:
+//   /api, 404 pages, islands under the CSP). Build first with the e2e test pages under /e2e/ added (one per tests/e2e/fixtures/*.astro), as CI does:
 //   PLCMUSEUM_E2E_FIXTURES=1 pnpm build
 import { defineConfig, devices } from '@playwright/test';
 

@@ -218,6 +218,8 @@ const CONTRAST_PAIRS: [string, string, number][] = [
   ['accent', 'surface', 4.5],
   ['focus', 'bg', 3],
   ['focus', 'surface', 3],
+  // The header background: the focus ring of every header control (Era style switch, language links) sits on it.
+  ['focus', 'bg-elevated', 3],
   ['state-ok', 'bg', 3],
   ['state-warn', 'bg', 3],
   ['state-alarm', 'bg', 3],

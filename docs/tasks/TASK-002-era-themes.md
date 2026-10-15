@@ -1,4 +1,4 @@
-status: ready
+status: in_review
 id: TASK-002
 title: Five era themes over the token contract
 assignee: gemini

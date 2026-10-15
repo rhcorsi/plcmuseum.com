@@ -6,6 +6,7 @@ import { DECADES, storySchema } from '../../src/content/schemas';
 import type { FieldStory } from '../../src/content/types';
 import { fixtureExhibits } from '../../src/fixtures/exhibits';
 import { fixtureStories } from '../../src/fixtures/stories';
+import { fixtureTimelineItems } from '../../src/fixtures/timeline';
 import { eraForDecade } from '../../src/lib/era';
 import { ajvStory } from './ajv';
 
@@ -37,6 +38,28 @@ describe('fixtureExhibits', () => {
 
   it('uses only the fictional manufacturers', () => {
     for (const card of fixtureExhibits) expect(FICTIONAL_MANUFACTURERS, card.id).toContain(card.manufacturer);
+  });
+
+  it('is in the stage order, oldest first', () => {
+    const years = fixtureExhibits.map((card) => card.year);
+    expect(years).toEqual([...years].sort((a, b) => a - b));
+  });
+});
+
+describe('fixtureTimelineItems', () => {
+  it('lists the fixture exhibits in the same order', () => {
+    expect(fixtureTimelineItems.map((item) => item.id)).toEqual(fixtureExhibits.map((card) => card.id));
+  });
+
+  it('takes name, yearLabel and decade from each card', () => {
+    fixtureTimelineItems.forEach((item, index) => {
+      const card = fixtureExhibits[index];
+      expect({ name: item.name, yearLabel: item.yearLabel, decade: item.decade }, item.id).toEqual({
+        name: card?.name,
+        yearLabel: card?.yearLabel,
+        decade: card?.decade,
+      });
+    });
   });
 });
 

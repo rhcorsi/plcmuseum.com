@@ -1,10 +1,14 @@
 ---
-// Document shell for every page: <html lang data-era>, head metadata, hreflang alternates, the one stylesheet.
-// No author-written inline scripts or styles anywhere below: the Worker sends `script-src 'self'; style-src 'self'`,
-// plus build-time hashes for Astro's own island scripts and style only (docs/adr/0010-csp-hashes-for-islands.md).
+// Document shell for every page: <html lang data-era data-page-era>, head metadata, hreflang alternates, the one
+// stylesheet. No author-written inline scripts or styles anywhere below: the Worker sends `script-src 'self';
+// style-src 'self'`, plus build-time hashes for Astro's own island scripts and style only
+// (docs/adr/0010-csp-hashes-for-islands.md).
+// /prefs.js comes first in <head> and is classic, render-blocking and same-origin on purpose (ADR-0012): it applies
+// the stored Era UI choice and follows the remembered language before first paint. `is:inline` only keeps Astro from
+// bundling it into a deferred module; with `src` it is still an external script.
 import '../styles/global.css';
 import { DEFAULT_LANG, LANG_TAGS, LANGS, type Lang, localizedPath, t } from '../i18n/utils';
-import { type EraAttribute, MUSEUM_ERA } from '../lib/era';
+import { type EraAttribute, type EraTheme, MUSEUM_ERA } from '../lib/era';
 import { currentStage } from '../lib/stage';
 
 interface Props {
@@ -19,6 +23,8 @@ interface Props {
   path: string | null;
   /** Era UI theme; "museum" (Era UI off) unless a fixture page asks for an era. */
   era?: EraAttribute;
+  /** Era this page wears while Era UI is on (ERA_HOOKS.page); omit, or pass null, on pages without one. */
+  pageEra?: EraTheme | null;
   /** Forces a color scheme (fixture pages and screenshots); by default the OS preference applies. */
   theme?: 'light' | 'dark';
   noindex?: boolean;
@@ -30,6 +36,7 @@ const {
   description = t(lang, 'meta.description'),
   path,
   era = MUSEUM_ERA,
+  pageEra = null,
   theme,
   noindex = false,
 } = Astro.props;
@@ -50,10 +57,11 @@ const robots = noindex || currentStage() !== 'production' ? 'noindex, nofollow' 
 ---
 
 <!doctype html>
-<html lang={LANG_TAGS[lang]} dir="ltr" data-era={era} data-theme={theme}>
+<html lang={LANG_TAGS[lang]} dir="ltr" data-era={era} data-page-era={pageEra ?? undefined} data-theme={theme}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script is:inline src="/prefs.js"></script>
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <meta name="color-scheme" content="light dark" />

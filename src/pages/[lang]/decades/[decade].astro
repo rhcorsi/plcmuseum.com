@@ -1,6 +1,7 @@
 ---
 // One page per decade and language, all seven decades always built (an empty decade still has a page, so the
-// decade navigation never leads to a 404).
+// decade navigation never leads to a 404). Its page era is the decade's, with or without exhibits: no stage island
+// runs here, and one exhibit's era_theme_override must not reskin the whole decade.
 import EmptyState from '../../../components/EmptyState.astro';
 import StageList from '../../../components/StageList.astro';
 import { getVisibleExhibits } from '../../../content/queries';
@@ -8,6 +9,7 @@ import { DECADES } from '../../../content/schemas';
 import type { Decade } from '../../../content/types';
 import { type Lang, LANG_TAGS, LANGS, localizedPath, t } from '../../../i18n/utils';
 import Page from '../../../layouts/Page.astro';
+import { eraForDecade } from '../../../lib/era';
 import { toExhibitCard } from '../../../lib/exhibit-card';
 
 export function getStaticPaths() {
@@ -29,7 +31,7 @@ const intro = t(lang, 'decade.intro', { decade: label });
 const heading = label.charAt(0).toLocaleUpperCase(LANG_TAGS[lang]) + label.slice(1);
 ---
 
-<Page lang={lang} title={heading} description={intro} path={`/decades/${decade}`}>
+<Page lang={lang} title={heading} description={intro} path={`/decades/${decade}`} pageEra={eraForDecade(decade)}>
   <section class="intro">
     <h1>{heading}</h1>
     <p>{intro}</p>
