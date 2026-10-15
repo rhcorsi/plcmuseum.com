@@ -1,0 +1,86 @@
+---
+// Site footer: museum pages, contact, repository, the nominative-use notice (docs/CONTENT_GUIDE.md section 3)
+// and the licenses.
+import { type Lang, localizedPath, t } from '../i18n/utils';
+import { CONTACT_EMAIL, REPOSITORY_URL } from './site';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const links = [
+  { path: '/about', label: t(lang, 'nav.about') },
+  { path: '/privacy', label: t(lang, 'nav.privacy') },
+  { path: '/credits', label: t(lang, 'nav.credits') },
+  { path: '/contribute', label: t(lang, 'nav.contribute') },
+];
+---
+
+<footer class="site-footer">
+  <div class="inner">
+    <nav aria-label={t(lang, 'nav.footer')}>
+      <ul>
+        {links.map((link) => (
+          <li>
+            <a href={localizedPath(lang, link.path)}>{link.label}</a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+    <p>
+      {t(lang, 'footer.contact')} <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+    </p>
+    <p>
+      <a href={REPOSITORY_URL}>{t(lang, 'footer.repository')}</a>
+    </p>
+    <p class="fine">{t(lang, 'footer.nominative')}</p>
+    <p class="fine">{t(lang, 'footer.license')}</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-block-start: var(--space-8);
+    background: var(--color-bg-elevated);
+    border-block-start: var(--border-width) solid var(--color-border);
+  }
+
+  .inner {
+    display: grid;
+    gap: var(--space-3);
+    max-inline-size: 72rem;
+    margin-inline: auto;
+    padding: var(--space-6) var(--space-4);
+    font-size: var(--text-sm);
+  }
+
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    color: var(--color-text);
+    text-decoration: underline;
+    text-decoration-color: var(--color-accent);
+    text-underline-offset: 0.2em;
+  }
+
+  .fine {
+    max-inline-size: 65ch;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+  }
+</style>

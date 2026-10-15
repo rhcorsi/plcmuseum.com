@@ -1,0 +1,38 @@
+---
+// What the museum is, its sourcing and licensing principles, and its independence from manufacturers.
+import Prose from '../../components/Prose.astro';
+import { CONTACT_EMAIL } from '../../components/site';
+import { type Lang, LANGS, t } from '../../i18n/utils';
+import Page from '../../layouts/Page.astro';
+
+export function getStaticPaths() {
+  return LANGS.map((lang) => ({ params: { lang }, props: { lang } }));
+}
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+---
+
+<Page lang={lang} title={t(lang, 'about.title')} path="/about">
+  <Prose>
+    <h1>{t(lang, 'about.title')}</h1>
+    <p class="lead">{t(lang, 'about.lead')}</p>
+    <p>{t(lang, 'about.audience')}</p>
+
+    <h2>{t(lang, 'about.sources_title')}</h2>
+    <p>{t(lang, 'about.sources_body')}</p>
+
+    <h2>{t(lang, 'about.licenses_title')}</h2>
+    <p>{t(lang, 'about.licenses_body')}</p>
+
+    <h2>{t(lang, 'about.independent_title')}</h2>
+    <p>{t(lang, 'about.independent_body')}</p>
+
+    <p>
+      {t(lang, 'about.contact')} <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+    </p>
+  </Prose>
+</Page>

@@ -43,7 +43,7 @@ plcmuseum/
 │   ├── images/<exhibit-id>/<file>.{jpg,png,svg} + <file>.meta.json
 │   └── glossary.json                 technical jargon per language
 ├── src/
-│   ├── content/config.ts             collections + Zod (mirrors JSON Schema)
+│   ├── content.config.ts             collections (Zod mirror in content/schemas.ts)
 │   ├── content/types.ts              generated from schemas (json-schema-to-typescript)
 │   ├── fixtures/                     typed sample data for components and tests
 │   ├── i18n/{pt,en,es,de,it}.json    UI strings
@@ -85,14 +85,14 @@ plcmuseum/
 
 Rules enforced by the validator: ids unique and equal to file names; `review_status: published` requires `verification.level: verified`, empty `unverified_fields`, at least one source, at least one image with a valid license, `text.pt` and `text.en` present and `verified`; every image referenced has a meta file whose license is in the allowlist.
 
-**Story** (shape in `content/schema/story.schema.json`, stored in D1, never in git): `exhibit_id`, `display_name`, `role`, `country`, `original_lang`, `year_of_memory`, `text` (≤ 1500 chars), `consent` (display_name, license, machine_translation), `status`, `submitted_at`, `approved_at`. At deploy time `pnpm stories:fetch` writes approved rows to the gitignored `content/stories/` cache; contributors and fork builds use `src/fixtures/stories.ts`. Translations are generated at build time into `translations.<lang>` and are always labeled as machine translation. Removal is a row delete plus a redeploy (ADR-0008).
+**Story** (shape in `content/schema/story.schema.json`, stored in D1, never in git): `exhibit_id`, `display_name`, `role`, `country`, `original_lang`, `year_of_memory`, `text` (≤ 1500 chars), `consent` (display_name, license, machine_translation), `status`, `submitted_at`, `approved_at`. At deploy time `pnpm stories:fetch` writes approved rows to the gitignored `content/stories/` cache; fictional `src/fixtures/stories.ts` fill in only for development builds (`src/content/queries.ts`), never for preview or production. Translations are generated at build time into `translations.<lang>` and are always labeled as machine translation. Removal is a row delete plus a redeploy (ADR-0008).
 
 **Glossary** (`content/glossary.json`): term → per-language jargon (PLC/CLP/SPS, DCS/SDCD/PLS, LD/KOP, IL/AWL, FBD/FUP, ST/SCL, scan time/Zykluszeit...). Used by the translation skill and by the UI.
 
 ## 6. Build pipeline
 
 1. `node scripts/check-public-safety.mjs` and `pnpm validate:content` (Ajv + rules) must pass.
-1b. Deploy pipeline only: `pnpm stories:fetch` pulls approved stories from D1 into the gitignored cache (skipped when the token is absent; the build then uses fixtures).
+1b. Deploys only (`.github/workflows/deploy.yml`, or the owner's `pnpm deploy:preview|deploy:prod` through `scripts/deploy.mjs`): `pnpm stories:fetch` pulls approved stories from D1 into the gitignored cache before `pnpm validate:content` runs, so the cache is validated too. It fails with a clear message when `CLOUDFLARE_API_TOKEN` is absent (contributor and fork builds simply do not run it). Until Phase 3 it writes an empty cache, so preview and production show no stories rather than fixtures.
 2. `pnpm gen:types` regenerates `src/content/types.ts` from the schemas (committed, diff reviewed).
 3. `pnpm images:process` creates AVIF/WebP variants (320 to 1600 px) and cut-outs for the stage from licensed originals; outputs are build artifacts, not committed (cached in CI).
 4. `astro build` renders every page for every language: `/{lang}/`, `/{lang}/exhibits/{slug}`, `/{lang}/decades/{decade}`, plus `/` redirecting by `Accept-Language` at the edge (Worker) with a cookieless fallback to `/en/`.
@@ -101,11 +101,11 @@ Rules enforced by the validator: ids unique and equal to file names; `review_sta
 
 ## 7. Runtime (Cloudflare)
 
-- One Worker (`wrangler.jsonc`): `assets` binding serves `dist/` with `not_found_handling: "404-page"`; the fetch handler adds security headers to every response, handles `/` language redirect, and routes `/api/*`.
+- One Worker (`wrangler.jsonc`): `assets` binding serves `dist/` with `not_found_handling: "404-page"` (the nearest `<lang>/404.html`) and `run_worker_first: true`, so the fetch handler sees every request: it adds the security headers of `worker/src/security-headers.ts` to every response, handles the `/` language redirect, and routes `/api/*`. No Node compatibility flag; the daily cron trigger is enabled in Phase 3 with the retention job.
 - `POST /api/stories`: JSON body validated with Zod (mirrors `story.schema.json`), Turnstile token verified server-side, per-IP rate limit (Cloudflare Rate Limiting rule plus a D1 `ip_hash` with a daily salt), HTML stripped, inserted with `status = 'pending'`. Returns `202` and a thank-you id. Nothing is readable through the API.
-- `GET /api/health`: build id and date, no secrets.
+- `GET /api/health`: build id and date read from `build.json`, which the build integration in `astro.config.mjs` writes; no secrets, no DB.
 - D1 database `plcmuseum-stories`. Moderation is done by the owner through `pnpm stories:moderate` (lists pending, approves or rejects by id directly in D1); the next deploy fetches approved stories at build time. Nothing about stories is committed to git. No admin UI in the MVP.
-- Cloudflare Web Analytics (cookieless) on the site; Workers logs for the API.
+- Analytics: none yet (docs/SECURITY.md 3.1: Cloudflare Web Analytics needs an ADR that adds its origins to the CSP). Workers Logs keep exceptions only (invocation logs off).
 - Environments: `local` (wrangler dev + miniflare D1), `preview` (`preview.plcmuseum.com` behind Cloudflare Access, deployed from any branch on demand), `production` (`plcmuseum.com` and `www`, deployed from `main` by the owner, later by CI once Phase 3 closes).
 
 ## 8. Era UI contract
@@ -114,7 +114,7 @@ Rules enforced by the validator: ids unique and equal to file names; `review_sta
 
 ## 9. Cover Flow contract
 
-`CoverFlow` island receives `exhibits: ExhibitCard[]` (id, slug, name, year, decade, image set, tagline) and `initialId`. It renders a horizontally navigable stage (CSS 3D transforms, scroll-snap, keyboard arrows, touch), emits `onCenterChange(id)`, and degrades to a vertical list when `prefers-reduced-motion` is set or JS is unavailable (the list is server-rendered first; the island enhances it). No WebGL.
+`CoverFlow` island receives `CoverFlowProps` (`src/islands/contracts.ts`: the `ExhibitCard` list, the id of the StageList it enhances, `initialId`, `lang`, `eraUiEnabled` and its labels). It renders a horizontally navigable stage (CSS 3D transforms, scroll-snap, keyboard arrows, touch), emits `onCenterChange(id)`, and degrades to a vertical list when `prefers-reduced-motion` is set or JS is unavailable (the list is server-rendered first; the island enhances it). No WebGL.
 
 ## 10. Scaling and performance
 
@@ -122,8 +122,8 @@ Static assets scale with Cloudflare's edge. Budgets: ≤ 150 KB gzip JS on home,
 
 ## 11. Observability
 
-Cloudflare Web Analytics for pages; Worker logs (`wrangler tail`) and a weekly `GET /api/health` check from a scheduled task; CI badges; Lighthouse CI job on PRs.
+Workers Logs (exceptions only) and `wrangler tail` while debugging; a weekly `GET /api/health` check from a scheduled task; CI badges. Planned: Cloudflare Web Analytics once an ADR adds it to the CSP, and a Lighthouse CI job on PRs.
 
 ## 12. Decisions
 
-See `docs/adr/README.md` (ADR-0001 to ADR-0006).
+See `docs/adr/README.md` (ADR-0001 to ADR-0010).

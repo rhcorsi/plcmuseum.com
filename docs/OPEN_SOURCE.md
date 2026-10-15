@@ -43,7 +43,8 @@ No repository-level secrets. No personal access tokens in Actions. No secrets in
 - [ ] Security: secret scanning + push protection on; Dependabot alerts and security updates on; private vulnerability reporting on.
 - [ ] Rulesets or branch protection on `main`: require PR, require CODEOWNERS review, require status checks (`checks`, `e2e`), linear history, block force pushes, block deletions. Optionally require signed commits.
 - [ ] Actions: "Require approval for all outside collaborators"; workflow permissions default read-only; allow only verified actions or pin by SHA.
-- [ ] Environments `preview` and `production` with required reviewer (the owner) and the two secrets plus the account id variable.
+- [ ] Environments `preview` and `production` with required reviewer (the owner) and the two secrets plus the account id variable (`CLOUDFLARE_ACCOUNT_ID`, an environment variable, not a secret). `production`: "Deployment branches and tags: selected branches, `main` only" (the `if:` in `deploy.yml` is only a reminder; this rule is the control).
+- [ ] Approving a `preview` deploy run means first reviewing that branch's changes to `scripts/`, `package.json` and `pnpm-lock.yaml`: that code runs with the account-wide Cloudflare token.
 - [ ] Maintainer account: hardware-key 2FA; "Keep my email addresses private" and "Block command line pushes that expose my email" on; commits authored with the `users.noreply.github.com` address.
 - [ ] Issues on, wiki off, discussions optional.
 

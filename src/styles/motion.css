@@ -1,0 +1,28 @@
+/*
+ * Motion policy (docs/DESIGN_SYSTEM.md section 4). The museum durations and easings live in tokens.css; global.css
+ * imports this file right after it, inside the same @layer tokens, so the rules below win over tokens.css.
+ */
+
+/*
+ * Era motion (TASK-002, owner Gemini): era-specific values for --motion-fast, --motion-base, --motion-slow,
+ * --motion-stage, --motion-ease and --motion-ease-stage go here, never in themes/*.css. The themes are unlayered,
+ * so a motion value there would beat the reduced-motion block at the end of this file. One rule per era, e.g.
+ *
+ *   html[data-era='1980s'] {
+ *     --motion-ease: steps(4, end);
+ *   }
+ */
+
+/*
+ * Reduced motion: keep this block last. Stage moves (Cover Flow travel, exhibit transitions) become instant, while
+ * the short UI fades (--motion-fast to --motion-slow) stay, because a 150 ms opacity change is not the vestibular
+ * trigger that a 750 ms 3D travel is. There is no global animation kill switch on purpose: every component still
+ * ships its own reduced variant (crossfade or instant, flat list instead of the 3D stage).
+ * :root[data-era] (0,2,0) outranks the era rules above, html[data-era='...'] (0,1,1), whatever their order.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  :root[data-era] {
+    --motion-stage: 0ms;
+  }
+}

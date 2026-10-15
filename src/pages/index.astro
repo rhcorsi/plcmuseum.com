@@ -1,0 +1,39 @@
+---
+// Language chooser at "/". In production the Worker redirects "/" by Accept-Language before this file is ever
+// served, so it is only seen without the Worker (astro dev, a plain static host).
+import LanguageChooser from '../components/LanguageChooser.astro';
+import { t } from '../i18n/utils';
+import Base from '../layouts/Base.astro';
+
+const siteName = t('en', 'site.name');
+---
+
+<Base lang="en" title={siteName} path={null} noindex>
+  <main id="main" tabindex="-1">
+    <h1>{siteName}</h1>
+    <p>{t('en', 'chooser.title')}</p>
+    <LanguageChooser />
+  </main>
+</Base>
+
+<style>
+  main {
+    display: grid;
+    gap: var(--space-4);
+    max-inline-size: 48rem;
+    margin-inline: auto;
+    padding: var(--space-8) var(--space-4);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+  }
+
+  p {
+    margin: 0;
+    font-size: var(--text-lg);
+    color: var(--color-text-muted);
+  }
+</style>

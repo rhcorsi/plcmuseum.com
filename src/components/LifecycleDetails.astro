@@ -1,0 +1,24 @@
+---
+// The "still running in your plant" block (docs/CONTENT_GUIDE.md section 1): last firmware, migration paths and
+// the in-service note. Discontinuation and end of support sit in SpecGrid's lifecycle group.
+import type { Exhibit } from '../content/types';
+import { type Lang, t } from '../i18n/utils';
+import FactList from './FactList.astro';
+import { factFormatter } from './facts';
+
+interface Props {
+  lang: Lang;
+  exhibit: Exhibit;
+}
+
+const { lang, exhibit } = Astro.props;
+const { lifecycle } = exhibit;
+const f = factFormatter(lang, exhibit);
+const rows = [
+  f.row(t(lang, 'lifecycle.last_firmware'), 'lifecycle.last_firmware', lifecycle.last_firmware),
+  f.row(t(lang, 'lifecycle.migration'), 'lifecycle.migration_paths', f.list(lifecycle.migration_paths)),
+  f.row(t(lang, 'lifecycle.still_in_service'), 'lifecycle.still_in_service_note', lifecycle.still_in_service_note),
+];
+---
+
+<FactList lang={lang} rows={rows} />

@@ -1,0 +1,49 @@
+---
+// Fixture page for the CoverFlow island (docs/tasks/TASK-001-coverflow-island.md). Developer tooling, never
+// shipped: astro.config.mjs deletes /dev from production builds, so the labels here are literal English instead
+// of src/i18n keys. The data is the fictional fixture set, never real content.
+//
+// ?era= and ?theme= are applied in the browser by FixtureSwitches (Astro strips the query string from prerendered pages).
+import FixtureSwitches from '../../components/dev/FixtureSwitches.astro';
+import StageList from '../../components/StageList.astro';
+import { fixtureExhibits, fixtureInitialId } from '../../fixtures/exhibits';
+import Base from '../../layouts/Base.astro';
+---
+
+<Base lang="en" title="CoverFlow fixture" path={null} noindex>
+  <main id="main" tabindex="-1">
+    <h1>CoverFlow fixture</h1>
+    <p>12 fictional exhibits across the decades, two of them without a photo (silhouettes).</p>
+
+    <FixtureSwitches page="/dev/coverflow" />
+
+    {/*
+     * TASK-001 (Codex) mounts the island here, next to the server-rendered list below (StageList's id is "stage"):
+     *   <CoverFlow client:visible exhibits={fixtureExhibits} listId="stage" initialId={fixtureInitialId} lang="en"
+     *     eraUiEnabled labels={{ prev: t('en', 'stage.prev'), next: t('en', 'stage.next'), open: t('en', 'stage.open') }} />
+     * The island drives that list instead of rendering a second one; without JS or under reduced motion it stays as is.
+     */}
+    <StageList exhibits={fixtureExhibits} lang="en" initialId={fixtureInitialId} label="Fixture exhibits" />
+  </main>
+</Base>
+
+<style>
+  main {
+    display: grid;
+    gap: var(--space-4);
+    max-inline-size: 72rem;
+    margin-inline: auto;
+    padding: var(--space-6) var(--space-4);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+  }
+
+  p {
+    margin: 0;
+    color: var(--color-text-muted);
+  }
+</style>

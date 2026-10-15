@@ -1,0 +1,37 @@
+---
+// How to help before the field-story form exists (Phase 3): everything goes through the public repository.
+import Prose from '../../components/Prose.astro';
+import { CONTACT_EMAIL, CONTRIBUTING_URL } from '../../components/site';
+import { type Lang, LANGS, t } from '../../i18n/utils';
+import Page from '../../layouts/Page.astro';
+
+export function getStaticPaths() {
+  return LANGS.map((lang) => ({ params: { lang }, props: { lang } }));
+}
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+---
+
+<Page lang={lang} title={t(lang, 'contribute.title')} path="/contribute">
+  <Prose>
+    <h1>{t(lang, 'contribute.title')}</h1>
+    <p class="lead">{t(lang, 'contribute.lead')}</p>
+    <p>{t(lang, 'contribute.later')}</p>
+    <ul>
+      <li>{t(lang, 'contribute.exhibits')}</li>
+      <li>{t(lang, 'contribute.corrections')}</li>
+      <li>{t(lang, 'contribute.photos')}</li>
+      <li>{t(lang, 'contribute.translations')}</li>
+    </ul>
+    <p class="cta">
+      <a href={CONTRIBUTING_URL}>{t(lang, 'contribute.guide')}</a>
+    </p>
+    <p>
+      {t(lang, 'contribute.email')} <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+    </p>
+  </Prose>
+</Page>

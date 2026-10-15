@@ -31,7 +31,7 @@ An open, free, multilingual (pt, en, es, de, it) interactive visual timeline of 
 
 ## Stack (change only through an ADR in `docs/adr/`)
 
-- Astro 5 (static output), TypeScript strict, React islands only where interactivity is required, Tailwind v4 consuming `tokens.css`, `motion` (ex Framer Motion) allowed only inside islands. CSS 3D transforms for the Cover Flow. No WebGL/Three.js in the MVP (ADR-0003).
+- Astro 7 (static output; ADR-0009), TypeScript strict, React islands only where interactivity is required, Tailwind v4 consuming `tokens.css`, `motion` (ex Framer Motion) allowed only inside islands. CSS 3D transforms for the Cover Flow. No WebGL/Three.js in the MVP (ADR-0003).
 - Cloudflare Workers with static assets (`dist/`), D1 for story submissions, Turnstile on the form, Cloudflare Web Analytics (cookieless), Cloudflare Access on the preview hostname.
 - Tooling: pnpm, ESLint (flat config), Prettier, Vitest, Playwright, Ajv (schema validation), Wrangler, GitHub Actions, gitleaks.
 

@@ -1,0 +1,27 @@
+---
+// Localized 404: built as dist/<lang>/404.html, which the Worker's assets binding serves for any missing path
+// under /<lang>/ (wrangler.jsonc not_found_handling "404-page").
+import Prose from '../../components/Prose.astro';
+import { type Lang, LANGS, localizedPath, t } from '../../i18n/utils';
+import Page from '../../layouts/Page.astro';
+
+export function getStaticPaths() {
+  return LANGS.map((lang) => ({ params: { lang }, props: { lang } }));
+}
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+---
+
+<Page lang={lang} title={t(lang, 'notfound.title')} path={null} noindex>
+  <Prose>
+    <h1>{t(lang, 'notfound.title')}</h1>
+    <p class="lead">{t(lang, 'notfound.body')}</p>
+    <p>
+      <a href={localizedPath(lang)}>{t(lang, 'notfound.home')}</a>
+    </p>
+  </Prose>
+</Page>

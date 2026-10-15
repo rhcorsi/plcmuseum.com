@@ -1,0 +1,44 @@
+---
+// The five language homes by endonym, for the pages that exist outside any language (root chooser, root 404).
+import { LANG_TAGS, LANGS, localizedPath, t } from '../i18n/utils';
+---
+
+<ul class="chooser">
+  {LANGS.map((code) => (
+    <li>
+      <a href={localizedPath(code)} hreflang={LANG_TAGS[code]} lang={LANG_TAGS[code]}>
+        {t(code, `lang.${code}`)}
+      </a>
+    </li>
+  ))}
+</ul>
+
+<style>
+  .chooser {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    gap: var(--space-3);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-block-size: 4rem;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    color: var(--color-text);
+    text-decoration: none;
+    background: var(--color-bg-elevated);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+
+  a:hover {
+    background: var(--color-surface-hover);
+  }
+</style>

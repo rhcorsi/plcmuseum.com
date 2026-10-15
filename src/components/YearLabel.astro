@@ -1,0 +1,23 @@
+---
+// Year of introduction as the visitor reads it. "approximate" and "disputed" years always carry the localized
+// "approx." label (docs/CONTENT_GUIDE.md section 2: never pick one date silently).
+import type { Lang } from '../i18n/utils';
+import type { ExhibitCard } from '../islands/contracts';
+import { yearLabelFor } from '../lib/exhibit-card';
+
+interface Props {
+  lang: Lang;
+  year: number;
+  precision: ExhibitCard['yearPrecision'];
+  id?: string;
+  class?: string;
+}
+
+const { lang, year, precision, id, class: className } = Astro.props;
+// Same text as ExhibitCard.yearLabel. Digits only: Intl grouping would print 1986 as "1.986" in German.
+const label = yearLabelFor(lang, year, precision);
+---
+
+<span id={id} class={className}>
+  {label}
+</span>

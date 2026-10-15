@@ -1,0 +1,44 @@
+---
+// What a list shows when no exhibit is on display yet (the production home today: only drafts exist).
+interface Props {
+  message: string;
+  href: string;
+  cta: string;
+}
+
+const { message, href, cta } = Astro.props;
+---
+
+<div class="empty">
+  <p>{message}</p>
+  <a href={href}>{cta}</a>
+</div>
+
+<style>
+  .empty {
+    display: grid;
+    gap: var(--space-3);
+    justify-items: start;
+    padding: var(--space-6);
+    background: var(--color-surface);
+    border: var(--border-width) dashed var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+
+  p {
+    margin: 0;
+    max-inline-size: 60ch;
+    line-height: 1.5;
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    padding-inline: var(--space-4);
+    color: var(--color-accent-contrast);
+    text-decoration: none;
+    background: var(--color-accent);
+    border-radius: var(--radius-md);
+  }
+</style>

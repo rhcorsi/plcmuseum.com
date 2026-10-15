@@ -1,0 +1,23 @@
+# Prettier formats code. Content, docs and workflow files keep the shape their authors gave them;
+# the content validator, not a formatter, is the gate for content/.
+node_modules/
+dist/
+.astro/
+.wrangler/
+playwright-report/
+test-results/
+pnpm-lock.yaml
+prototypes/
+content/
+docs/
+.github/
+.claude/
+*.md
+src/content/types.ts
+worker/worker-configuration.d.ts
+src/fixtures/media/
+public/
+wrangler.jsonc
+
+# CI artifact written by gitleaks-action into the workspace (SARIF report)
+results.sarif

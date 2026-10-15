@@ -1,0 +1,11 @@
+# LF in every checkout, whatever core.autocrlf says: Prettier checks line endings, and the pre-commit hook is a
+# shell script that breaks with CRLF.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff2 binary

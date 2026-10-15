@@ -1,0 +1,127 @@
+---
+// Links to the seven decade pages, always all seven (every decade page is built, even an empty one).
+import { DECADES } from '../content/schemas';
+import type { Decade } from '../content/types';
+import { type Lang, localizedPath, t } from '../i18n/utils';
+
+interface Props {
+  lang: Lang;
+  /** Accessible name of the navigation; two DecadeSelectors on one page need different names. */
+  label: string;
+  current?: Decade;
+  /** "bar": compact row for the header; "grid": large tiles for the home page. */
+  layout?: 'bar' | 'grid';
+}
+
+const { lang, label, current, layout = 'bar' } = Astro.props;
+---
+
+<nav class:list={['decades', layout]} aria-label={label}>
+  {layout === 'bar' && (
+    <span class="caption" aria-hidden="true">
+      {label}
+    </span>
+  )}
+  <ul>
+    {DECADES.map((decade) => (
+      <li>
+        <a href={localizedPath(lang, `/decades/${decade}`)} aria-current={decade === current ? 'page' : undefined}>
+          {t(lang, `decade.${decade}`)}
+        </a>
+      </li>
+    ))}
+  </ul>
+</nav>
+
+<style>
+  .decades {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .caption {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    padding-inline: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    text-decoration: none;
+    border: var(--border-width) solid transparent;
+    border-radius: var(--radius-sm);
+  }
+
+  a:hover {
+    background: var(--color-surface-hover);
+  }
+
+  a[aria-current='page'] {
+    color: var(--color-accent-contrast);
+    background: var(--color-accent);
+    /* Backgrounds disappear in forced-colors mode; the underline keeps the current decade visible. */
+    text-decoration: underline;
+    text-decoration-thickness: calc(var(--border-width) * 2);
+    text-underline-offset: 0.3em;
+  }
+
+  /* One row in the header even on phones: the list scrolls sideways instead of pushing the page down. */
+  .bar {
+    flex-wrap: nowrap;
+  }
+
+  .bar ul {
+    flex-wrap: nowrap;
+    min-inline-size: 0;
+    /* Room for the focus outline, which the scroll container would otherwise clip. */
+    padding: var(--space-1);
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .bar a {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .grid ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: var(--space-3);
+    inline-size: 100%;
+  }
+
+  .grid a {
+    justify-content: center;
+    inline-size: 100%;
+    min-block-size: 4.5rem;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    background: var(--color-bg-elevated);
+    border-color: var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .grid a:hover {
+    background: var(--color-surface-hover);
+  }
+</style>

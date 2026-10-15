@@ -1,0 +1,136 @@
+---
+// Top of an exhibit page: giant year watermark, the visual, name, tagline and identity facts. Brand names are
+// text only (CLAUDE.md, trademarks). The default slot sits right under the tagline, for the translation badge.
+import { LANG_TAGS, type Lang, t } from '../i18n/utils';
+import type { ExhibitCard } from '../islands/contracts';
+import ExhibitVisual from './ExhibitVisual.astro';
+import YearLabel from './YearLabel.astro';
+
+interface Props {
+  lang: Lang;
+  card: ExhibitCard;
+  /** Company that owns the brand today (exhibit.current_owner). */
+  currentOwner: string;
+  /** year_introduced is listed in verification.unverified_fields (drafts and reviews only; the publish gate forbids it). */
+  yearUnverified?: boolean;
+}
+
+const { lang, card, currentOwner, yearUnverified = false } = Astro.props;
+---
+
+<header class="hero">
+  {/* Decorative: the year is also in the facts below, and the watermark is digits only (docs/I18N.md). */}
+  <span class="watermark" aria-hidden="true">
+    {card.year}
+  </span>
+  <div class="media">
+    <ExhibitVisual card={card} lang={lang} sizes="(min-width: 64rem) 34rem, 100vw" eager />
+  </div>
+  <div class="text">
+    <h1>{card.name}</h1>
+    <p class="tagline" lang={LANG_TAGS[card.textLang]}>
+      {card.tagline}
+    </p>
+    <slot />
+    <dl class="identity">
+      <div>
+        <dt>{t(lang, 'exhibit.manufacturer')}</dt>
+        <dd>{card.manufacturer}</dd>
+      </div>
+      <div>
+        <dt>{t(lang, 'exhibit.current_owner')}</dt>
+        <dd>{currentOwner}</dd>
+      </div>
+      <div>
+        <dt>{t(lang, 'exhibit.introduced')}</dt>
+        <dd>
+          <YearLabel lang={lang} year={card.year} precision={card.yearPrecision} />
+          {yearUnverified && <span class="unverified">({t(lang, 'spec.unverified')})</span>}
+        </dd>
+      </div>
+    </dl>
+    {/* docs/CONTENT_GUIDE.md section 2: a disputed date is shown as approximate and the dispute is pointed out. */}
+    {card.yearPrecision === 'disputed' && <p class="dispute">{t(lang, 'year.disputed_note')}</p>}
+  </div>
+</header>
+
+<style>
+  .hero {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    gap: var(--space-6);
+    align-items: center;
+    padding-block: var(--space-6);
+    overflow: hidden;
+  }
+
+  .watermark {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+    z-index: -1;
+    font-family: var(--font-numeric);
+    font-size: calc(var(--text-3xl) * 4);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    color: var(--color-surface-hover);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .text {
+    display: grid;
+    gap: var(--space-4);
+    justify-items: start;
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    line-height: 1.1;
+  }
+
+  .tagline {
+    margin: 0;
+    max-inline-size: 40ch;
+    font-size: var(--text-lg);
+    line-height: 1.4;
+  }
+
+  .identity {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3) var(--space-6);
+    margin: 0;
+  }
+
+  dt {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  dd {
+    margin: 0;
+    font-size: var(--text-base);
+  }
+
+  @media (min-width: 64rem) {
+    .hero {
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    }
+  }
+
+  .unverified,
+  .dispute {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .unverified {
+    margin-inline-start: var(--space-1);
+  }
+</style>

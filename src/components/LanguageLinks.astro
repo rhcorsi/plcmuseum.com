@@ -1,0 +1,68 @@
+---
+// Static language switch: plain links to the same page in every language, readable without JS. The
+// LanguageSwitch island (docs/DESIGN_SYSTEM.md section 3) only adds remembering the choice on top of this.
+import { alternates, LANG_TAGS, LANGS, type Lang, t } from '../i18n/utils';
+
+interface Props {
+  lang: Lang;
+  /** Language-neutral path of the current page; null for pages without translations (404), which link to each home. */
+  path: string | null;
+}
+
+const { lang, path } = Astro.props;
+const hrefs = alternates(path ?? '/');
+// Without a path the current-language link leads home, not to this page, so it is only marked as the current language.
+const currentMark = path === null ? 'true' : 'page';
+---
+
+<nav class="languages" aria-label={t(lang, 'nav.languages')}>
+  <ul>
+    {LANGS.map((code) => (
+      <li>
+        <a
+          href={hrefs[code]}
+          hreflang={LANG_TAGS[code]}
+          lang={LANG_TAGS[code]}
+          aria-current={code === lang ? currentMark : undefined}
+        >
+          {t(lang, `lang.${code}`)}
+        </a>
+      </li>
+    ))}
+  </ul>
+</nav>
+
+<style>
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    padding-inline: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+  }
+
+  a:hover {
+    color: var(--color-text);
+    background: var(--color-surface-hover);
+  }
+
+  a[aria-current] {
+    color: var(--color-text);
+    text-decoration: underline;
+    text-decoration-color: var(--color-accent);
+    text-decoration-thickness: calc(var(--border-width) * 2);
+    text-underline-offset: 0.3em;
+  }
+</style>

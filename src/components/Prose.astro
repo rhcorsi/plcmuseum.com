@@ -1,0 +1,61 @@
+---
+// Reading layout for the short text pages (about, privacy, credits, contribute, 404). Styles reach the slotted
+// markup through :global, scoped under .prose so they never leak into other components.
+---
+
+<article class="prose">
+  <slot />
+</article>
+
+<style>
+  .prose {
+    display: grid;
+    gap: var(--space-4);
+    max-inline-size: 65ch;
+    line-height: 1.6;
+  }
+
+  .prose :global(h1) {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    line-height: 1.1;
+  }
+
+  .prose :global(h2) {
+    margin: var(--space-4) 0 0;
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    line-height: 1.2;
+  }
+
+  .prose :global(p) {
+    margin: 0;
+  }
+
+  .prose :global(.lead) {
+    font-size: var(--text-lg);
+  }
+
+  .prose :global(ul) {
+    display: grid;
+    gap: var(--space-2);
+    padding-inline-start: var(--space-5);
+    margin: 0;
+    list-style: disc;
+  }
+
+  .prose :global(a) {
+    color: var(--color-text);
+    text-decoration: underline;
+    text-decoration-color: var(--color-accent);
+    text-underline-offset: 0.2em;
+  }
+
+  /* A paragraph that is only a link: give it the 44 px touch target (links inside a sentence are exempt). */
+  .prose :global(.cta a) {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+  }
+</style>

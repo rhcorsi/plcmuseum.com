@@ -1,0 +1,897 @@
+---
+// Fixture page for the design tokens and the era themes (docs/DESIGN_SYSTEM.md section 7, docs/tasks/TASK-002).
+// Developer tooling, never shipped: astro.config.mjs deletes /dev from production builds, so the labels here are
+// literal English instead of src/i18n keys. Every visual rule below reads a token; nothing is styled inline.
+//
+// ?era= and ?theme= are applied in the browser by FixtureSwitches (Astro strips the query string from prerendered pages).
+import FixtureSwitches from '../../components/dev/FixtureSwitches.astro';
+import Base from '../../layouts/Base.astro';
+import { fixtureExhibits, fixtureInitialId } from '../../fixtures/exhibits';
+import { t } from '../../i18n/utils';
+
+// Each fill is shown with the foreground it is meant to carry, so the sample on it is the pair the contrast
+// tests check (state and focus colors carry the page background: 3:1, large text only).
+const COLORS: { token: string; on: string }[] = [
+  { token: 'bg', on: 'text' },
+  { token: 'bg-elevated', on: 'text' },
+  { token: 'surface', on: 'text' },
+  { token: 'surface-hover', on: 'text' },
+  { token: 'text', on: 'text-inverse' },
+  { token: 'text-muted', on: 'bg' },
+  { token: 'text-inverse', on: 'text' },
+  { token: 'accent', on: 'accent-contrast' },
+  { token: 'accent-contrast', on: 'accent' },
+  { token: 'border', on: 'text' },
+  { token: 'focus', on: 'bg' },
+  { token: 'state-ok', on: 'bg' },
+  { token: 'state-warn', on: 'bg' },
+  { token: 'state-alarm', on: 'bg' },
+];
+
+const TEXT_SIZES = ['3xl', '2xl', 'xl', 'lg', 'base', 'sm', 'xs'];
+const FONTS = [
+  { token: 'display', sample: 'Scan, solve, update' },
+  { token: 'body', sample: 'Inputs are read, the program is solved, outputs are written, and the loop starts again.' },
+  { token: 'mono', sample: 'MOV 0x1F, R7 ; 0123456789' },
+];
+const SPACES = [1, 2, 3, 4, 5, 6, 7, 8];
+const RADII = ['sm', 'md', 'lg'];
+const SHADOWS = ['sm', 'md', 'stage'];
+
+// Fictional values: the grid exercises layout and type, never facts (docs/CONTENT_GUIDE.md).
+const SPEC_GROUPS = [
+  {
+    title: 'CPU and scan',
+    rows: [
+      ['Processor', 'Fictional 8-bit core'],
+      ['Scan time', '4 ms per K'],
+      ['Instructions', '48'],
+    ],
+  },
+  {
+    title: 'Memory and I/O',
+    rows: [
+      ['User memory', '8 K words'],
+      ['I/O maximum', '512 points'],
+      ['Expansion', '4 racks'],
+    ],
+  },
+  {
+    title: 'Networks and languages',
+    rows: [
+      ['Networks', 'Fixture Link (RS-485)'],
+      ['Languages', 'Ladder, instruction list'],
+    ],
+  },
+  {
+    title: 'Application and lifecycle',
+    rows: [
+      ['Sectors', 'Packaging, water'],
+      ['Discontinued', null],
+      ['Successor', 'Octal Rack OR-6'],
+    ],
+  },
+] satisfies { title: string; rows: [string, string | null][] }[];
+
+const center = Math.max(
+  1,
+  fixtureExhibits.findIndex((card) => card.id === fixtureInitialId),
+);
+const STAGE_POSITIONS = ['left', 'center', 'right'] as const;
+const stageCards = fixtureExhibits.slice(center - 1, center + 2).map((card, index) => ({
+  card,
+  position: STAGE_POSITIONS[index] ?? 'right',
+  year: card.yearPrecision === 'exact' ? String(card.year) : t('en', 'year.approximate', { year: card.year }),
+}));
+
+const STATES = [
+  { token: 'ok', label: 'Running' },
+  { token: 'warn', label: 'Warning: low air pressure' },
+  { token: 'alarm', label: 'Alarm: drive fault' },
+];
+---
+
+<Base lang="en" title="Design tokens" path={null} noindex>
+  <main id="main" class="page">
+    <header class="intro">
+      <p class="eyebrow">Fixture page, development only</p>
+      <h1 class="title">Design tokens</h1>
+      <p class="lead">
+        Every semantic token from <code>src/styles/tokens.css</code>, in the museum theme and each era.
+      </p>
+    </header>
+
+    <FixtureSwitches page="/dev/tokens" />
+
+    <section class="block" aria-labelledby="colors">
+      <h2 id="colors" class="block__title">
+        Colors
+      </h2>
+      <p class="block__note">Each fill carries the foreground it is paired with. State colors mean state only.</p>
+      <ul class="swatches">
+        {COLORS.map(({ token, on }) => (
+          <li class="swatch">
+            <div class={`swatch__fill swatch--${token}`}>
+              <span class="swatch__sample">Aa</span>
+              <span class="swatch__pair">on --color-{on}</span>
+            </div>
+            <code class="swatch__name">--color-{token}</code>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="block" aria-labelledby="type">
+      <h2 id="type" class="block__title">
+        Type
+      </h2>
+      <ul class="type-scale">
+        {TEXT_SIZES.map((size) => (
+          <li class="type-scale__row">
+            <code class="label">--text-{size}</code>
+            <span class={`type-scale__sample type--${size}`}>Input, logic, output</span>
+          </li>
+        ))}
+      </ul>
+      <ul class="fonts">
+        {FONTS.map(({ token, sample }) => (
+          <li class="fonts__row">
+            <code class="label">--font-{token}</code>
+            <span class={`fonts__sample font--${token}`}>{sample}</span>
+          </li>
+        ))}
+      </ul>
+      <p class="prose">
+        Body copy sits on <code>--color-text</code>; secondary copy uses <span class="muted">--color-text-muted</span>;
+        a <a href="#type">link uses the accent</a> and keeps its underline.
+      </p>
+    </section>
+
+    <section class="block" aria-labelledby="space">
+      <h2 id="space" class="block__title">
+        Spacing
+      </h2>
+      <ul class="spaces">
+        {SPACES.map((step) => (
+          <li class="spaces__row">
+            <code class="label">--space-{step}</code>
+            <span class={`spaces__bar space--${step}`} />
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="block" aria-labelledby="shape">
+      <h2 id="shape" class="block__title">
+        Shape and depth
+      </h2>
+      <div class="shapes">
+        {RADII.map((radius) => (
+          <div class={`shapes__item radius--${radius}`}>
+            <code class="label">--radius-{radius}</code>
+          </div>
+        ))}
+        <div class="shapes__item shapes__item--border">
+          <code class="label">--border-width</code>
+        </div>
+        {SHADOWS.map((shadow) => (
+          <div class={`shapes__item shapes__item--raised shadow--${shadow}`}>
+            <code class="label">--shadow-{shadow}</code>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="block" aria-labelledby="controls">
+      <h2 id="controls" class="block__title">
+        Controls
+      </h2>
+      <div class="buttons">
+        <button type="button" class="btn btn--primary">
+          Primary
+        </button>
+        <button type="button" class="btn btn--secondary">
+          Secondary
+        </button>
+        <button type="button" class="btn btn--primary" disabled>
+          Disabled
+        </button>
+        <span class="btn btn--secondary btn--focus-preview" aria-hidden="true">
+          Focus ring preview
+        </span>
+      </div>
+      <p class="block__note">
+        Tab through the buttons to see the live <code>:focus-visible</code> ring.
+      </p>
+    </section>
+
+    <section class="block" aria-labelledby="specs">
+      <h2 id="specs" class="block__title">
+        Spec grid
+      </h2>
+      <p class="block__note">Fictional values; four columns collapse to two, then one.</p>
+      <div class="spec-grid">
+        {SPEC_GROUPS.map((group) => (
+          <section class="spec">
+            <h3 class="spec__title">{group.title}</h3>
+            <dl class="spec__list">
+              {group.rows.map(([term, value]) => (
+                <div class="spec__row">
+                  <dt class="spec__term">{term}</dt>
+                  {value === null ? (
+                    <dd class="spec__value muted">Not verified</dd>
+                  ) : (
+                    <dd class="spec__value">{value}</dd>
+                  )}
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
+      </div>
+    </section>
+
+    <section class="block" aria-labelledby="stage">
+      <h2 id="stage" class="block__title">
+        Stage
+      </h2>
+      <p class="block__note">
+        Side cards turn by <code>--stage-tilt</code> and shrink by <code>--stage-scale-side</code>.
+      </p>
+      <p class="block__note">
+        Hover a side card to see <code>--motion-stage</code>; reduced motion flattens the stage.
+      </p>
+      <ul class="stage">
+        {stageCards.map(({ card, position, year }) => (
+          <li class={`stage__card stage__card--${position}`}>
+            <div class="stage__visual">
+              {card.image ? (
+                <img src={card.image.src} width={card.image.width} height={card.image.height} alt={card.alt} />
+              ) : card.silhouette ? (
+                <svg viewBox="0 0 640 260" role="img" aria-label={card.alt}>
+                  <use href={card.silhouette} />
+                </svg>
+              ) : null}
+            </div>
+            <p class="stage__year">{year}</p>
+            <p class="stage__name">{card.name}</p>
+            <p class="stage__maker">{card.manufacturer}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="block" aria-labelledby="states">
+      <h2 id="states" class="block__title">
+        State
+      </h2>
+      <p class="block__note">Shape and label carry the state; color only reinforces it.</p>
+      <ul class="states">
+        {STATES.map(({ token, label }) => (
+          <li class={`state state--${token}`}>
+            <span class="state__icon" aria-hidden="true" />
+            <span>{label}</span>
+            <code class="label">--color-state-{token}</code>
+          </li>
+        ))}
+      </ul>
+    </section>
+  </main>
+</Base>
+
+<style>
+  .page {
+    max-inline-size: 75rem;
+    margin-inline: auto;
+    padding: var(--space-6) var(--space-4) var(--space-8);
+    font-size: var(--text-base);
+    line-height: 1.5;
+  }
+
+  code,
+  .label {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  .label {
+    color: var(--color-text-muted);
+  }
+
+  .muted {
+    color: var(--color-text-muted);
+  }
+
+  a {
+    color: var(--color-accent);
+    text-underline-offset: 0.2em;
+  }
+
+  /* ---- intro */
+
+  .intro {
+    display: grid;
+    gap: var(--space-2);
+    margin-block-end: var(--space-5);
+  }
+
+  .eyebrow {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .title {
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    line-height: 1.1;
+  }
+
+  .lead {
+    max-inline-size: 65ch;
+    color: var(--color-text-muted);
+  }
+
+  .lead strong {
+    color: var(--color-text);
+  }
+
+  /* ---- sections */
+
+  .block {
+    display: grid;
+    gap: var(--space-4);
+    padding-block: var(--space-6);
+    border-block-start: var(--border-width) solid var(--color-border);
+  }
+
+  .block__title {
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    line-height: 1.2;
+  }
+
+  .block__note {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  /* ---- colors: one rule per token, never an inline style (CSP style-src 'self') */
+
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    gap: var(--space-4);
+  }
+
+  .swatch {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .swatch__fill {
+    display: grid;
+    align-content: space-between;
+    min-block-size: 6.5rem;
+    padding: var(--space-3);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .swatch__sample {
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .swatch__pair {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: 700;
+  }
+
+  .swatch__name {
+    font-size: var(--text-xs);
+    overflow-wrap: anywhere;
+  }
+
+  .swatch--bg {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  .swatch--bg-elevated {
+    background-color: var(--color-bg-elevated);
+    color: var(--color-text);
+  }
+
+  .swatch--surface {
+    background-color: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  .swatch--surface-hover {
+    background-color: var(--color-surface-hover);
+    color: var(--color-text);
+  }
+
+  .swatch--text {
+    background-color: var(--color-text);
+    color: var(--color-text-inverse);
+  }
+
+  .swatch--text-muted {
+    background-color: var(--color-text-muted);
+    color: var(--color-bg);
+  }
+
+  .swatch--text-inverse {
+    background-color: var(--color-text-inverse);
+    color: var(--color-text);
+  }
+
+  .swatch--accent {
+    background-color: var(--color-accent);
+    color: var(--color-accent-contrast);
+  }
+
+  .swatch--accent-contrast {
+    background-color: var(--color-accent-contrast);
+    color: var(--color-accent);
+  }
+
+  .swatch--border {
+    background-color: var(--color-border);
+    color: var(--color-text);
+  }
+
+  .swatch--focus {
+    background-color: var(--color-focus);
+    color: var(--color-bg);
+  }
+
+  .swatch--state-ok {
+    background-color: var(--color-state-ok);
+    color: var(--color-bg);
+  }
+
+  .swatch--state-warn {
+    background-color: var(--color-state-warn);
+    color: var(--color-bg);
+  }
+
+  .swatch--state-alarm {
+    background-color: var(--color-state-alarm);
+    color: var(--color-bg);
+  }
+
+  /* ---- type */
+
+  .type-scale,
+  .fonts,
+  .spaces {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .type-scale__row,
+  .fonts__row,
+  .spaces__row {
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+
+  .type-scale__sample {
+    font-family: var(--font-display);
+    line-height: 1.15;
+  }
+
+  .type--3xl {
+    font-size: var(--text-3xl);
+  }
+
+  .type--2xl {
+    font-size: var(--text-2xl);
+  }
+
+  .type--xl {
+    font-size: var(--text-xl);
+  }
+
+  .type--lg {
+    font-size: var(--text-lg);
+  }
+
+  .type--base {
+    font-size: var(--text-base);
+  }
+
+  .type--sm {
+    font-size: var(--text-sm);
+  }
+
+  .type--xs {
+    font-size: var(--text-xs);
+  }
+
+  .fonts {
+    padding-block-start: var(--space-4);
+    border-block-start: var(--border-width) dashed var(--color-border);
+  }
+
+  .fonts__sample {
+    font-size: var(--text-lg);
+  }
+
+  .font--display {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 700;
+  }
+
+  .font--body {
+    font-family: var(--font-body);
+  }
+
+  .font--mono {
+    font-family: var(--font-mono);
+  }
+
+  .prose {
+    max-inline-size: 65ch;
+  }
+
+  /* ---- spacing */
+
+  .spaces__row {
+    align-items: center;
+  }
+
+  .spaces__bar {
+    display: block;
+    block-size: var(--space-4);
+    background: var(--color-accent);
+    border-radius: var(--radius-sm);
+  }
+
+  .space--1 {
+    inline-size: var(--space-1);
+  }
+
+  .space--2 {
+    inline-size: var(--space-2);
+  }
+
+  .space--3 {
+    inline-size: var(--space-3);
+  }
+
+  .space--4 {
+    inline-size: var(--space-4);
+  }
+
+  .space--5 {
+    inline-size: var(--space-5);
+  }
+
+  .space--6 {
+    inline-size: var(--space-6);
+  }
+
+  .space--7 {
+    inline-size: var(--space-7);
+  }
+
+  .space--8 {
+    inline-size: var(--space-8);
+  }
+
+  /* ---- shape and depth */
+
+  .shapes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: var(--space-5);
+  }
+
+  .shapes__item {
+    display: grid;
+    place-items: end start;
+    min-block-size: 6rem;
+    padding: var(--space-3);
+    background: var(--color-surface);
+    border: calc(var(--border-width) * 2) solid var(--color-text-muted);
+  }
+
+  .shapes__item--border {
+    border: var(--border-width) solid var(--color-text);
+    border-radius: var(--radius-sm);
+  }
+
+  .shapes__item--raised {
+    border: none;
+    border-radius: var(--radius-md);
+  }
+
+  .radius--sm {
+    border-radius: var(--radius-sm);
+  }
+
+  .radius--md {
+    border-radius: var(--radius-md);
+  }
+
+  .radius--lg {
+    border-radius: var(--radius-lg);
+  }
+
+  .shadow--sm {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .shadow--md {
+    box-shadow: var(--shadow-md);
+  }
+
+  .shadow--stage {
+    box-shadow: var(--shadow-stage);
+  }
+
+  /* ---- controls */
+
+  .buttons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    padding-inline: var(--space-5);
+    font: inherit;
+    font-weight: 600;
+    border: var(--border-width) solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+
+  .btn--primary {
+    background: var(--color-accent);
+    color: var(--color-accent-contrast);
+  }
+
+  .btn--primary:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  .btn--secondary {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border-color: var(--color-border);
+  }
+
+  .btn--secondary:hover {
+    background: var(--color-surface-hover);
+  }
+
+  .btn:disabled {
+    background: var(--color-surface-hover);
+    color: var(--color-text-muted);
+    border-color: var(--color-border);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+
+  .btn:focus-visible,
+  .btn--focus-preview {
+    outline: calc(var(--border-width) * 2) solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* ---- spec grid: four columns on wide screens, two on tablets, one on phones */
+
+  .spec-grid {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  @media (min-width: 40rem) {
+    .spec-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .spec-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  .spec {
+    padding: var(--space-4);
+    background: var(--color-surface);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .spec__title {
+    margin-block-end: var(--space-3);
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    line-height: 1.2;
+  }
+
+  .spec__list {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .spec__row {
+    display: grid;
+    gap: var(--space-1);
+    padding-block-end: var(--space-2);
+    border-block-end: var(--border-width) solid var(--color-border);
+  }
+
+  .spec__row:last-child {
+    padding-block-end: 0;
+    border-block-end: none;
+  }
+
+  .spec__term {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .spec__value {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  /* ---- stage: the Cover Flow geometry the CoverFlow island (TASK-001) reads */
+
+  .stage {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--stage-gap);
+    padding-block: var(--space-6);
+    perspective: var(--stage-perspective);
+    overflow: hidden;
+  }
+
+  .stage__card {
+    flex: 0 1 15rem;
+    min-inline-size: 0;
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: transform var(--motion-stage) var(--motion-ease-stage);
+  }
+
+  .stage__card--center {
+    position: relative;
+    z-index: 1;
+    box-shadow: var(--shadow-stage);
+  }
+
+  .stage__card--left {
+    transform: rotateY(var(--stage-tilt)) scale(var(--stage-scale-side));
+  }
+
+  .stage__card--right {
+    transform: rotateY(calc(var(--stage-tilt) * -1)) scale(var(--stage-scale-side));
+  }
+
+  .stage__card--left:hover,
+  .stage__card--right:hover {
+    transform: none;
+  }
+
+  /* Portrait and wide photos share one 4:3 box, so the three cards line up whatever the source ratio. */
+  .stage__visual {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    margin-block-end: var(--space-2);
+  }
+
+  .stage__visual img,
+  .stage__visual svg {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: contain;
+  }
+
+  .stage__year {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .stage__name {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: 700;
+    line-height: 1.2;
+    overflow-wrap: break-word;
+  }
+
+  .stage__maker {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  /* Three cards share a phone width: smaller names, and the maker line goes. */
+  @media (max-width: 40rem) {
+    .stage__name {
+      font-size: var(--text-base);
+    }
+
+    .stage__maker {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stage__card--left,
+    .stage__card--right {
+      transform: none;
+    }
+  }
+
+  /* ---- state: shape and label first, color second */
+
+  .states {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .state {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    min-block-size: 2.75rem;
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+  }
+
+  .state__icon {
+    inline-size: var(--space-4);
+    block-size: var(--space-4);
+  }
+
+  .state--ok .state__icon {
+    background: var(--color-state-ok);
+    clip-path: circle(50%);
+  }
+
+  .state--warn .state__icon {
+    background: var(--color-state-warn);
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  }
+
+  .state--alarm .state__icon {
+    background: var(--color-state-alarm);
+    clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  }
+</style>
