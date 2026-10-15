@@ -5,7 +5,7 @@ Format: context, decision, consequences. New ADRs are added as `docs/adr/NNNN-ti
 ## ADR-0001: Static site on Cloudflare Workers with static assets
 
 Context: content-heavy, spiky traffic, one maintainer, security matters. Options: Next.js SSR on Workers (OpenNext), Astro static, Cloudflare Pages.
-Decision: Astro 5 with static output, served by a Worker through the assets binding (Cloudflare's recommended path for new projects); React islands only for interactive parts.
+Decision: Astro with static output (major version 7 since ADR-0009), served by a Worker through the assets binding (Cloudflare's recommended path for new projects); React islands only for interactive parts.
 Consequences: zero per-request compute for pages, minimal attack surface, simple caching; dynamic features must be designed as build-time or as a separate tiny API. Pages is not used.
 
 ## ADR-0002: Content as JSON files with JSON Schema, validated in CI and in editor hooks
@@ -48,4 +48,13 @@ Consequences: nothing sensitive is ever "temporarily" committed; the owner keeps
 
 Context: a public repository with contributor display names in immutable history makes LGPD/GDPR removal requests impossible to honor fully, and forks would keep copies.
 Decision: stories stay in D1. Moderation happens in D1 (`pnpm stories:moderate`). The deploy pipeline runs `pnpm stories:fetch` with the scoped token, writes approved stories to the gitignored `content/stories/` cache, and builds. Fork and contributor builds use `src/fixtures/stories.ts`. Removal is one row delete plus a redeploy.
+Amended 2026-10-15 (Phase 0): the fictional fixtures fill in only at the development stage (`pnpm dev`, or a build with `PLCMUSEUM_STAGE=development`); preview and production builds never show them, and `pnpm stories:fetch` fails without a token instead of falling back.
 Consequences: the public site stays static; the repository holds no personal data; the build is still a pure function of its inputs (repository + approved stories at deploy time). Cost: the deploy job needs the D1 token, which the protected environment already holds.
+
+## ADR-0009: Astro 7 instead of Astro 5 (amends ADR-0001)
+
+Accepted 2026-10-14. Astro 5 had a critical and several high advisories fixed only in Astro 6 and 7, which broke the `pnpm audit` gate; the project moved to Astro 7 before any page existed. Full record: `docs/adr/0009-astro-7.md`.
+
+## ADR-0010: CSP hashes for island hydration scripts
+
+Proposed 2026-10-14, to be decided before TASK-001 is integrated into real pages: Astro islands need inline hydration scripts, which the CSP refuses; build-time hashes read by the Worker keep `'unsafe-inline'` out. Full record: `docs/adr/0010-csp-hashes-for-islands.md`.
