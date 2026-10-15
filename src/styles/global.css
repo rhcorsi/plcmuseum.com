@@ -1,0 +1,96 @@
+/*
+ * Site stylesheet entry (imported once by src/layouts/Base.astro).
+ *
+ * Cascade order: tokens < Tailwind theme < base < components < utilities < unlayered era themes.
+ * Era themes are unlayered on purpose: they win over every token definition in tokens.css, including the
+ * dark-mode block, whatever the selector specificity (docs/DESIGN_SYSTEM.md section 2).
+ */
+@layer tokens, theme, base, components, utilities;
+
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css' layer(utilities) source('../');
+
+@import './tokens.css' layer(tokens);
+@import './motion.css' layer(tokens);
+
+@import './themes/1970s.css';
+@import './themes/1980s.css';
+@import './themes/1990s.css';
+@import './themes/2000s.css';
+@import './themes/2020s.css';
+
+/*
+ * Tailwind consumes the semantic tokens; it has no palette, fonts or scale of its own, so a utility can only
+ * resolve to a token (bg-surface, text-text-muted, rounded-md, shadow-stage, p-4, ease-stage...).
+ * `reference` keeps Tailwind from emitting these variables: the values below are only fallbacks pointing at
+ * the tokens, and tokens.css plus the era themes stay the single source of every value.
+ */
+@theme reference {
+  --color-bg: var(--color-bg);
+  --color-bg-elevated: var(--color-bg-elevated);
+  --color-surface: var(--color-surface);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-accent: var(--color-accent);
+  --color-accent-contrast: var(--color-accent-contrast);
+  --color-border: var(--color-border);
+  --color-focus: var(--color-focus);
+  --color-state-ok: var(--color-state-ok);
+  --color-state-warn: var(--color-state-warn);
+  --color-state-alarm: var(--color-state-alarm);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+  --font-numeric: var(--font-numeric);
+
+  --text-xs: var(--text-xs);
+  --text-sm: var(--text-sm);
+  --text-base: var(--text-base);
+  --text-lg: var(--text-lg);
+  --text-xl: var(--text-xl);
+  --text-2xl: var(--text-2xl);
+  --text-3xl: var(--text-3xl);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-stage: var(--shadow-stage);
+
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-7: var(--space-7);
+  --spacing-8: var(--space-8);
+
+  --ease-ui: var(--motion-ease);
+  --ease-stage: var(--motion-ease-stage);
+
+  /* Layout breakpoints are not design tokens: they never change with the era. */
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 100%;
+  }
+
+  :focus-visible {
+    outline: calc(var(--border-width) * 2) solid var(--color-focus);
+    outline-offset: 2px;
+  }
+}

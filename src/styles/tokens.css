@@ -1,0 +1,154 @@
+/*
+ * Semantic design tokens: the museum theme (Era UI off), the contract in docs/DESIGN_SYSTEM.md section 1.
+ * global.css imports this file inside @layer tokens; the unlayered era themes in ./themes/ override these names.
+ *
+ * The museum theme is a quiet gallery wall: warm neutral grays, near-black ink, one blue accent, so the exhibit
+ * photos carry the color. Most visitors never turn Era UI on, so this theme is the product, not a fallback.
+ * Colors stay #rrggbb (#rrggbbaa for shadows) because tests/styles/tokens.test.ts computes WCAG contrast from them:
+ * text on bg and surface >= 7:1, muted text and links >= 4.5:1, focus ring and state colors >= 3:1.
+ */
+
+:root {
+  /* Surfaces: page, sticky bars, cards, card hover. */
+  --color-bg: #f4f3f0;
+  --color-bg-elevated: #fbfaf8;
+  --color-surface: #ffffff;
+  --color-surface-hover: #ebe9e4;
+
+  --color-text: #18181a;
+  --color-text-muted: #55545a;
+  --color-text-inverse: #ffffff;
+
+  /* The accent doubles as link color, so it must read as text on bg and on surface. */
+  --color-accent: #2448b8;
+  --color-accent-contrast: #ffffff;
+  --color-border: #d3d1cb;
+  --color-focus: #0a5cd6;
+
+  /*
+   * Reserved for machine state (running, warning, alarm), as on an ISA-101 HMI: never decoration, never brand,
+   * and always paired with a text label or a distinct shape so state is not told by color alone.
+   */
+  --color-state-ok: #1d7a36;
+  --color-state-warn: #a65c00;
+  --color-state-alarm: #c42b1c;
+
+  /* System stacks only: no font file ships until its license is checked (docs/DESIGN_SYSTEM.md section 6). */
+  --font-display:
+    'Avenir Next', Avenir, 'Segoe UI Variable Display', 'Segoe UI', system-ui, -apple-system, Roboto, 'Noto Sans',
+    'Liberation Sans', Arial, sans-serif;
+  --font-body:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif;
+  --font-mono:
+    ui-monospace, 'SFMono-Regular', 'Cascadia Mono', 'Segoe UI Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  /* Digits of the decorative year watermark; an era may swap in its own (e.g. 7-segment for the 1970s). */
+  --font-numeric: var(--font-display);
+
+  /*
+   * Fluid scale from a 360 px to a 1280 px viewport; rem bounds keep browser zoom and user font size working.
+   * Body text never goes below 16 px.
+   */
+  --text-xs: clamp(0.75rem, 0.726rem + 0.109vw, 0.8125rem);
+  --text-sm: clamp(0.875rem, 0.851rem + 0.109vw, 0.9375rem);
+  --text-base: clamp(1rem, 0.951rem + 0.217vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1.052rem + 0.326vw, 1.3125rem);
+  --text-xl: clamp(1.3125rem, 1.19rem + 0.543vw, 1.625rem);
+  --text-2xl: clamp(1.5625rem, 1.342rem + 0.978vw, 2.125rem);
+  --text-3xl: clamp(1.875rem, 1.435rem + 1.957vw, 3rem);
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+  --border-width: 1px;
+
+  --shadow-sm: 0 1px 2px #18181a14, 0 1px 1px #18181a0d;
+  --shadow-md: 0 4px 12px #18181a1a, 0 2px 4px #18181a0f;
+  /* A soft floor shadow under the cut-out exhibit photos on the stage. */
+  --shadow-stage: 0 32px 48px -24px #18181a59, 0 12px 24px -12px #18181a26;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  /* UI moves in 150 to 400 ms, the stage in 600 to 900 ms (docs/DESIGN_SYSTEM.md section 4); motion.css owns
+     the reduced-motion override. */
+  --motion-fast: 150ms;
+  --motion-base: 250ms;
+  --motion-slow: 400ms;
+  --motion-stage: 750ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  /* Decelerates hard at the end, so the centered exhibit settles instead of bouncing. */
+  --motion-ease-stage: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Cover Flow geometry (CSS 3D transforms, ADR-0003): side exhibits turn by the tilt and shrink by the scale. */
+  --stage-perspective: 1200px;
+  --stage-gap: 1.5rem;
+  --stage-tilt: 50deg;
+  --stage-scale-side: 0.8;
+}
+
+/*
+ * Dark scheme: the same color and shadow tokens in two places with identical values, the OS preference (unless
+ * the page forces light) and the forced dark theme. tests/styles/tokens.test.ts keeps the two blocks in sync.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-bg: #111113;
+    --color-bg-elevated: #18181b;
+    --color-surface: #1e1e22;
+    --color-surface-hover: #29292e;
+
+    --color-text: #ededea;
+    --color-text-muted: #a9a8a3;
+    --color-text-inverse: #111113;
+
+    --color-accent: #93b2ff;
+    --color-accent-contrast: #0c1633;
+    --color-border: #38383e;
+    --color-focus: #7aa7ff;
+
+    --color-state-ok: #4fbf6f;
+    --color-state-warn: #e6a23c;
+    --color-state-alarm: #ff6b5e;
+
+    --shadow-sm: 0 1px 2px #00000080;
+    --shadow-md: 0 4px 16px #0000008c, 0 2px 4px #00000066;
+    --shadow-stage: 0 32px 56px -20px #000000cc, 0 12px 24px -12px #00000099;
+  }
+}
+
+/* A forced theme also switches native controls and scrollbars, which follow color-scheme, not the tokens. */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #111113;
+  --color-bg-elevated: #18181b;
+  --color-surface: #1e1e22;
+  --color-surface-hover: #29292e;
+
+  --color-text: #ededea;
+  --color-text-muted: #a9a8a3;
+  --color-text-inverse: #111113;
+
+  --color-accent: #93b2ff;
+  --color-accent-contrast: #0c1633;
+  --color-border: #38383e;
+  --color-focus: #7aa7ff;
+
+  --color-state-ok: #4fbf6f;
+  --color-state-warn: #e6a23c;
+  --color-state-alarm: #ff6b5e;
+
+  --shadow-sm: 0 1px 2px #00000080;
+  --shadow-md: 0 4px 16px #0000008c, 0 2px 4px #00000066;
+  --shadow-stage: 0 32px 56px -20px #000000cc, 0 12px 24px -12px #00000099;
+}

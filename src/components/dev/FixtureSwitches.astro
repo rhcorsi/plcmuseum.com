@@ -1,0 +1,137 @@
+---
+// Era and color-scheme switch for fixture pages under src/pages/dev (developer tooling, removed from production
+// builds, so labels are literal English). Links are plain URLs with ?era= and ?theme=; ./fixture-switches.ts
+// applies them in the browser because Astro strips the query string from prerendered pages.
+import { ERA_THEMES, type EraAttribute, MUSEUM_ERA } from '../../lib/era';
+
+interface Props {
+  /** Path of the fixture page, e.g. "/dev/tokens". */
+  page: string;
+}
+
+const { page } = Astro.props;
+
+const ERAS: EraAttribute[] = [MUSEUM_ERA, ...ERA_THEMES];
+const SCHEMES = [
+  { label: 'OS', value: 'os' },
+  { label: 'Light', value: 'light' },
+  { label: 'Dark', value: 'dark' },
+] as const;
+
+function switchHref(era: EraAttribute, scheme: (typeof SCHEMES)[number]['value']): string {
+  const params = new URLSearchParams();
+  if (era !== MUSEUM_ERA) params.set('era', era);
+  if (scheme !== 'os') params.set('theme', scheme);
+  const search = params.toString();
+  return search ? `${page}?${search}` : page;
+}
+---
+
+<div class="fixture-switch">
+  <p class="fixture-switch__status">
+    <span>
+      Era: <strong data-current="era">{MUSEUM_ERA}</strong>.
+    </span>
+    <span>
+      Scheme: <strong data-current="theme">OS preference</strong>.
+    </span>
+  </p>
+  <nav aria-label="Era and color scheme">
+    <ul class="fixture-switch__list">
+      {ERAS.map((era) => (
+        <li class="fixture-switch__row">
+          <span class="fixture-switch__era">{era}</span>
+          <span class="fixture-switch__options">
+            {SCHEMES.map((scheme) => (
+              <a
+                class="fixture-switch__link"
+                href={switchHref(era, scheme.value)}
+                data-target-era={era}
+                data-target-theme={scheme.value}
+                aria-label={`${era}, ${scheme.label}`}
+              >
+                {scheme.label}
+              </a>
+            ))}
+          </span>
+        </li>
+      ))}
+    </ul>
+  </nav>
+</div>
+
+<script src="./fixture-switches.ts"></script>
+
+<style>
+  .fixture-switch {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: var(--color-bg-elevated);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  /* Flex gap, not a space character: Astro drops whitespace that is only a line break between two elements. */
+  .fixture-switch__status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-3);
+    margin: 0;
+    color: var(--color-text-muted);
+  }
+
+  .fixture-switch__status strong {
+    color: var(--color-text);
+  }
+
+  .fixture-switch__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+    gap: var(--space-2) var(--space-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .fixture-switch__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .fixture-switch__era {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  .fixture-switch__options {
+    display: flex;
+    gap: var(--space-1);
+  }
+
+  .fixture-switch__link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 3.5rem;
+    min-block-size: 2.75rem;
+    padding-inline: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    text-decoration: none;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+  }
+
+  .fixture-switch__link:hover {
+    background: var(--color-surface-hover);
+  }
+
+  .fixture-switch__link[aria-current='page'] {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-accent-contrast);
+  }
+</style>
