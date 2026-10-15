@@ -52,4 +52,5 @@ git config core.hooksPath scripts/hooks   # pre-commit: secret scan + content va
 pnpm dev
 pnpm build && pnpm preview          # production build served through the Worker (wrangler dev, port 8787)
 pnpm exec playwright install chromium   # once, before pnpm test:e2e
+PLCMUSEUM_E2E_FIXTURES=1 pnpm build && pnpm test:e2e   # e2e; the flag adds the island test page (PowerShell: $env:PLCMUSEUM_E2E_FIXTURES='1')
 ```

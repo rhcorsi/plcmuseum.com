@@ -48,24 +48,64 @@ async function pruneUnreachableAssets(dir) {
   return [...unreached].map((file) => path.relative(root, file));
 }
 
+// The <meta http-equiv="content-security-policy"> that security.csp writes into each page, in any attribute order.
+const CSP_META = /<meta\b(?=[^>]*\bhttp-equiv="content-security-policy")[^>]*\bcontent="([^"]*)"/gi;
+const HASH_SOURCE = /^'(sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2})'$/;
+
+/**
+ * The union, per directive, of the hashes Astro put in the CSP meta element of every page: the inline scripts and
+ * styles it emits for islands. The Worker adds them to its header policy (docs/adr/0010-csp-hashes-for-islands.md).
+ * @param {URL} dir
+ * @returns {Promise<Record<'script-src' | 'style-src', string[]>>}
+ */
+async function collectCspHashes(dir) {
+  const root = fileURLToPath(dir);
+  /** @type {Record<string, Set<string>>} */
+  const hashes = { 'script-src': new Set(), 'style-src': new Set() };
+  const pages = (await readdir(root, { recursive: true })).filter((file) => file.endsWith('.html'));
+  for (const page of pages) {
+    const html = await readFile(path.join(root, page), 'utf8');
+    for (const [, policy = ''] of html.matchAll(CSP_META)) {
+      for (const directive of policy.split(';')) {
+        const [name = '', ...sources] = directive.trim().split(/\s+/);
+        for (const source of hashes[name] ? sources : []) {
+          const hash = HASH_SOURCE.exec(source)?.[1];
+          if (hash) hashes[name]?.add(hash);
+        }
+      }
+    }
+  }
+  return { 'script-src': [...hashes['script-src']].sort(), 'style-src': [...hashes['style-src']].sort() };
+}
+
 /**
  * Build housekeeping:
  * - writes build.json, which the Worker reads to answer GET /api/health (no secrets, no DB);
  * - removes the fixture pages under /dev, which exist for component work only (docs/DESIGN_SYSTEM.md section 7),
- *   and every asset no remaining page reaches.
+ *   and every asset no remaining page reaches;
+ * - writes csp.json, the island hashes the Worker adds to its Content-Security-Policy header;
+ * - with PLCMUSEUM_E2E_FIXTURES=1 (the e2e job only), adds the test page /e2e/islands.
  * @returns {import('astro').AstroIntegration}
  */
 function siteBuild() {
   return {
     name: 'plcmuseum:build',
     hooks: {
+      'astro:config:setup': ({ injectRoute }) => {
+        if (process.env.PLCMUSEUM_E2E_FIXTURES !== '1') return;
+        injectRoute({ pattern: '/e2e/islands', entrypoint: './tests/e2e/fixtures/islands.astro' });
+      },
       'astro:build:done': async ({ dir, logger }) => {
         const info = { build: gitSha(), date: new Date().toISOString() };
         await writeFile(new URL('build.json', dir), `${JSON.stringify(info)}\n`);
         await rm(new URL('dev/', dir), { recursive: true, force: true });
         const pruned = await pruneUnreachableAssets(dir);
+        // After /dev is gone, so only published pages contribute; outside _astro/, so pruning never touches it.
+        const csp = await collectCspHashes(dir);
+        await writeFile(new URL('csp.json', dir), `${JSON.stringify(csp)}\n`);
         logger.info(
-          `build.json written (${info.build.slice(0, 12)}); /dev removed; ${pruned.length} unreachable assets pruned`,
+          `build.json written (${info.build.slice(0, 12)}); /dev removed; ${pruned.length} unreachable assets pruned; ` +
+            `csp.json written (${csp['script-src'].length} script and ${csp['style-src'].length} style hashes)`,
         );
         for (const file of pruned) logger.debug(`pruned ${file}`);
       },
@@ -81,10 +121,15 @@ export default defineConfig({
   trailingSlash: 'ignore',
   build: {
     format: 'preserve',
-    // The CSP is `style-src 'self'`: inlined <style> blocks would be refused by the browser.
+    // Stylesheets stay files under the CSP's `style-src 'self'`; the only inline styles allowed are the hashed ones
+    // Astro emits for islands (docs/adr/0010-csp-hashes-for-islands.md).
     inlineStylesheets: 'never',
   },
   integrations: [react(), siteBuild()],
+  // Hashes every inline script and style Astro emits (the island runtime and client:* loaders) into a CSP meta
+  // element per page; siteBuild copies them into csp.json for the Worker's header (ADR-0010). Build only: `astro dev`
+  // sends no CSP.
+  security: { csp: true },
   // The dev toolbar injects shadow-DOM UI into every dev page, which leaks into fixture screenshots and e2e
   // locators (docs/DESIGN_SYSTEM.md section 7 screenshots are taken from `astro dev`).
   devToolbar: { enabled: false },

@@ -1,14 +1,50 @@
 // What only the Worker does, checked against `wrangler dev` over the production build (playwright.config.ts, project
-// "edge"): the "/" redirect, the security headers, /api and the 404 pages. Requests never follow redirects, so the
-// Worker's own answer is what gets checked.
-import { expect, test, type APIResponse } from '@playwright/test';
+// "edge"): the "/" redirect, the security headers, /api, the 404 pages and island hydration under the CSP. Requests
+// never follow redirects, so the Worker's own answer is what gets checked.
+import { expect, test, type APIResponse, type Page } from '@playwright/test';
 import { SECURITY_HEADERS } from '../../worker/src/security-headers';
 
 const NO_REDIRECTS = { maxRedirects: 0 } as const;
+const HASH_SOURCE = /^'sha(256|384|512)-[A-Za-z0-9+/]+={0,2}'$/;
 
+/** The hash sources of one directive, unquoted, in the order the policy lists them. */
+function hashesIn(policy: string, directive: string): string[] {
+  const sources = policy
+    .split(';')
+    .map((part) => part.trim().split(/\s+/))
+    .find(([name]) => name === directive);
+  return (sources ?? []).filter((source) => HASH_SOURCE.test(source)).map((source) => source.slice(1, -1));
+}
+
+function withoutHashSources(policy: string): string {
+  return policy
+    .split('; ')
+    .map((directive) =>
+      directive
+        .split(' ')
+        .filter((source) => !HASH_SOURCE.test(source))
+        .join(' '),
+    )
+    .join('; ');
+}
+
+// The CSP is the documented policy plus the island hashes of csp.json, which only ever add sources (ADR-0010).
 function expectSecurityHeaders(response: APIResponse): void {
   const headers = response.headers();
-  for (const [name, value] of Object.entries(SECURITY_HEADERS)) expect(headers[name.toLowerCase()], name).toBe(value);
+  const { 'Content-Security-Policy': policy, ...others } = SECURITY_HEADERS;
+  for (const [name, value] of Object.entries(others)) expect(headers[name.toLowerCase()], name).toBe(value);
+  expect(withoutHashSources(headers['content-security-policy'] ?? ''), 'Content-Security-Policy').toBe(policy);
+}
+
+/** Console errors and uncaught exceptions; Chrome reports every refused inline script or style as a console error. */
+function collectErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    // A deliberate 404 shows up as a failed resource load, which is not a policy problem.
+    if (message.type() === 'error' && !message.text().includes('404')) errors.push(message.text());
+  });
+  page.on('pageerror', (error) => errors.push(error.message));
+  return errors;
 }
 
 test.describe('language redirect on /', () => {
@@ -63,6 +99,14 @@ test.describe('security headers', () => {
     expect(response.status()).toBe(404);
     expectSecurityHeaders(response);
   });
+
+  test('the CSP adds exactly the hashes of /csp.json', async ({ request }) => {
+    const manifest = (await (await request.get('/csp.json', NO_REDIRECTS)).json()) as Record<string, string[]>;
+    const policy = (await request.get('/en/', NO_REDIRECTS)).headers()['content-security-policy'] ?? '';
+    expect(manifest['script-src'], 'the build hashes the island runtime').not.toHaveLength(0);
+    for (const directive of ['script-src', 'style-src'])
+      expect(hashesIn(policy, directive)).toEqual(manifest[directive]);
+  });
 });
 
 test.describe('/api', () => {
@@ -93,23 +137,38 @@ test.describe('/api', () => {
   });
 });
 
-// `astro dev` sends no CSP, so only here does a browser render the production build under the Worker's policy.
-// Chrome reports every refused inline script or style as a console error (docs/adr/0010-csp-hashes-for-islands.md).
+// `astro dev` sends no CSP, so only here does a browser render the production build under the Worker's policy
+// (docs/adr/0010-csp-hashes-for-islands.md).
 test.describe('pages under the production CSP', () => {
   for (const path of ['/pt/', '/en/about', '/de/decades/1980s', '/it/privacy', '/es/does-not-exist']) {
     test(`${path} renders with tokens applied and no CSP violation`, async ({ page }) => {
-      const errors: string[] = [];
-      page.on('console', (message) => {
-        // The deliberate 404 shows up as a failed resource load, which is not a policy problem.
-        if (message.type() === 'error' && !message.text().includes('404')) errors.push(message.text());
-      });
-      page.on('pageerror', (error) => errors.push(error.message));
+      const errors = collectErrors(page);
       await page.goto(path);
       const bg = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-bg'));
       expect(bg.trim(), 'tokens.css loaded').not.toBe('');
       expect(errors).toEqual([]);
     });
   }
+
+  // /e2e/islands exists only in builds with PLCMUSEUM_E2E_FIXTURES=1 (tests/e2e/fixtures/islands.astro): one React
+  // island per client directive, each setting data-hydrated="true" once React has run in the browser.
+  test('islands hydrate with every client directive and no CSP violation', async ({ page }) => {
+    const errors = collectErrors(page);
+    const response = await page.goto('/e2e/islands');
+    expect(response?.status(), 'the fixture page exists: build with PLCMUSEUM_E2E_FIXTURES=1').toBe(200);
+    // The page's meta policy and the header policy both apply, so the header must allow every hash the meta allows.
+    const header = (await response?.allHeaders())?.['content-security-policy'] ?? '';
+    const meta = (await page.locator('meta[http-equiv="content-security-policy"]').getAttribute('content')) ?? '';
+    for (const directive of ['script-src', 'style-src']) {
+      expect(hashesIn(meta, directive), `${directive} in the meta element`).not.toHaveLength(0);
+      expect(hashesIn(header, directive), directive).toEqual(expect.arrayContaining(hashesIn(meta, directive)));
+    }
+    for (const directive of ['load', 'idle', 'visible']) {
+      const probe = page.locator(`[data-probe="${directive}"]`);
+      await expect(probe, `client:${directive}`).toHaveAttribute('data-hydrated', 'true');
+    }
+    expect(errors).toEqual([]);
+  });
 });
 
 test.describe('404 pages', () => {

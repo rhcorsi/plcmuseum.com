@@ -1,0 +1,17 @@
+---
+// e2e fixture page (docs/adr/0010-csp-hashes-for-islands.md): one island per client directive the site uses, inside
+// the real layout, so the page carries the same head, stylesheet and CSP meta element as a published page.
+// astro.config.mjs injects it at /e2e/islands only when PLCMUSEUM_E2E_FIXTURES=1; deploy builds never contain it.
+// Test tooling, so the text is literal English instead of src/i18n keys.
+import Base from '../../../src/layouts/Base.astro';
+import HydrationProbe from './HydrationProbe';
+---
+
+<Base lang="en" title="Island fixture" path={null} noindex>
+  <main id="main" tabindex="-1">
+    <h1>Island fixture</h1>
+    <HydrationProbe client:load directive="load" />
+    <HydrationProbe client:idle directive="idle" />
+    <HydrationProbe client:visible directive="visible" />
+  </main>
+</Base>

@@ -1,6 +1,6 @@
 # ADR-0010: CSP hashes for island hydration scripts
 
-Status: proposed, 2026-10-14. Needed before TASK-001 (CoverFlow) is integrated into real pages; Phase 0 pages have no islands and are not affected.
+Status: accepted, 2026-10-15 (proposed 2026-10-14). Needed before TASK-001 (CoverFlow) is integrated into real pages; Phase 0 pages have no islands and are not affected.
 
 ## Context
 
@@ -14,7 +14,7 @@ docs/SECURITY.md anticipated this with "implement nonce injection in the Worker"
 2. **Nonces injected at the edge.** The Worker rewrites every HTML response with HTMLRewriter, adds a fresh nonce to each inline script and style and to the header. Per-request CPU on every page; it also blesses any inline script present in the HTML, which weakens the guarantee that only build-time code runs.
 3. **No inline scripts.** Not possible with Astro islands today.
 
-## Decision (proposed)
+## Decision
 
 Option 1.
 
@@ -23,3 +23,9 @@ Option 1.
 - The CSP stays free of `'unsafe-inline'`; docs/SECURITY.md 3.1 changes "nonce injection in the Worker" to "build-time hashes read by the Worker".
 - Upgrading Astro may change the runtime scripts; the hashes regenerate with the build, and an e2e test that loads pages through `wrangler dev` and fails on console CSP violations keeps the two in step.
 - Until this lands, an island on a real page must not be merged: the architect integrates TASK-001 together with this change.
+
+## Implementation (2026-10-15)
+
+- `astro.config.mjs` sets `security: { csp: true }`; the `siteBuild` integration reads the hashes from each page's CSP meta element after `/dev` and unreachable assets are removed and writes their union to `dist/csp.json`. `worker/src/csp.ts` appends them to the documented policy, accepting only well-formed `sha256-`, `sha384-` or `sha512-` values; `worker/src/index.ts` reads the file once per isolate and sends the documented policy while it is missing or invalid.
+- Astro 7.3.8 writes the same hash set into every page as soon as a renderer is registered, whether or not the page has an island: the five `client:*` loaders, the island runtime (production and dev variants), the island style and the hash of an empty style, 7 script and 2 style hashes in all. The header therefore does not grow with the number of pages or islands.
+- Proof: `tests/e2e/edge.spec.ts` checks the header against `/csp.json` on every kind of response and hydrates a test island with `client:load`, `client:idle` and `client:visible` under `wrangler dev`. The test page (`tests/e2e/fixtures/islands.astro`, route `/e2e/islands`) exists only in builds with `PLCMUSEUM_E2E_FIXTURES=1`, which CI's e2e job sets and deploy builds never do (`scripts/deploy.mjs` clears it). With `csp.json` removed, the same page logs five CSP refusals and no island hydrates.
