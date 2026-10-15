@@ -5,10 +5,14 @@
   "name": "plcmuseum",
   "main": "worker/src/index.ts",
   "compatibility_date": "2026-01-01",
-  "compatibility_flags": ["nodejs_compat"],
+  // No Node APIs are used, so no nodejs_compat: a smaller runtime surface.
+  "compatibility_flags": [],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
+    // The Worker runs before the binding on every request: it adds the security headers to asset responses too
+    // (docs/SECURITY.md 3.1) and answers "/" before the binding would (docs/ARCHITECTURE.md section 7).
+    "run_worker_first": true,
     "not_found_handling": "404-page",
     "html_handling": "auto-trailing-slash"
   },
@@ -19,8 +23,12 @@
     "ENVIRONMENT": "production",
     "TURNSTILE_SITE_KEY": "REPLACE_WITH_PUBLIC_SITE_KEY"
   },
-  "triggers": { "crons": ["17 3 * * *"] },
-  "observability": { "enabled": true },
+  // Disabled until Phase 3: the daily retention job ships with the scheduled() handler and POST /api/stories
+  // (worker/README.md). A cron without a handler only produces errors.
+  // "triggers": { "crons": ["17 3 * * *"] },
+  // Workers Logs keep exceptions and the Worker's own console output (none). Invocation logs are off: they would
+  // store every request's headers, IP and location for days (docs/SECURITY.md 3.2). env.preview inherits this.
+  "observability": { "enabled": true, "logs": { "invocation_logs": false } },
   "routes": [
     { "pattern": "plcmuseum.com", "custom_domain": true },
     { "pattern": "www.plcmuseum.com", "custom_domain": true }
