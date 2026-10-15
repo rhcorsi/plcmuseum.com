@@ -62,6 +62,12 @@ export type ExhibitCard = {
  * `<ol id={listId} class="stage-list">` (src/components/StageList.astro, hooks in STAGE_HOOKS), renders only its own
  * controls and live region, and drives the existing items through classes, ARIA attributes and CSS custom properties
  * set with element.style.setProperty(). `exhibits` is the same data, for lookups and announcements.
+ *
+ * While the stage is active the list is a listbox driven by aria-activedescendant. Each option is named
+ * "name, manufacturer, yearLabel", and the link inside it leaves the accessibility tree and the tab order
+ * (aria-hidden="true", tabindex="-1") so no interactive control is nested in an option. Enter, a click on the centered
+ * option (also the click assistive technology sends to the option) and the island's Open link all follow that link;
+ * the Open link names the centered exhibit through aria-describedby.
  */
 export type CoverFlowProps = {
   exhibits: ExhibitCard[];
@@ -72,7 +78,10 @@ export type CoverFlowProps = {
   eraUiEnabled: boolean;
   /** Control and announcement strings, resolved by the page with t(); islands never import src/i18n/utils.ts. */
   labels: { prev: string; next: string; open: string };
-  /** For composition inside React and for tests; pages listen to CENTER_CHANGE_EVENT instead. */
+  /**
+   * For composition inside React and for tests; pages listen to CENTER_CHANGE_EVENT instead. Parents may pass a new
+   * function on every render: the island calls the latest one and never re-attaches because of it.
+   */
   onCenterChange?: (id: string) => void;
 };
 
@@ -109,11 +118,18 @@ export type StoryFormProps = {
 // Astro cannot pass functions from a page to an island, so islands talk through DOM CustomEvents dispatched on
 // `document`. Each island owns the events it emits; nobody else dispatches them.
 
-/** Emitted by CoverFlow once the centered exhibit settles (debounced 120 ms). */
+/**
+ * Emitted by CoverFlow once the centered exhibit settles (debounced 120 ms), and once after the island attaches, with
+ * the initial exhibit and in both motion modes, so the header and Era UI can sync. Only centering the visitor causes is
+ * announced in the live region; the initial emission is not.
+ */
 export const CENTER_CHANGE_EVENT = 'plcmuseum:center-change';
 export type CenterChangeDetail = { id: string; decade: Decade; era: EraTheme };
 
-/** Emitted by TimelineScrubber when the visitor picks an exhibit; CoverFlow centers it. */
+/**
+ * Emitted by TimelineScrubber when the visitor picks an exhibit. CoverFlow centers it (scrolls it into view under
+ * reduced motion) and leaves focus where it is in both motion modes: the sender keeps focus (WCAG 3.2.2).
+ */
 export const EXHIBIT_SELECT_EVENT = 'plcmuseum:exhibit-select';
 export type ExhibitSelectDetail = { id: string };
 
@@ -145,4 +161,9 @@ export const STAGE_HOOKS = {
   list: 'stage-list',
   /** `<li>` with `data-id`, `data-decade`, `data-era`, `data-year`; its id attribute is `stage-item-<id>`. */
   item: 'stage-item',
+  /**
+   * `<span aria-hidden="true">` first in each item, holding `year` (digits only) for the decorative watermark behind the
+   * centered exhibit. Added with TASK-001 as the one owner-approved exception to "StageList markup stays" (2026-10-15).
+   */
+  watermark: 'stage-watermark',
 } as const;

@@ -15,7 +15,7 @@ All components consume semantic tokens only. Era themes override the same names.
 --shadow-sm, --shadow-md, --shadow-stage
 --space-1 ... --space-8
 --motion-fast (150ms), --motion-base (250ms), --motion-slow (400ms), --motion-stage (750ms), --motion-ease, --motion-ease-stage
---stage-perspective, --stage-gap, --stage-tilt (deg), --stage-scale-side
+--stage-perspective, --stage-gap, --stage-tilt (deg), --stage-scale-side, --stage-item-width, --stage-pitch, --stage-depth
 ```
 
 Dark mode: tokens are defined for light under `:root` and for dark under `@media (prefers-color-scheme: dark)` guarded by `:root:not([data-theme="light"])`, plus `:root[data-theme="dark"]`. Era themes define both.
