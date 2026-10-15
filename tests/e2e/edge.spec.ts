@@ -16,32 +16,36 @@ function hashesIn(policy: string, directive: string): string[] {
   return (sources ?? []).filter((source) => HASH_SOURCE.test(source)).map((source) => source.slice(1, -1));
 }
 
-function withoutHashSources(policy: string): string {
-  return policy
-    .split('; ')
-    .map((directive) =>
-      directive
-        .split(' ')
-        .filter((source) => !HASH_SOURCE.test(source))
-        .join(' '),
-    )
-    .join('; ');
-}
+// The CSP every response must carry: the documented policy plus the island hashes of the build's csp.json, added to
+// script-src and style-src (ADR-0010). Spelled out with string replacement rather than worker/src/csp.ts.
+let expectedPolicy = '';
+let manifest: Record<string, string[]> = {};
 
-// The CSP is the documented policy plus the island hashes of csp.json, which only ever add sources (ADR-0010).
+test.beforeAll(async ({ playwright }, testInfo) => {
+  const context = await playwright.request.newContext({ baseURL: testInfo.project.use.baseURL });
+  manifest = (await (await context.get('/csp.json', NO_REDIRECTS)).json()) as Record<string, string[]>;
+  await context.dispose();
+  const quoted = (directive: string) => (manifest[directive] ?? []).map((hash) => ` '${hash}'`).join('');
+  expectedPolicy = SECURITY_HEADERS['Content-Security-Policy']
+    .replace("script-src 'self';", `script-src 'self'${quoted('script-src')};`)
+    .replace("style-src 'self';", `style-src 'self'${quoted('style-src')};`);
+});
+
 function expectSecurityHeaders(response: APIResponse): void {
   const headers = response.headers();
-  const { 'Content-Security-Policy': policy, ...others } = SECURITY_HEADERS;
-  for (const [name, value] of Object.entries(others)) expect(headers[name.toLowerCase()], name).toBe(value);
-  expect(withoutHashSources(headers['content-security-policy'] ?? ''), 'Content-Security-Policy').toBe(policy);
+  const expected = { ...SECURITY_HEADERS, 'Content-Security-Policy': expectedPolicy };
+  for (const [name, value] of Object.entries(expected)) expect(headers[name.toLowerCase()], name).toBe(value);
 }
+
+// The deliberate 404s show up as failed resource loads, which are not a policy problem. Anchored, because a CSP
+// refusal quotes base64 hashes that may contain "404".
+const NOT_FOUND_LOAD = /^Failed to load resource: the server responded with a status of 404/;
 
 /** Console errors and uncaught exceptions; Chrome reports every refused inline script or style as a console error. */
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('console', (message) => {
-    // A deliberate 404 shows up as a failed resource load, which is not a policy problem.
-    if (message.type() === 'error' && !message.text().includes('404')) errors.push(message.text());
+    if (message.type() === 'error' && !NOT_FOUND_LOAD.test(message.text())) errors.push(message.text());
   });
   page.on('pageerror', (error) => errors.push(error.message));
   return errors;
@@ -100,12 +104,11 @@ test.describe('security headers', () => {
     expectSecurityHeaders(response);
   });
 
-  test('the CSP adds exactly the hashes of /csp.json', async ({ request }) => {
-    const manifest = (await (await request.get('/csp.json', NO_REDIRECTS)).json()) as Record<string, string[]>;
-    const policy = (await request.get('/en/', NO_REDIRECTS)).headers()['content-security-policy'] ?? '';
-    expect(manifest['script-src'], 'the build hashes the island runtime').not.toHaveLength(0);
-    for (const directive of ['script-src', 'style-src'])
-      expect(hashesIn(policy, directive)).toEqual(manifest[directive]);
+  // Without hashes in csp.json, every comparison above would only prove the documented policy.
+  test('/csp.json lists the island hashes the CSP adds', () => {
+    expect(manifest['script-src'], 'script hashes').not.toHaveLength(0);
+    expect(manifest['style-src'], 'style hashes').not.toHaveLength(0);
+    expect(expectedPolicy).not.toBe(SECURITY_HEADERS['Content-Security-Policy']);
   });
 });
 
@@ -158,6 +161,7 @@ test.describe('pages under the production CSP', () => {
     expect(response?.status(), 'the fixture page exists: build with PLCMUSEUM_E2E_FIXTURES=1').toBe(200);
     // The page's meta policy and the header policy both apply, so the header must allow every hash the meta allows.
     const header = (await response?.allHeaders())?.['content-security-policy'] ?? '';
+    expect(header, 'Content-Security-Policy').toBe(expectedPolicy);
     const meta = (await page.locator('meta[http-equiv="content-security-policy"]').getAttribute('content')) ?? '';
     for (const directive of ['script-src', 'style-src']) {
       expect(hashesIn(meta, directive), `${directive} in the meta element`).not.toHaveLength(0);

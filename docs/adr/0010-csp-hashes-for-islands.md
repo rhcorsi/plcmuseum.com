@@ -23,7 +23,7 @@ Option 1.
 - The CSP stays free of `'unsafe-inline'`; docs/SECURITY.md 3.1 changes "nonce injection in the Worker" to "build-time hashes read by the Worker".
 - Upgrading Astro may change the runtime scripts; the hashes regenerate with the build, and an e2e test that loads pages through `wrangler dev` and fails on console CSP violations keeps the two in step.
 - Until this lands, an island on a real page must not be merged (landed 2026-10-15, see below; TASK-001 can be integrated).
-- Both policies apply, so a new script origin (Turnstile's, in Phase 3) must be added to the header's `script-src` and to Astro's meta policy (`security.csp.scriptDirective.resources`), or the meta element refuses it.
+- Both policies apply, so a new script origin (Turnstile's, in Phase 3) must be added to the header's `script-src` and to Astro's meta policy (`security.csp.scriptDirective.resources`), or the meta element refuses it. A non-empty `resources` list replaces Astro's default `'self'`, so it must list `'self'` too (`resources: ["'self'", "https://challenges.cloudflare.com"]`); the same holds for `styleDirective.resources`.
 
 ## Implementation (2026-10-15)
 

@@ -109,10 +109,11 @@ describe('GET /', () => {
     expect(response.body).toBeNull();
   });
 
-  it('never reaches the assets binding', async () => {
-    const { env, requests } = assets();
+  it('asks the assets binding for nothing but csp.json', async () => {
+    const { env, requests, cspRequests } = assets();
     await call('/', {}, env);
     expect(requests).toHaveLength(0);
+    expect(cspRequests).toHaveLength(1);
   });
 });
 
@@ -170,12 +171,14 @@ describe('the rest of /api (404 until Phase 3)', () => {
     ['DELETE', '/api/anything/deeper'],
     ['GET', '/api/health/'],
   ])('%s %s is a JSON 404', async (method, path) => {
-    const { env, requests } = assets();
+    const { env, requests, cspRequests } = assets();
     const response = await call(path, { method }, env);
     expect(response.status).toBe(404);
     expect(response.headers.get('Content-Type')).toBe('application/json');
     expect(await response.json()).toEqual({ error: 'not_found' });
+    // Only the policy read of a fresh isolate reaches the binding.
     expect(requests).toHaveLength(0);
+    expect(cspRequests).toHaveLength(1);
     expectSecurityHeaders(response);
   });
 
@@ -223,16 +226,22 @@ describe('static assets', () => {
     expectSecurityHeaders(response);
   });
 
-  it.each(['POST', 'PUT', 'DELETE'])('refuses %s with 405 before the binding', async (method) => {
-    const { env, requests } = assets();
-    for (const path of ['/', '/en/', '/does-not-exist']) {
-      const response = await call(path, { method }, env);
-      expect(response.status).toBe(405);
-      expect(response.headers.get('Allow')).toBe('GET, HEAD');
-      expectSecurityHeaders(response);
-    }
-    expect(requests).toHaveLength(0);
-  });
+  it.each(['POST', 'PUT', 'DELETE'])(
+    'refuses %s with 405, asking the binding for nothing but csp.json',
+    async (method) => {
+      const { env, requests, cspRequests } = assets();
+      const paths = ['/', '/en/', '/does-not-exist'];
+      for (const path of paths) {
+        const response = await call(path, { method }, env);
+        expect(response.status).toBe(405);
+        expect(response.headers.get('Allow')).toBe('GET, HEAD');
+        expectSecurityHeaders(response);
+      }
+      expect(requests).toHaveLength(0);
+      // One policy read per call: each call is a fresh isolate.
+      expect(cspRequests).toHaveLength(paths.length);
+    },
+  );
 });
 
 describe('Content-Security-Policy', () => {

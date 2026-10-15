@@ -102,9 +102,10 @@ function siteBuild() {
   return {
     name: 'plcmuseum:build',
     hooks: {
-      'astro:config:setup': ({ injectRoute }) => {
+      'astro:config:setup': ({ injectRoute, logger }) => {
         if (process.env.PLCMUSEUM_E2E_FIXTURES !== '1') return;
         injectRoute({ pattern: '/e2e/islands', entrypoint: './tests/e2e/fixtures/islands.astro' });
+        logger.warn('PLCMUSEUM_E2E_FIXTURES=1: the test page /e2e/islands is included; never deploy this build');
       },
       'astro:build:done': async ({ dir, logger }) => {
         const info = { build: gitSha(), date: new Date().toISOString() };
@@ -139,7 +140,7 @@ export default defineConfig({
   integrations: [react(), siteBuild()],
   // Hashes every inline script and style Astro emits (the island runtime and client:* loaders) into a CSP meta
   // element per page; siteBuild copies them into csp.json for the Worker's header (ADR-0010). Build only: `astro dev`
-  // sends no CSP.
+  // sends no CSP. Adding scriptDirective or styleDirective `resources` replaces the default 'self': list "'self'" too.
   security: { csp: true },
   // The dev toolbar injects shadow-DOM UI into every dev page, which leaks into fixture screenshots and e2e
   // locators (docs/DESIGN_SYSTEM.md section 7 screenshots are taken from `astro dev`).
