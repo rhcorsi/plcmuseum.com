@@ -132,4 +132,8 @@ Verification of this revision:
 
 The Review section is untouched. No dependency, contract, token, build/CI configuration, content or Worker implementation was edited. No merge of this PR or deployment was performed.
 
+### Linux fixture follow-up (2026-10-15)
+
+The first Linux run passed 65 of 66 e2e tests. Buffered layout-shift sources isolated the 390 px failure (0.102403) to the fixture toolbar: its initial "Scheme: OS preference" status occupied two lines, then became one line after the browser resolved "dark", moving the controls and list up by 24 px. The fixture now keeps the two status spans in separate rows below 48 rem. This changes only `src/pages/dev/coverflow.astro`, without changing the shared toolbar or the 0.05 CLS budget. Local measurements after the fix were 0.001597 at 390 px and 0.000177 at 1280 px; the no-JavaScript and reduced-motion variants retain all 12 visible cards. Failed CLS assertions now include the affected elements and rectangles for diagnosis.
+
 ## Review (Claude Code)
