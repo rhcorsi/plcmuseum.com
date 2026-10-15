@@ -66,7 +66,7 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm build
         env:
-          # Adds the test page /e2e/islands, which proves islands hydrate under the Worker's CSP (ADR-0010).
+          # Adds the test pages under /e2e/ (one per tests/e2e/fixtures/*.astro), which prove islands hydrate under the Worker's CSP (ADR-0010).
           # This dist/ is only served by wrangler dev here; deploy builds never set it.
           PLCMUSEUM_E2E_FIXTURES: '1'
       - run: pnpm test:e2e
