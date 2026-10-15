@@ -91,8 +91,9 @@ const { lang, label, current, layout = 'bar' } = Astro.props;
   .bar ul {
     flex-wrap: nowrap;
     min-inline-size: 0;
-    /* Room for the focus outline, which the scroll container would otherwise clip. */
-    padding: var(--space-1);
+    /* Room for the focus outline (global.css: 2 x --border-width plus a 2px offset), which the scroll container
+       would otherwise clip; it tracks the border width, which era themes may change. */
+    padding: calc(var(--border-width) * 2 + 2px);
     overflow-x: auto;
     scrollbar-width: thin;
   }
