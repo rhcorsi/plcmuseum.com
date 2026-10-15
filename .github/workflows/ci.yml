@@ -23,7 +23,10 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: { version: 10 }
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
+        with:
+          node-version: 22
+          # setup-node refuses to cache without a lockfile; caching is enabled once the project exists
+          cache: ${{ steps.lockfile.outputs.present == 'true' && 'pnpm' || '' }}
       - run: pnpm install --frozen-lockfile
         if: hashFiles('pnpm-lock.yaml') != ''
       - name: Secret scan (gitleaks)
