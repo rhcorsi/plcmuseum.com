@@ -57,4 +57,4 @@ Accepted 2026-10-14. Astro 5 had a critical and several high advisories fixed on
 
 ## ADR-0010: CSP hashes for island hydration scripts
 
-Proposed 2026-10-14, to be decided before TASK-001 is integrated into real pages: Astro islands need inline hydration scripts, which the CSP refuses; build-time hashes read by the Worker keep `'unsafe-inline'` out. Full record: `docs/adr/0010-csp-hashes-for-islands.md`.
+Accepted 2026-10-15. Astro islands need inline hydration scripts, which the CSP refuses; Astro's `security.csp` hashes them at build time, the build lists the hashes in `dist/csp.json` and the Worker adds them to `script-src` and `style-src`, so `'unsafe-inline'` stays out. Full record: `docs/adr/0010-csp-hashes-for-islands.md`.

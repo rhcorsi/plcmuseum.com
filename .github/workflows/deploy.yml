@@ -42,6 +42,8 @@ jobs:
         env:
           # production publishes only "published" exhibits; preview also shows "review" ones (CONTENT_GUIDE.md 6).
           PLCMUSEUM_STAGE: ${{ inputs.env }}
+          # Cleared explicitly so a workflow-level value can never publish the e2e test page /e2e/islands.
+          PLCMUSEUM_E2E_FIXTURES: ''
       - name: Deploy with Wrangler
         uses: cloudflare/wrangler-action@v4
         with:
