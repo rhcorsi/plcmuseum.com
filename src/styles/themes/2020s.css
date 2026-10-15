@@ -25,24 +25,113 @@
  *       html[data-era='2020s'] body::before {}
  *     }
  * - Same contrast targets as tokens.css (tests/styles/tokens.test.ts); state colors keep their meaning in every era.
- *
- * Until TASK-002 lands the block declares nothing, so Era UI shows the museum theme.
  */
 
 html[data-era='2020s'] {
-  /*
-   * Tokens to override (docs/DESIGN_SYSTEM.md section 1):
-   * --color-bg, --color-bg-elevated, --color-surface, --color-surface-hover,
-   * --color-text, --color-text-muted, --color-text-inverse,
-   * --color-accent, --color-accent-contrast, --color-border, --color-focus,
-   * --color-state-ok, --color-state-warn, --color-state-alarm,
-   * --font-display, --font-body, --font-mono, --font-numeric,
-   * --text-xs, --text-sm, --text-base, --text-lg, --text-xl, --text-2xl, --text-3xl,
-   * --radius-sm, --radius-md, --radius-lg, --border-width,
-   * --shadow-sm, --shadow-md, --shadow-stage,
-   * --space-1, --space-2, --space-3, --space-4, --space-5, --space-6, --space-7, --space-8,
-   * --stage-perspective, --stage-gap, --stage-tilt, --stage-scale-side.
-   * In motion.css, not here: --motion-fast, --motion-base, --motion-slow, --motion-stage, --motion-ease,
-   * --motion-ease-stage.
-   */
+  --color-bg: #e2e2e2;
+  --color-bg-elevated: #ebebeb;
+  --color-surface: #f5f5f5;
+  --color-surface-hover: #d6d6d6;
+
+  --color-text: #141414;
+  --color-text-muted: #4a4a4a;
+  --color-text-inverse: #f5f5f5;
+
+  --color-accent: #262626;
+  --color-accent-contrast: #f5f5f5;
+  --color-border: #949494;
+  --color-focus: #333333;
+
+  --color-state-ok: #1b7332;
+  --color-state-warn: #9e5600;
+  --color-state-alarm: #bf261b;
+
+  --font-display:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif;
+  --font-body:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif;
+  --font-mono:
+    ui-monospace, 'SFMono-Regular', 'Cascadia Mono', 'Segoe UI Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --font-numeric: var(--font-display);
+
+  --text-xs: clamp(0.75rem, 0.726rem + 0.109vw, 0.8125rem);
+  --text-sm: clamp(0.875rem, 0.851rem + 0.109vw, 0.9375rem);
+  --text-base: clamp(1rem, 0.951rem + 0.217vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1.052rem + 0.326vw, 1.3125rem);
+  --text-xl: clamp(1.3125rem, 1.19rem + 0.543vw, 1.625rem);
+  --text-2xl: clamp(1.5625rem, 1.342rem + 0.978vw, 2.125rem);
+  --text-3xl: clamp(1.875rem, 1.435rem + 1.957vw, 3rem);
+
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+  --border-width: 1px;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-stage: none;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  --stage-perspective: 1400px;
+  --stage-gap: 1.25rem;
+  --stage-tilt: 28deg;
+  --stage-scale-side: 0.88;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-era='2020s']:not([data-theme='light']) {
+    --color-bg: #171717;
+    --color-bg-elevated: #1f1f1f;
+    --color-surface: #262626;
+    --color-surface-hover: #303030;
+
+    --color-text: #ededed;
+    --color-text-muted: #a8a8a8;
+    --color-text-inverse: #171717;
+
+    --color-accent: #d9d9d9;
+    --color-accent-contrast: #171717;
+    --color-border: #525252;
+    --color-focus: #cccccc;
+
+    --color-state-ok: #4cc970;
+    --color-state-warn: #f0a830;
+    --color-state-alarm: #ff6659;
+
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-stage: none;
+  }
+}
+
+html[data-era='2020s'][data-theme='dark'] {
+  --color-bg: #171717;
+  --color-bg-elevated: #1f1f1f;
+  --color-surface: #262626;
+  --color-surface-hover: #303030;
+
+  --color-text: #ededed;
+  --color-text-muted: #a8a8a8;
+  --color-text-inverse: #171717;
+
+  --color-accent: #d9d9d9;
+  --color-accent-contrast: #171717;
+  --color-border: #525252;
+  --color-focus: #cccccc;
+
+  --color-state-ok: #4cc970;
+  --color-state-warn: #f0a830;
+  --color-state-alarm: #ff6659;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-stage: none;
 }

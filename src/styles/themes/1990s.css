@@ -25,24 +25,123 @@
  *       html[data-era='1990s'] body::before {}
  *     }
  * - Same contrast targets as tokens.css (tests/styles/tokens.test.ts); state colors keep their meaning in every era.
- *
- * Until TASK-002 lands the block declares nothing, so Era UI shows the museum theme.
  */
 
 html[data-era='1990s'] {
-  /*
-   * Tokens to override (docs/DESIGN_SYSTEM.md section 1):
-   * --color-bg, --color-bg-elevated, --color-surface, --color-surface-hover,
-   * --color-text, --color-text-muted, --color-text-inverse,
-   * --color-accent, --color-accent-contrast, --color-border, --color-focus,
-   * --color-state-ok, --color-state-warn, --color-state-alarm,
-   * --font-display, --font-body, --font-mono, --font-numeric,
-   * --text-xs, --text-sm, --text-base, --text-lg, --text-xl, --text-2xl, --text-3xl,
-   * --radius-sm, --radius-md, --radius-lg, --border-width,
-   * --shadow-sm, --shadow-md, --shadow-stage,
-   * --space-1, --space-2, --space-3, --space-4, --space-5, --space-6, --space-7, --space-8,
-   * --stage-perspective, --stage-gap, --stage-tilt, --stage-scale-side.
-   * In motion.css, not here: --motion-fast, --motion-base, --motion-slow, --motion-stage, --motion-ease,
-   * --motion-ease-stage.
-   */
+  --color-bg: #d4d0c8;
+  --color-bg-elevated: #e0dcd4;
+  --color-surface: #ece9d8;
+  --color-surface-hover: #dfdbd2;
+
+  --color-text: #0a0a0a;
+  --color-text-muted: #45433e;
+  --color-text-inverse: #ffffff;
+
+  --color-accent: #002b80;
+  --color-accent-contrast: #ffffff;
+  --color-border: #808080;
+  --color-focus: #0040b8;
+
+  --color-state-ok: #0e6b28;
+  --color-state-warn: #8f4900;
+  --color-state-alarm: #b31b1b;
+
+  --font-display: 'Segoe UI', 'Liberation Sans', 'Noto Sans', Arial, system-ui, sans-serif;
+  --font-body: 'Segoe UI', 'Liberation Sans', 'Noto Sans', Arial, system-ui, sans-serif;
+  --font-mono: 'Courier New', 'Liberation Mono', Consolas, ui-monospace, monospace;
+  --font-numeric: var(--font-display);
+
+  --text-xs: clamp(0.75rem, 0.726rem + 0.109vw, 0.8125rem);
+  --text-sm: clamp(0.875rem, 0.851rem + 0.109vw, 0.9375rem);
+  --text-base: clamp(1rem, 0.951rem + 0.217vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1.052rem + 0.326vw, 1.3125rem);
+  --text-xl: clamp(1.3125rem, 1.19rem + 0.543vw, 1.625rem);
+  --text-2xl: clamp(1.5625rem, 1.342rem + 0.978vw, 2.125rem);
+  --text-3xl: clamp(1.875rem, 1.435rem + 1.957vw, 3rem);
+
+  --radius-sm: 0rem;
+  --radius-md: 0rem;
+  --radius-lg: 0rem;
+  --border-width: 1px;
+
+  --shadow-sm: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #808080, 1px 1px 0 #0a0a0a;
+  --shadow-md: inset 2px 2px 0 #ffffff, inset -2px -2px 0 #808080, 2px 2px 0 #0a0a0a;
+  --shadow-stage: inset 2px 2px 0 #ffffff, inset -2px -2px 0 #808080, 4px 4px 0 #0a0a0a66;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  --stage-perspective: 1200px;
+  --stage-gap: 1.25rem;
+  --stage-tilt: 40deg;
+  --stage-scale-side: 0.84;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-era='1990s']:not([data-theme='light']) {
+    --color-bg: #181a1f;
+    --color-bg-elevated: #20232a;
+    --color-surface: #282c34;
+    --color-surface-hover: #323741;
+
+    --color-text: #f0f2f5;
+    --color-text-muted: #a6adba;
+    --color-text-inverse: #181a1f;
+
+    --color-accent: #7ab0ff;
+    --color-accent-contrast: #071630;
+    --color-border: #5a606e;
+    --color-focus: #ffd147;
+
+    --color-state-ok: #47c96b;
+    --color-state-warn: #f2a638;
+    --color-state-alarm: #ff6b6b;
+
+    --shadow-sm: inset 1px 1px 0 #5a606e, inset -1px -1px 0 #0d0e12, 1px 1px 0 #000000;
+    --shadow-md: inset 2px 2px 0 #5a606e, inset -2px -2px 0 #0d0e12, 2px 2px 0 #000000;
+    --shadow-stage: inset 2px 2px 0 #5a606e, inset -2px -2px 0 #0d0e12, 6px 6px 0 #000000b3;
+  }
+}
+
+html[data-era='1990s'][data-theme='dark'] {
+  --color-bg: #181a1f;
+  --color-bg-elevated: #20232a;
+  --color-surface: #282c34;
+  --color-surface-hover: #323741;
+
+  --color-text: #f0f2f5;
+  --color-text-muted: #a6adba;
+  --color-text-inverse: #181a1f;
+
+  --color-accent: #7ab0ff;
+  --color-accent-contrast: #071630;
+  --color-border: #5a606e;
+  --color-focus: #ffd147;
+
+  --color-state-ok: #47c96b;
+  --color-state-warn: #f2a638;
+  --color-state-alarm: #ff6b6b;
+
+  --shadow-sm: inset 1px 1px 0 #5a606e, inset -1px -1px 0 #0d0e12, 1px 1px 0 #000000;
+  --shadow-md: inset 2px 2px 0 #5a606e, inset -2px -2px 0 #0d0e12, 2px 2px 0 #000000;
+  --shadow-stage: inset 2px 2px 0 #5a606e, inset -2px -2px 0 #0d0e12, 6px 6px 0 #000000b3;
+}
+
+@media (prefers-reduced-motion: no-preference) and (prefers-contrast: no-preference) {
+  html[data-era='1990s'] body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    background:
+      repeating-linear-gradient(0deg, transparent 0px, transparent 1px, #00000006 1px, #00000006 2px),
+      repeating-linear-gradient(90deg, transparent 0px, transparent 1px, #00000006 1px, #00000006 2px);
+  }
 }

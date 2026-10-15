@@ -25,24 +25,123 @@
  *       html[data-era='1970s'] body::before {}
  *     }
  * - Same contrast targets as tokens.css (tests/styles/tokens.test.ts); state colors keep their meaning in every era.
- *
- * Until TASK-002 lands the block declares nothing, so Era UI shows the museum theme.
  */
 
 html[data-era='1970s'] {
-  /*
-   * Tokens to override (docs/DESIGN_SYSTEM.md section 1):
-   * --color-bg, --color-bg-elevated, --color-surface, --color-surface-hover,
-   * --color-text, --color-text-muted, --color-text-inverse,
-   * --color-accent, --color-accent-contrast, --color-border, --color-focus,
-   * --color-state-ok, --color-state-warn, --color-state-alarm,
-   * --font-display, --font-body, --font-mono, --font-numeric,
-   * --text-xs, --text-sm, --text-base, --text-lg, --text-xl, --text-2xl, --text-3xl,
-   * --radius-sm, --radius-md, --radius-lg, --border-width,
-   * --shadow-sm, --shadow-md, --shadow-stage,
-   * --space-1, --space-2, --space-3, --space-4, --space-5, --space-6, --space-7, --space-8,
-   * --stage-perspective, --stage-gap, --stage-tilt, --stage-scale-side.
-   * In motion.css, not here: --motion-fast, --motion-base, --motion-slow, --motion-stage, --motion-ease,
-   * --motion-ease-stage.
-   */
+  --color-bg: #e6e2d8;
+  --color-bg-elevated: #efece3;
+  --color-surface: #f7f4ec;
+  --color-surface-hover: #dad5c8;
+
+  --color-text: #1a1917;
+  --color-text-muted: #524e46;
+  --color-text-inverse: #f7f4ec;
+
+  --color-accent: #9e1b1b;
+  --color-accent-contrast: #ffffff;
+  --color-border: #8c8678;
+  --color-focus: #0b57a4;
+
+  --color-state-ok: #1e6f35;
+  --color-state-warn: #995400;
+  --color-state-alarm: #c42b1c;
+
+  --font-display:
+    'Bahnschrift', 'DIN Alternate', 'Franklin Gothic Medium', 'Liberation Sans Narrow', 'Arial Narrow', system-ui,
+    sans-serif;
+  --font-body: 'Gill Sans', 'Trebuchet MS', 'Segoe UI', 'Noto Sans', 'Liberation Sans', system-ui, sans-serif;
+  --font-mono: 'Courier New', Courier, 'Liberation Mono', ui-monospace, monospace;
+  --font-numeric: 'DSEG7 Classic', 'Cascadia Mono', 'Consolas', 'Courier New', ui-monospace, monospace;
+
+  --text-xs: clamp(0.75rem, 0.726rem + 0.109vw, 0.8125rem);
+  --text-sm: clamp(0.875rem, 0.851rem + 0.109vw, 0.9375rem);
+  --text-base: clamp(1rem, 0.951rem + 0.217vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1.052rem + 0.326vw, 1.3125rem);
+  --text-xl: clamp(1.3125rem, 1.19rem + 0.543vw, 1.625rem);
+  --text-2xl: clamp(1.5625rem, 1.342rem + 0.978vw, 2.125rem);
+  --text-3xl: clamp(1.875rem, 1.435rem + 1.957vw, 3rem);
+
+  --radius-sm: 0rem;
+  --radius-md: 0.125rem;
+  --radius-lg: 0.1875rem;
+  --border-width: 2px;
+
+  --shadow-sm: 0 2px 0 #1a191726, inset 0 1px 0 #ffffffb3;
+  --shadow-md: 0 3px 0 #1a191733, 0 4px 8px #1a19171f;
+  --shadow-stage: 0 24px 36px -16px #1a191773, 0 4px 0 #1a191733;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  --stage-perspective: 1100px;
+  --stage-gap: 1.5rem;
+  --stage-tilt: 42deg;
+  --stage-scale-side: 0.82;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-era='1970s']:not([data-theme='light']) {
+    --color-bg: #141513;
+    --color-bg-elevated: #1c1e1b;
+    --color-surface: #232622;
+    --color-surface-hover: #2e322c;
+
+    --color-text: #ede9df;
+    --color-text-muted: #a8a396;
+    --color-text-inverse: #141513;
+
+    --color-accent: #ff6b57;
+    --color-accent-contrast: #1a0604;
+    --color-border: #5c6158;
+    --color-focus: #ffb020;
+
+    --color-state-ok: #4cc76e;
+    --color-state-warn: #f0a830;
+    --color-state-alarm: #ff5449;
+
+    --shadow-sm: 0 2px 0 #00000099, inset 0 1px 0 #ffffff1a;
+    --shadow-md: 0 3px 0 #000000b3, 0 6px 12px #00000080;
+    --shadow-stage: 0 28px 44px -16px #000000e6, 0 4px 0 #000000b3;
+  }
+}
+
+html[data-era='1970s'][data-theme='dark'] {
+  --color-bg: #141513;
+  --color-bg-elevated: #1c1e1b;
+  --color-surface: #232622;
+  --color-surface-hover: #2e322c;
+
+  --color-text: #ede9df;
+  --color-text-muted: #a8a396;
+  --color-text-inverse: #141513;
+
+  --color-accent: #ff6b57;
+  --color-accent-contrast: #1a0604;
+  --color-border: #5c6158;
+  --color-focus: #ffb020;
+
+  --color-state-ok: #4cc76e;
+  --color-state-warn: #f0a830;
+  --color-state-alarm: #ff5449;
+
+  --shadow-sm: 0 2px 0 #00000099, inset 0 1px 0 #ffffff1a;
+  --shadow-md: 0 3px 0 #000000b3, 0 6px 12px #00000080;
+  --shadow-stage: 0 28px 44px -16px #000000e6, 0 4px 0 #000000b3;
+}
+
+@media (prefers-reduced-motion: no-preference) and (prefers-contrast: no-preference) {
+  html[data-era='1970s'] body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    background: repeating-linear-gradient(0deg, transparent 0px, transparent 3px, #00000008 3px, #00000008 4px);
+  }
 }

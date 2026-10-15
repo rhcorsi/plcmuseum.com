@@ -13,6 +13,51 @@
  *   }
  */
 
+html[data-era='1970s'] {
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --motion-slow: 340ms;
+  --motion-stage: 680ms;
+  --motion-ease: cubic-bezier(0.25, 1, 0.5, 1);
+  --motion-ease-stage: cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+html[data-era='1980s'] {
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --motion-slow: 300ms;
+  --motion-stage: 600ms;
+  --motion-ease: steps(4, end);
+  --motion-ease-stage: steps(8, end);
+}
+
+html[data-era='1990s'] {
+  --motion-fast: 150ms;
+  --motion-base: 180ms;
+  --motion-slow: 280ms;
+  --motion-stage: 620ms;
+  --motion-ease: cubic-bezier(0, 0, 0.2, 1);
+  --motion-ease-stage: cubic-bezier(0.15, 0.85, 0.25, 1);
+}
+
+html[data-era='2000s'] {
+  --motion-fast: 160ms;
+  --motion-base: 260ms;
+  --motion-slow: 400ms;
+  --motion-stage: 800ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-stage: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html[data-era='2020s'] {
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --motion-slow: 300ms;
+  --motion-stage: 600ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-stage: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
 /*
  * Reduced motion: keep this block last. Stage moves (Cover Flow travel, exhibit transitions) become instant, while
  * the short UI fades (--motion-fast to --motion-slow) stay, because a 150 ms opacity change is not the vestibular

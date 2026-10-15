@@ -25,24 +25,121 @@
  *       html[data-era='1980s'] body::before {}
  *     }
  * - Same contrast targets as tokens.css (tests/styles/tokens.test.ts); state colors keep their meaning in every era.
- *
- * Until TASK-002 lands the block declares nothing, so Era UI shows the museum theme.
  */
 
 html[data-era='1980s'] {
-  /*
-   * Tokens to override (docs/DESIGN_SYSTEM.md section 1):
-   * --color-bg, --color-bg-elevated, --color-surface, --color-surface-hover,
-   * --color-text, --color-text-muted, --color-text-inverse,
-   * --color-accent, --color-accent-contrast, --color-border, --color-focus,
-   * --color-state-ok, --color-state-warn, --color-state-alarm,
-   * --font-display, --font-body, --font-mono, --font-numeric,
-   * --text-xs, --text-sm, --text-base, --text-lg, --text-xl, --text-2xl, --text-3xl,
-   * --radius-sm, --radius-md, --radius-lg, --border-width,
-   * --shadow-sm, --shadow-md, --shadow-stage,
-   * --space-1, --space-2, --space-3, --space-4, --space-5, --space-6, --space-7, --space-8,
-   * --stage-perspective, --stage-gap, --stage-tilt, --stage-scale-side.
-   * In motion.css, not here: --motion-fast, --motion-base, --motion-slow, --motion-stage, --motion-ease,
-   * --motion-ease-stage.
-   */
+  --color-bg: #e3efe5;
+  --color-bg-elevated: #ebf5ed;
+  --color-surface: #f2faf3;
+  --color-surface-hover: #d4e6d7;
+
+  --color-text: #081c0e;
+  --color-text-muted: #2b5737;
+  --color-text-inverse: #f2faf3;
+
+  --color-accent: #0b5e27;
+  --color-accent-contrast: #f2faf3;
+  --color-border: #6e9979;
+  --color-focus: #8f4400;
+
+  --color-state-ok: #0e6b2c;
+  --color-state-warn: #8a4b00;
+  --color-state-alarm: #b32016;
+
+  --font-display: var(--font-mono);
+  --font-body: var(--font-mono);
+  --font-mono: 'Cascadia Mono', 'Consolas', 'SFMono-Regular', 'Liberation Mono', 'Courier New', ui-monospace, monospace;
+  --font-numeric: var(--font-mono);
+
+  --text-xs: clamp(0.75rem, 0.726rem + 0.109vw, 0.8125rem);
+  --text-sm: clamp(0.875rem, 0.851rem + 0.109vw, 0.9375rem);
+  --text-base: clamp(1rem, 0.951rem + 0.217vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1.052rem + 0.326vw, 1.3125rem);
+  --text-xl: clamp(1.3125rem, 1.19rem + 0.543vw, 1.625rem);
+  --text-2xl: clamp(1.5625rem, 1.342rem + 0.978vw, 2.125rem);
+  --text-3xl: clamp(1.875rem, 1.435rem + 1.957vw, 3rem);
+
+  --radius-sm: 0rem;
+  --radius-md: 0rem;
+  --radius-lg: 0rem;
+  --border-width: 1px;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-stage: none;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  --stage-perspective: 1400px;
+  --stage-gap: 1.25rem;
+  --stage-tilt: 35deg;
+  --stage-scale-side: 0.85;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-era='1980s']:not([data-theme='light']) {
+    --color-bg: #050c07;
+    --color-bg-elevated: #0a160d;
+    --color-surface: #0f2014;
+    --color-surface-hover: #172f1e;
+
+    --color-text: #80ff9f;
+    --color-text-muted: #4cc46b;
+    --color-text-inverse: #050c07;
+
+    --color-accent: #ffc44d;
+    --color-accent-contrast: #170e00;
+    --color-border: #285c37;
+    --color-focus: #5ce1ff;
+
+    --color-state-ok: #4dff88;
+    --color-state-warn: #ffb833;
+    --color-state-alarm: #ff6b5e;
+
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-stage: none;
+  }
+}
+
+html[data-era='1980s'][data-theme='dark'] {
+  --color-bg: #050c07;
+  --color-bg-elevated: #0a160d;
+  --color-surface: #0f2014;
+  --color-surface-hover: #172f1e;
+
+  --color-text: #80ff9f;
+  --color-text-muted: #4cc46b;
+  --color-text-inverse: #050c07;
+
+  --color-accent: #ffc44d;
+  --color-accent-contrast: #170e00;
+  --color-border: #285c37;
+  --color-focus: #5ce1ff;
+
+  --color-state-ok: #4dff88;
+  --color-state-warn: #ffb833;
+  --color-state-alarm: #ff6b5e;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-stage: none;
+}
+
+@media (prefers-reduced-motion: no-preference) and (prefers-contrast: no-preference) {
+  html[data-era='1980s'] body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    background: repeating-linear-gradient(to bottom, transparent 0px, transparent 2px, #00000018 2px, #00000018 4px);
+  }
 }
