@@ -63,13 +63,20 @@ export type ExhibitCard = {
  * controls and live region, and drives the existing items through classes, ARIA attributes and CSS custom properties
  * set with element.style.setProperty(). `exhibits` is the same data, for lookups and announcements.
  *
- * While the stage is active the list is a listbox driven by aria-activedescendant: each `<li>` gets role="none" and
- * its link `a.card` becomes the option (role="option", aria-selected, tabindex="-1"), so no interactive control is
- * nested in an option. The option keeps the name and description StageList gives the link (name, manufacturer and
- * yearLabel; the tagline). Enter and the island's Open link follow the centered link, and a click on the option is a
- * click on the link; the Open link names the exhibit with aria-describedby="stage-name-<id>". When the stage
- * deactivates (unmount, or a switch to reduced motion) the island restores every attribute it set. The live region
- * exists in both motion modes and announces only centering the visitor causes, an EXHIBIT_SELECT_EVENT included.
+ * While the stage is active the list is a listbox driven by aria-activedescendant, so no interactive control is
+ * nested in an option:
+ * - `<ol>`: role="listbox", tabindex="0", aria-orientation="horizontal",
+ *   aria-activedescendant="stage-link-<centered id>" (never the `<li>` id);
+ * - `<li>`: role="none" and no aria-* attribute (any would cancel role="none");
+ * - link `a.card`: role="option", aria-selected, tabindex="-1", aria-posinset and aria-setsize. It keeps the name
+ *   and description StageList gives it (name, manufacturer and yearLabel; the tagline); no aria-label.
+ * The listbox owns focus: when an option receives DOM focus (a pointer press), the island moves focus to the list.
+ * Enter and the Open link follow the centered link; a click or assistive-technology activation on the centered
+ * option follows it, and on another option centers that option without navigating. The Open link names the
+ * exhibit with aria-describedby="stage-name-<id>". When the stage deactivates (unmount, or a switch to reduced
+ * motion) the island restores every attribute it set. The live region exists in both motion modes and announces
+ * centering caused by Prev and Next, swipe, wheel and EXHIBIT_SELECT_EVENT; not centering by the listbox keys,
+ * which aria-activedescendant already speaks, and not the initial exhibit.
  */
 export type CoverFlowProps = {
   exhibits: ExhibitCard[];
@@ -167,7 +174,7 @@ export const STAGE_HOOKS = {
   /**
    * `<li>` with `data-id`, `data-decade`, `data-era`, `data-year`; its id attribute is `stage-item-<id>`. Its link
    * `a.card` has the id `stage-link-<id>`, is named by `stage-name-<id>`, `stage-maker-<id>` and `stage-year-<id>`,
-   * and is described by `stage-tagline-<id>`.
+   * and is described by `stage-tagline-<id>`. The link, not the `<li>`, is the active descendant.
    */
   item: 'stage-item',
   /**
