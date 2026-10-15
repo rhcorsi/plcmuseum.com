@@ -2,6 +2,7 @@
 
 Dated lines, newest first. One line per merged PR or content batch. No personal data.
 
+- 2026-10-15: long words wrap instead of running out of the column at 320 px with WCAG text spacing (German compounds, monospace eras); an e2e check covers every language and era.
 - 2026-10-15: TASK-002 review rules for era themes, enforced by the token tests: stage geometry stays the museum's, no restated museum values, decoration behind the content, and accent, focus and text at least 10 CIEDE2000 from every state color; the decade bar keeps room for the focus ring at any border width.
 - 2026-10-15: TASK-001 review decisions in the contracts: stage tokens `--stage-item-width`, `--stage-pitch` and `--stage-depth`; the stage link `a.card` gets an id and a name with the maker, and becomes the listbox option when CoverFlow is active (no control nested in an option); the initial center-change event and focus on external selection are specified; the year watermark span joins `STAGE_HOOKS`.
 - 2026-10-15: first preview deploy, behind Cloudflare Access; wrangler.jsonc pins `workers_dev` and `preview_urls` to false so no workers.dev URL can bypass Access.

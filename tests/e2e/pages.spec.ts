@@ -2,6 +2,7 @@
 // there, so the sample draft exhibit and the CoverFlow fixture can be checked before anything is published.
 import { expect, type Page, test } from '@playwright/test';
 import { LANG_TAGS, LANGS } from '../../src/i18n/langs';
+import { ERA_THEMES } from '../../src/lib/era';
 
 const STATIC_PAGES = ['about', 'privacy', 'credits', 'contribute'];
 
@@ -97,3 +98,57 @@ test('/dev/coverflow?era=1980s switches the era theme', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-era', '1980s');
   expect(errors).toEqual([]);
 });
+
+// WCAG 1.4.10 and 1.4.12: at 320 px, with the text-spacing overrides, long words (German compounds) wrap instead of
+// running out of their box, in the museum theme and in every era (the 1980s one is monospace throughout). Checking
+// each text box rather than page scroll keeps the test honest: a word that spills 17 px into the gutter may scroll the
+// page by only 1 px, or not at all. Letter spacing is WCAG's 0.12em plus 0.06em, which stands in for the difference
+// between a narrow system monospace (Consolas, about 0.55em per glyph) and the wider ones on other machines and in CI
+// (Cascadia Mono, DejaVu Sans Mono, about 0.6em), so the result does not depend on the test machine's fonts.
+const TEXT_SPACING = `
+  * { line-height: 1.5 !important; letter-spacing: 0.18em !important; word-spacing: 0.16em !important; }
+  p { margin-block-end: 2em !important; }
+`;
+
+for (const lang of LANGS) {
+  test(`/${lang}/ text stays inside its box at 320 px with text spacing, in every era`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    const paths = ['', ...STATIC_PAGES, 'decades/1980s', 'exhibits/ab-plc-5'].map((path) => `/${lang}/${path}`);
+    const overflowing: string[] = [];
+    for (const path of paths) {
+      await open(page, path);
+      await page.addStyleTag({ content: TEXT_SPACING });
+      for (const era of ['museum', ...ERA_THEMES]) {
+        const spills = await page.evaluate((value) => {
+          document.documentElement.dataset.era = value;
+          const inScroller = (element: Element | null): boolean =>
+            element !== null &&
+            (['auto', 'scroll'].includes(getComputedStyle(element).overflowX) || inScroller(element.parentElement));
+          return [...document.body.querySelectorAll<HTMLElement>('*')].flatMap((element) => {
+            const style = getComputedStyle(element);
+            const ownText = [...element.childNodes].some((node) => node.nodeType === 3 && node.textContent?.trim());
+            // Scroll containers (the decade bar) and visually hidden text may be wider than their box.
+            if (!ownText || style.position === 'absolute' || inScroller(element)) return [];
+            const name = `${element.tagName.toLowerCase()}.${element.className}`;
+            // Text wider than its own box, or a box pushed wider than its parent's content box.
+            if (element.scrollWidth > element.clientWidth + 1)
+              return [`${name}: ${element.scrollWidth} > ${element.clientWidth}`];
+            const parent = element.parentElement;
+            if (!parent) return [];
+            const parentStyle = getComputedStyle(parent);
+            const contentRight =
+              parent.getBoundingClientRect().right -
+              Number.parseFloat(parentStyle.paddingRight) -
+              Number.parseFloat(parentStyle.borderRightWidth);
+            const right = element.getBoundingClientRect().right;
+            return right > contentRight + 1
+              ? [`${name}: right ${Math.round(right)} > ${Math.round(contentRight)}`]
+              : [];
+          });
+        }, era);
+        overflowing.push(...spills.map((spill) => `${path} [${era}] ${spill}`));
+      }
+    }
+    expect(overflowing).toEqual([]);
+  });
+}
