@@ -62,6 +62,21 @@ export type ExhibitCard = {
  * `<ol id={listId} class="stage-list">` (src/components/StageList.astro, hooks in STAGE_HOOKS), renders only its own
  * controls and live region, and drives the existing items through classes, ARIA attributes and CSS custom properties
  * set with element.style.setProperty(). `exhibits` is the same data, for lookups and announcements.
+ *
+ * While the stage is active the list is a listbox driven by aria-activedescendant, so no interactive control is
+ * nested in an option:
+ * - `<ol>`: role="listbox", tabindex="0", aria-orientation="horizontal",
+ *   aria-activedescendant="stage-link-<centered id>" (never the `<li>` id);
+ * - `<li>`: role="none" and no aria-* attribute (any would cancel role="none");
+ * - link `a.card`: role="option", aria-selected, tabindex="-1", aria-posinset and aria-setsize. It keeps the name
+ *   and description StageList gives it (name, manufacturer and yearLabel; the tagline); no aria-label.
+ * The listbox owns focus: when an option receives DOM focus (a pointer press), the island moves focus to the list.
+ * Enter and the Open link follow the centered link; a click or assistive-technology activation on the centered
+ * option follows it, and on another option centers that option without navigating. The Open link names the
+ * exhibit with aria-describedby="stage-name-<id>". When the stage deactivates (unmount, or a switch to reduced
+ * motion) the island restores every attribute it set. The live region exists in both motion modes and announces
+ * centering caused by Prev and Next, swipe, wheel and EXHIBIT_SELECT_EVENT; not centering by the listbox keys,
+ * which aria-activedescendant already speaks, and not the initial exhibit.
  */
 export type CoverFlowProps = {
   exhibits: ExhibitCard[];
@@ -72,7 +87,11 @@ export type CoverFlowProps = {
   eraUiEnabled: boolean;
   /** Control and announcement strings, resolved by the page with t(); islands never import src/i18n/utils.ts. */
   labels: { prev: string; next: string; open: string };
-  /** For composition inside React and for tests; pages listen to CENTER_CHANGE_EVENT instead. */
+  /**
+   * For composition inside React and for tests; pages listen to CENTER_CHANGE_EVENT instead. Called whenever that
+   * event is dispatched, the initial emission included. Parents may pass a new function, or new but equal props, on
+   * every render: the island calls the latest callback and attaches once per listId, so it never re-centers on its own.
+   */
   onCenterChange?: (id: string) => void;
 };
 
@@ -109,11 +128,20 @@ export type StoryFormProps = {
 // Astro cannot pass functions from a page to an island, so islands talk through DOM CustomEvents dispatched on
 // `document`. Each island owns the events it emits; nobody else dispatches them.
 
-/** Emitted by CoverFlow once the centered exhibit settles (debounced 120 ms). */
+/**
+ * Emitted by CoverFlow once the centered exhibit settles (debounced 120 ms), and once after the island attaches, with
+ * the initial exhibit and in both motion modes, so the header and Era UI can sync. Only centering the visitor causes is
+ * announced in the live region; the initial emission is not. Islands hydrate independently, so a listener that may
+ * attach later also reads the initial exhibit from the list's `data-initial-id`.
+ */
 export const CENTER_CHANGE_EVENT = 'plcmuseum:center-change';
 export type CenterChangeDetail = { id: string; decade: Decade; era: EraTheme };
 
-/** Emitted by TimelineScrubber when the visitor picks an exhibit; CoverFlow centers it. */
+/**
+ * Emitted by TimelineScrubber when the visitor picks an exhibit. CoverFlow centers it (scrolls it into view under
+ * reduced motion), announces it in its live region, and leaves focus where it is in both motion modes: the sender
+ * keeps focus (WCAG 3.2.2) and does not announce the pick itself.
+ */
 export const EXHIBIT_SELECT_EVENT = 'plcmuseum:exhibit-select';
 export type ExhibitSelectDetail = { id: string };
 
@@ -143,6 +171,15 @@ export const STORAGE_KEYS = {
 export const STAGE_HOOKS = {
   /** `<ol>` with an id (CoverFlowProps.listId) and `data-initial-id`; one per page. */
   list: 'stage-list',
-  /** `<li>` with `data-id`, `data-decade`, `data-era`, `data-year`; its id attribute is `stage-item-<id>`. */
+  /**
+   * `<li>` with `data-id`, `data-decade`, `data-era`, `data-year`; its id attribute is `stage-item-<id>`. Its link
+   * `a.card` has the id `stage-link-<id>`, is named by `stage-name-<id>`, `stage-maker-<id>` and `stage-year-<id>`,
+   * and is described by `stage-tagline-<id>`. The link, not the `<li>`, is the active descendant.
+   */
   item: 'stage-item',
+  /**
+   * `<span aria-hidden="true">` first in each item, holding `year` (digits only) for the decorative watermark behind the
+   * centered exhibit. Added with TASK-001 as the one owner-approved exception to "StageList markup stays" (2026-10-15).
+   */
+  watermark: 'stage-watermark',
 } as const;

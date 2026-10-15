@@ -58,6 +58,9 @@ const CONTRACT_TOKENS = [
   '--stage-gap',
   '--stage-tilt',
   '--stage-scale-side',
+  '--stage-item-width',
+  '--stage-pitch',
+  '--stage-depth',
 ];
 
 const DARK_MEDIA = '@media (prefers-color-scheme: dark)';
