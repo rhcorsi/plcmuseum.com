@@ -55,27 +55,38 @@ const HASH_SOURCE = /^'(sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2})'$/;
 /**
  * The union, per directive, of the hashes Astro put in the CSP meta element of every page: the inline scripts and
  * styles it emits for islands. The Worker adds them to its header policy (docs/adr/0010-csp-hashes-for-islands.md).
+ * Every CSP meta element in a <head> counts, so pages never carry a hand-written one (docs/SECURITY.md 3.1).
  * @param {URL} dir
  * @returns {Promise<Record<'script-src' | 'style-src', string[]>>}
  */
 async function collectCspHashes(dir) {
   const root = fileURLToPath(dir);
-  /** @type {Record<string, Set<string>>} */
-  const hashes = { 'script-src': new Set(), 'style-src': new Set() };
+  /** @type {Set<string>} */
+  const scripts = new Set();
+  /** @type {Set<string>} */
+  const styles = new Set();
+  const byDirective = new Map([
+    ['script-src', scripts],
+    ['style-src', styles],
+  ]);
   const pages = (await readdir(root, { recursive: true })).filter((file) => file.endsWith('.html'));
   for (const page of pages) {
     const html = await readFile(path.join(root, page), 'utf8');
-    for (const [, policy = ''] of html.matchAll(CSP_META)) {
+    // Astro writes its element into <head>; a meta element further down could only come from injected markup.
+    const headEnd = html.search(/<\/head>/i);
+    for (const [, policy = ''] of html.slice(0, Math.max(headEnd, 0)).matchAll(CSP_META)) {
       for (const directive of policy.split(';')) {
         const [name = '', ...sources] = directive.trim().split(/\s+/);
-        for (const source of hashes[name] ? sources : []) {
+        const found = byDirective.get(name);
+        if (!found) continue;
+        for (const source of sources) {
           const hash = HASH_SOURCE.exec(source)?.[1];
-          if (hash) hashes[name]?.add(hash);
+          if (hash) found.add(hash);
         }
       }
     }
   }
-  return { 'script-src': [...hashes['script-src']].sort(), 'style-src': [...hashes['style-src']].sort() };
+  return { 'script-src': [...scripts].sort(), 'style-src': [...styles].sort() };
 }
 
 /**
@@ -100,7 +111,7 @@ function siteBuild() {
         await writeFile(new URL('build.json', dir), `${JSON.stringify(info)}\n`);
         await rm(new URL('dev/', dir), { recursive: true, force: true });
         const pruned = await pruneUnreachableAssets(dir);
-        // After /dev is gone, so only published pages contribute; outside _astro/, so pruning never touches it.
+        // Once /dev and the unreachable assets are gone: only published pages contribute, and the pruner never sees it.
         const csp = await collectCspHashes(dir);
         await writeFile(new URL('csp.json', dir), `${JSON.stringify(csp)}\n`);
         logger.info(
