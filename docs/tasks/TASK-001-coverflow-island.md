@@ -76,7 +76,7 @@ Notes from the Phase 0 integration:
 ## Questions (implementer → architect)
 
 - Resolved by the owner on 2026-10-15: the required decorative year has no existing markup hook. May StageList add one `aria-hidden="true"` span per item while retaining all existing markup, ids and data attributes? Owner approved this specific addition in the task chat.
-- Visual baseline handoff: can the architect generate and approve Linux baselines before enabling `toHaveScreenshot` with `maxDiffPixelRatio: 0.001`? This host has Windows Chromium but no usable Linux browser runtime. The task's fallback is used: 26 Windows captures are committed and linked in the PR, and screenshot assertions are not introduced.
+- Superseded by the architect's review: the 26 committed Windows captures were removed. Current captures belong in the PR description, never in Git; Linux baselines and `toHaveScreenshot` remain the architect's work after TASK-002.
 - Resolved by the owner on 2026-10-15: `tests/e2e/pages.spec.ts` checks the accessible names of all 12 fixture links, including cards now parked with `visibility: hidden` as the revised contract requires. The owner authorized one line, `await page.emulateMedia({ reducedMotion: 'reduce' })`, before that test opens the fixture, so it verifies the static StageList names. This is the only exception to the task's test paths. The CoverFlow suite separately checks exposed option names and the retained ARIA references on all 12 cards.
 
 ## Implementation notes (implementer)
@@ -136,5 +136,26 @@ The Review section is untouched. No dependency, contract, token, build/CI config
 ### Linux fixture follow-up (2026-10-15)
 
 The first Linux run passed 65 of 66 e2e tests. Buffered layout-shift sources isolated the 390 px failure (0.102403) to the fixture toolbar: its initial "Scheme: OS preference" status occupied two lines, then became one line after the browser resolved "dark", moving the controls and list up by 24 px. The fixture now keeps the two status spans in separate rows below 48 rem. This changes only `src/pages/dev/coverflow.astro`, without changing the shared toolbar or the 0.05 CLS budget. Local measurements after the fix were 0.001597 at 390 px and 0.000177 at 1280 px; the no-JavaScript and reduced-motion variants retain all 12 visible cards. Failed CLS assertions now include the affected elements and rectangles for diagnosis.
+
+### PR #9 review round 2 (2026-10-15)
+
+Merged `main` through #15 (`77c900c`) before this revision. These notes supersede the earlier announcement policy and screenshot handoff.
+
+- Items 1 and 2: offsets -2 through 2 remain unparked, with the outer slots transparent and only the nearest three promoted by `will-change`. Incoming neighbors now run transitions. A normal one-step write clears stale `is-jumping`; settle timing comes from the resolved `--motion-stage`, independent of temporary transition suppression.
+- Replaced item 3: timeline picks center silently in both motion modes, preserve focus, and still scroll under reduced motion. `data-center-id` is written before every emission, including the initial event, survives motion changes, and is removed on destroy. Mismatched lists receive no attribute. Tests check the attribute at emission time, quiet settles after two frames, repeated picks, motion changes and teardown.
+- Items 4 to 6: the parser test waits for the new document's barrier and records the effect observing `loading` with no list. Event timestamps prove the full transition plus 120 ms for one key and for a three-key burst, without racing an immediate empty-event snapshot.
+- Items 7 and 8: CLS checks reject sources inside the stage or controls, including text nodes, in addition to the 0.05 budget. Far-item tests intercept `setProperty` and `classList.toggle`, so same-value calls count too.
+- Item 9: cleanup reads the serialized empty style attribute before removing it. A CSSOM-only clone exposed that checking `style.length` did not synchronize the attribute before removal in Chromium; the new destroy assertions caught this and now pass for 2, 3 and 4 items.
+- Item 10: the stale Questions bullet is marked superseded. Four current museum captures at 390/1280 px, stage/reduced motion, were regenerated and inspected for the PR description. They remain outside Git; no new baseline is committed.
+
+Verification:
+
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm build`: passed. Astro reported zero errors, warnings or hints; all 498 unit tests passed with the default command. The normal build and the existing e2e-fixture build both passed.
+- Three consecutive complete `pages` runs, without retries or code changes: **64/64 (45.5 s), 64/64 (47.3 s), 64/64 (48.8 s)**. Each includes 31 CoverFlow tests.
+- The complete `edge` project passed **29/29**, including production CSP and before-first-paint preference tests.
+- Another worktree occupied a default test port. Browser verification used an ignored temporary copy of the Playwright configuration with only working-directory and port isolation (14321/18787, no server reuse); the tracked configuration was unchanged.
+- Mutation checks: unconditional `attach()` failed the parser test; hiding controls before hydration failed the new CLS-source assertion even though the page-budget assertion passed. Both mutations were restored before the three final runs.
+
+Only the controller, its e2e spec and this task file changed in round 2. The Review section is untouched. No dependency, contract, content, Worker or tracked configuration was edited; no merge of this PR or deployment was performed.
 
 ## Review (Claude Code)

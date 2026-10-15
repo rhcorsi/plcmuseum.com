@@ -42,7 +42,10 @@ export function enhanceStage({ list, controls, exhibits, initialId, onActive, on
   const frames = new Set<number>();
   const notifications = settledChange(({ id }, announce) => {
     const card = exhibits.find((entry) => entry.id === id);
-    if (card) onSettled(card, announce);
+    if (card) {
+      list.dataset.centerId = card.id;
+      onSettled(card, announce);
+    }
   });
 
   const attributes = [list, ...items, ...links]
@@ -75,7 +78,7 @@ export function enhanceStage({ list, controls, exhibits, initialId, onActive, on
     for (const item of items) {
       item.classList.remove('is-center', 'is-near', 'is-parked', 'is-jumping');
       for (const name of ['offset', 'distance', 'direction', 'order']) item.style.removeProperty(`--coverflow-${name}`);
-      if (!item.style.length) item.removeAttribute('style');
+      if (item.getAttribute('style') === '') item.removeAttribute('style');
     }
   }
 
@@ -101,21 +104,20 @@ export function enhanceStage({ list, controls, exhibits, initialId, onActive, on
     links[previousCenter]?.setAttribute('aria-selected', 'false');
     activeLink.setAttribute('aria-selected', 'true');
     previousCenter = center;
-    const nextVisible = new Set([-1, 0, 1].map((step) => wrapIndex(center + step, items.length)));
+    const nextVisible = new Set([-2, -1, 0, 1, 2].map((step) => wrapIndex(center + step, items.length)));
     // Only the old and new neighbors can change. Parked cards receive no repeated DOM writes.
     for (const index of new Set([...visible, ...nextVisible])) {
       const item = items[index];
       if (!item) continue;
       const offset = Math.max(-2, Math.min(2, relativeOffset(index, center, items.length)));
-      const near = nextVisible.has(index);
+      const near = Math.abs(offset) <= 1;
       const previousOffset = offsets.get(index);
-      if (!visible.has(index) || (previousOffset !== undefined && Math.abs(previousOffset - offset) > 1)) {
-        item.classList.add('is-jumping');
-        afterPaint(() => item.classList.remove('is-jumping'));
-      }
+      const jumping = !visible.has(index) || (previousOffset !== undefined && Math.abs(previousOffset - offset) > 1);
+      item.classList.toggle('is-jumping', jumping);
+      if (jumping) afterPaint(() => item.classList.remove('is-jumping'));
       item.classList.toggle('is-center', offset === 0);
       item.classList.toggle('is-near', near);
-      item.classList.toggle('is-parked', !near);
+      item.classList.toggle('is-parked', !nextVisible.has(index));
       item.style.setProperty('--coverflow-offset', String(offset));
       item.style.setProperty('--coverflow-distance', String(Math.abs(offset)));
       item.style.setProperty('--coverflow-direction', String(Math.sign(offset)));
@@ -132,9 +134,8 @@ export function enhanceStage({ list, controls, exhibits, initialId, onActive, on
     announceCenter = announce;
     paint();
     const card = exhibits[center];
-    const item = items[center];
-    if (!card || !item) return;
-    const duration = enhanced ? transitionDurationMs(getComputedStyle(item).transitionDuration) : 0;
+    if (!card) return;
+    const duration = enhanced ? transitionDurationMs(getComputedStyle(list).getPropertyValue('--motion-stage')) : 0;
     notifications.schedule(card, duration, announce);
   }
 
@@ -264,7 +265,7 @@ export function enhanceStage({ list, controls, exhibits, initialId, onActive, on
   function onSelect(event: DocumentEventMap[typeof EXHIBIT_SELECT_EVENT]) {
     const index = exhibits.findIndex((card) => card.id === event.detail?.id);
     if (index < 0) return;
-    select(index, true);
+    select(index);
     if (!enhanced) {
       items[index]?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
     }
@@ -286,6 +287,7 @@ export function enhanceStage({ list, controls, exhibits, initialId, onActive, on
     destroy() {
       notifications.cancel();
       restore();
+      delete list.dataset.centerId;
       list.removeEventListener('keydown', onKeyDown);
       list.removeEventListener('focusin', onFocusIn);
       list.removeEventListener('click', onClick);

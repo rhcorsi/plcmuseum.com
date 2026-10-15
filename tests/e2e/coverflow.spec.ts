@@ -6,8 +6,14 @@ declare global {
     coverFlowTest: {
       items: Element[];
       changes: CenterChangeDetail[];
+      emissions: { detail: CenterChangeDetail; at: number; centerId: string | undefined }[];
+      keys: { key: string; at: number; motionMs: number }[];
+      attachment?: { readyState: string; hasStage: boolean };
       layoutShifts: number[];
-      layoutShiftSources?: unknown[];
+      layoutShiftSources?: {
+        value: number;
+        sources: { node?: string; stage: boolean; previous: unknown; current: unknown }[];
+      }[];
     };
   }
 }
@@ -23,7 +29,7 @@ async function openStage(page: Page, { reduced = false, era = '1980s', theme = '
   await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
   await page.addInitScript((eventName) => {
     const observed = window;
-    observed.coverFlowTest = { items: [], changes: [], layoutShifts: [] };
+    observed.coverFlowTest = { items: [], changes: [], emissions: [], keys: [], layoutShifts: [] };
     new PerformanceObserver((entries) => {
       for (const entry of entries.getEntries()) {
         const shift = entry as PerformanceEntry & {
@@ -35,11 +41,15 @@ async function openStage(page: Page, { reduced = false, era = '1980s', theme = '
           observed.coverFlowTest.layoutShifts.push(shift.value);
           (observed.coverFlowTest.layoutShiftSources ??= []).push({
             value: shift.value,
-            sources: shift.sources.map(({ node, previousRect, currentRect }) => ({
-              node: node instanceof Element ? node.outerHTML.slice(0, 160) : node?.nodeName,
-              previous: previousRect.toJSON(),
-              current: currentRect.toJSON(),
-            })),
+            sources: shift.sources.map(({ node, previousRect, currentRect }) => {
+              const element = node instanceof Element ? node : node?.parentElement;
+              return {
+                node: node instanceof Element ? node.outerHTML.slice(0, 160) : node?.nodeName,
+                stage: !!element?.closest('#stage, .stage-item, .coverflow-controls'),
+                previous: previousRect.toJSON(),
+                current: currentRect.toJSON(),
+              };
+            }),
           });
         }
       }
@@ -53,8 +63,33 @@ async function openStage(page: Page, { reduced = false, era = '1980s', theme = '
     });
     observer.observe(document, { childList: true, subtree: true });
     document.addEventListener(eventName, (event) => {
-      observed.coverFlowTest.changes.push((event as CustomEvent<CenterChangeDetail>).detail);
+      const detail = (event as CustomEvent<CenterChangeDetail>).detail;
+      observed.coverFlowTest.changes.push(detail);
+      observed.coverFlowTest.emissions.push({
+        detail,
+        at: performance.now(),
+        centerId: document.getElementById('stage')?.dataset.centerId,
+      });
     });
+    document.addEventListener(
+      'keydown',
+      (event) => {
+        if (
+          event.target !== document.getElementById('stage') ||
+          !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)
+        )
+          return;
+        const duration = getComputedStyle(event.target as HTMLElement)
+          .getPropertyValue('--motion-stage')
+          .trim();
+        observed.coverFlowTest.keys.push({
+          key: event.key,
+          at: performance.now(),
+          motionMs: parseFloat(duration) * (duration.endsWith('ms') ? 1 : 1000),
+        });
+      },
+      true,
+    );
   }, CENTER_CHANGE_EVENT);
   const response = await page.goto(`/dev/coverflow?era=${era}&theme=${theme}`);
   expect(response?.status()).toBe(200);
@@ -76,7 +111,21 @@ async function expectSelected(page: Page, id: string) {
 }
 
 async function centerChanges(page: Page) {
-  return page.evaluate(() => window.coverFlowTest.changes);
+  const { changes, emissions } = await page.evaluate(() => window.coverFlowTest);
+  for (const emission of emissions) expect(emission.centerId).toBe(emission.detail.id);
+  return changes;
+}
+
+async function afterPaint(page: Page) {
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+  );
+}
+
+async function expectSilentSettle(page: Page, id: string) {
+  await expect.poll(async () => (await centerChanges(page)).at(-1)?.id).toBe(id);
+  await afterPaint(page);
+  await expect(page.locator('[aria-live="polite"]')).toBeEmpty();
 }
 
 async function selectExhibit(page: Page, id: string) {
@@ -92,15 +141,22 @@ async function expectAnnouncement(page: Page, id: string) {
   await expect(live).toContainText((await item.locator('.name').textContent())!.trim());
   await expect(live).toContainText((await item.locator('.year').textContent())!.trim());
   await expect(live).toBeVisible();
+  await centerChanges(page);
 }
 
 test.describe('coverflow', () => {
   test('accepts an external selection dispatched synchronously by the initial center listener', async ({ page }) => {
     await page.addInitScript(
       ({ centerEvent, selectEvent, selectedId }) => {
-        window.coverFlowTest = { items: [], changes: [], layoutShifts: [] };
+        window.coverFlowTest = { items: [], changes: [], emissions: [], keys: [], layoutShifts: [] };
         document.addEventListener(centerEvent, (event) => {
-          window.coverFlowTest.changes.push((event as CustomEvent<CenterChangeDetail>).detail);
+          const detail = (event as CustomEvent<CenterChangeDetail>).detail;
+          window.coverFlowTest.changes.push(detail);
+          window.coverFlowTest.emissions.push({
+            detail,
+            at: performance.now(),
+            centerId: document.getElementById('stage')?.dataset.centerId,
+          });
           if (window.coverFlowTest.changes.length === 1) {
             document.dispatchEvent(new CustomEvent(selectEvent, { detail: { id: selectedId } }));
           }
@@ -116,7 +172,7 @@ test.describe('coverflow', () => {
         { id: INITIAL_ID, decade: '1980s', era: '1980s' },
         { id: LAST_ID, decade: '2020s', era: '2020s' },
       ]);
-    await expectAnnouncement(page, LAST_ID);
+    await expectSilentSettle(page, LAST_ID);
   });
 
   test('defers enhancement until the server-rendered list finishes parsing', async ({ page }) => {
@@ -140,10 +196,28 @@ test.describe('coverflow', () => {
         body: body.replace(/<ol\b(?=[^>]*id="stage")/, '<script src="/__coverflow-parse-barrier.js"></script><ol'),
       });
     });
+    await page.addInitScript(() => {
+      const readyState = Object.getOwnPropertyDescriptor(Document.prototype, 'readyState')!;
+      Object.defineProperty(Document.prototype, 'readyState', {
+        ...readyState,
+        get() {
+          const state = readyState.get!.call(this) as string;
+          if (new Error().stack?.includes('/src/islands/CoverFlow.tsx')) {
+            window.coverFlowTest.attachment = { readyState: state, hasStage: !!document.getElementById('stage') };
+          }
+          return state;
+        },
+      });
+    });
+    const barrierRequested = page.waitForRequest('**/__coverflow-parse-barrier.js');
     const opening = openStage(page);
     try {
-      await expect(page.locator('astro-island:not([ssr])')).toHaveCount(1);
+      await barrierRequested;
       await expect(page.locator('#stage')).toHaveCount(0);
+      await expect(page.locator('astro-island:not([ssr])')).toHaveCount(1);
+      await expect
+        .poll(() => page.evaluate(() => window.coverFlowTest.attachment))
+        .toEqual({ readyState: 'loading', hasStage: false });
       expect(await centerChanges(page)).toEqual([]);
     } finally {
       releaseList();
@@ -198,7 +272,7 @@ test.describe('coverflow', () => {
         await expect(option).toHaveAccessibleDescription((await item.locator('.tagline').textContent())!.trim());
       }
     }
-    await expect(page.getByRole('option')).toHaveCount(3);
+    await expect(page.getByRole('option')).toHaveCount(5);
 
     await expect(page.locator('#stage .photo')).toHaveCount(10);
     await expect(page.locator('#stage svg use')).toHaveCount(2);
@@ -272,39 +346,58 @@ test.describe('coverflow', () => {
     await expect(page).toHaveURL(/\/dev\/coverflow\?/);
   });
 
-  test('announces the supplied approximate years and emits one event for a settled navigation burst', async ({
-    page,
-  }) => {
-    await openStage(page);
-    await page.evaluate(() => {
-      window.coverFlowTest.changes = [];
+  for (const steps of [1, 3]) {
+    test(`emits once after the complete motion delay for ${steps} keyboard steps`, async ({ page }) => {
+      await openStage(page);
+      await afterPaint(page);
+      await page.getByRole('listbox').focus();
+      for (let step = 0; step < steps; step += 1) await page.keyboard.press('ArrowRight');
+      const selectedId = steps === 1 ? DISPUTED_ID : 'fx-bevel-station-bs95';
+      await expectSelected(page, selectedId);
+      await expectSilentSettle(page, selectedId);
+      const { emissions, keys } = await page.evaluate(() => window.coverFlowTest);
+      expect(keys).toHaveLength(steps);
+      expect(emissions).toHaveLength(2);
+      const lastKey = keys.at(-1)!;
+      expect(emissions[1]!.at - lastKey.at).toBeGreaterThanOrEqual(lastKey.motionMs + 120);
+      await page.waitForTimeout(lastKey.motionMs + 120);
+      expect(await centerChanges(page)).toHaveLength(2);
     });
-    const stage = page.getByRole('listbox');
-    await stage.focus();
-    await page.keyboard.press('ArrowRight');
-    await page.keyboard.press('ArrowRight');
-    await page.keyboard.press('ArrowRight');
-    const selectedId = 'fx-bevel-station-bs95';
-    await expectSelected(page, selectedId);
-    expect(await centerChanges(page)).toEqual([]);
-    const expected = [{ id: selectedId, decade: '1990s', era: '1990s' }];
-    await expect.poll(() => centerChanges(page)).toEqual(expected);
-    await expect(page.locator('[aria-live="polite"]')).toBeEmpty();
-    // A second full transition window would expose stale timers from earlier keys.
-    await page.waitForTimeout(1000);
-    expect(await centerChanges(page)).toEqual(expected);
+  }
 
-    const live = page.locator('[aria-live="polite"]');
-    for (const id of ['fx-logic-cabinet-lc20', DISPUTED_ID]) {
-      await selectExhibit(page, id);
-      await expectSelected(page, id);
-      const item = page.locator(`#stage-item-${id}`);
-      const name = (await item.locator('.name').innerText()).trim();
-      const yearLabel = (await item.locator('.year').innerText()).trim();
-      expect(yearLabel).toContain('approx.');
-      await expect(live).toContainText(name);
-      await expect(live).toContainText(yearLabel);
-    }
+  test('incoming neighbor runs a transition from the transparent outer slot', async ({ page }) => {
+    await openStage(page);
+    await afterPaint(page);
+    const incoming = page.locator('#stage-item-fx-multiloop-ml8');
+    expect(await incoming.evaluate((item) => getComputedStyle(item).opacity)).toBe('0');
+    await incoming.evaluate((item) => {
+      item.addEventListener('transitionrun', (event) => {
+        if (event.target === item && ['transform', 'opacity'].includes((event as TransitionEvent).propertyName))
+          item.setAttribute('data-test-transition', 'running');
+      });
+    });
+    await page.getByRole('listbox').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(incoming).toHaveAttribute('data-test-transition', 'running');
+    await expectSelected(page, DISPUTED_ID);
+  });
+
+  test('previous and next announce the supplied approximate and disputed year labels', async ({ page }) => {
+    await openStage(page);
+    const previous = page.getByRole('button', { name: 'Previous exhibit', exact: true });
+    const next = page.getByRole('button', { name: 'Next exhibit', exact: true });
+    await previous.click();
+    await previous.click();
+    const approximateId = 'fx-logic-cabinet-lc20';
+    await expectSelected(page, approximateId);
+    expect(await page.locator(`#stage-year-${approximateId}`).textContent()).toContain('approx.');
+    await expectAnnouncement(page, approximateId);
+    await next.click();
+    await next.click();
+    await next.click();
+    await expectSelected(page, DISPUTED_ID);
+    expect(await page.locator(`#stage-year-${DISPUTED_ID}`).textContent()).toContain('approx.');
+    await expectAnnouncement(page, DISPUTED_ID);
   });
 
   test('external selection accepts a known exhibit and ignores invalid ids without disturbing focus', async ({
@@ -316,10 +409,11 @@ test.describe('coverflow', () => {
     await selectExhibit(page, LAST_ID);
     await expectSelected(page, LAST_ID);
     await expect(control).toBeFocused();
-    await expectAnnouncement(page, LAST_ID);
+    await expectSilentSettle(page, LAST_ID);
     await selectExhibit(page, 'fixture-does-not-exist');
     await expectSelected(page, LAST_ID);
     await expect(control).toBeFocused();
+    await expectSilentSettle(page, LAST_ID);
   });
 
   test('keyboard clears the prior announcement so controls can announce the same exhibit again', async ({ page }) => {
@@ -383,8 +477,11 @@ test.describe('coverflow', () => {
     await openStage(page);
     await page.getByRole('button', { name: 'Next exhibit', exact: true }).click();
     await expectSelected(page, DISPUTED_ID);
+    await expectAnnouncement(page, DISPUTED_ID);
+    await expect(page.locator('#stage')).toHaveAttribute('data-center-id', DISPUTED_ID);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expectStaticList(page);
+    await expect(page.locator('#stage')).toHaveAttribute('data-center-id', DISPUTED_ID);
     await expect(page.locator(`#stage-link-${DISPUTED_ID}`)).toBeFocused();
     await expect(page.getByRole('button', { name: 'Next exhibit', exact: true })).toBeHidden();
     expect(
@@ -397,12 +494,14 @@ test.describe('coverflow', () => {
     await expect(page.locator('#stage')).toHaveAttribute('role', 'listbox');
     await expectSelected(page, LAST_ID);
     await expect(page.getByRole('listbox')).toBeFocused();
+    await expectSilentSettle(page, LAST_ID);
+    await expect(page.locator('#stage')).toHaveAttribute('data-center-id', LAST_ID);
   });
 
   for (const focusTarget of ['list', 'previous', 'open']) {
     test(`motion changes transfer ${focusTarget} focus to the current native link`, async ({ page }) => {
       await openStage(page);
-      await selectExhibit(page, DISPUTED_ID);
+      await page.getByRole('button', { name: 'Next exhibit', exact: true }).click();
       await expectAnnouncement(page, DISPUTED_ID);
       const target =
         focusTarget === 'list'
@@ -426,15 +525,13 @@ test.describe('coverflow', () => {
     await expect(page.getByRole('button', { name: 'Next exhibit', exact: true })).toBeHidden();
   });
 
-  test('reduced-motion external selection preserves sender focus and announces the selected exhibit', async ({
-    page,
-  }) => {
+  test('reduced-motion external selection preserves sender focus and stays silent after settling', async ({ page }) => {
     await openStage(page, { reduced: true });
     const sender = page.locator('#stage a.card').first();
     await sender.focus();
     await selectExhibit(page, LAST_ID);
     await expect(sender).toBeFocused();
-    await expectAnnouncement(page, LAST_ID);
+    await expectSilentSettle(page, LAST_ID);
     await expect
       .poll(() => centerChanges(page))
       .toEqual([
@@ -444,7 +541,13 @@ test.describe('coverflow', () => {
     await expect(page.locator(`#stage-item-${LAST_ID}`)).toBeInViewport();
     await selectExhibit(page, 'fixture-does-not-exist');
     await expect(sender).toBeFocused();
-    await expectAnnouncement(page, LAST_ID);
+    await expectSilentSettle(page, LAST_ID);
+    await selectExhibit(page, LAST_ID);
+    // An unchanged pick emits no event to await; cover its reduced-motion debounce window explicitly.
+    await page.waitForTimeout(120);
+    await expectSilentSettle(page, LAST_ID);
+    await expect(sender).toBeFocused();
+    expect(await centerChanges(page)).toHaveLength(2);
   });
 
   test('an option receiving pointer focus returns ownership to the listbox', async ({ page }) => {
@@ -462,19 +565,36 @@ test.describe('coverflow', () => {
     await page.mouse.up();
   });
 
-  test('parked distant items receive no attribute writes during nearby navigation', async ({ page }) => {
+  test('parked distant items receive no style or class writes including same-value calls', async ({ page }) => {
     await openStage(page);
     const mutations = await page.evaluate(async () => {
       const stage = document.getElementById('stage')!;
       const distant = stage.querySelector<HTMLElement>(`[data-id="fx-edge-pac-ep21"]`)!;
-      const records: MutationRecord[] = [];
-      const observer = new MutationObserver((changes) => records.push(...changes));
-      observer.observe(distant, { attributes: true, subtree: true });
-      stage.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-      records.push(...observer.takeRecords());
-      observer.disconnect();
-      return { writes: records.length, visibility: getComputedStyle(distant).visibility };
+      const targets = [distant, ...distant.querySelectorAll<HTMLElement>('*')];
+      const styles = new Set(targets.map((element) => element.style));
+      const classes = new Set(targets.map((element) => element.classList));
+      const setProperty = CSSStyleDeclaration.prototype.setProperty;
+      const toggle = DOMTokenList.prototype.toggle;
+      let writes = 0;
+      CSSStyleDeclaration.prototype.setProperty = function (
+        this: CSSStyleDeclaration,
+        ...args: Parameters<CSSStyleDeclaration['setProperty']>
+      ) {
+        if (styles.has(this)) writes += 1;
+        return setProperty.apply(this, args);
+      };
+      DOMTokenList.prototype.toggle = function (this: DOMTokenList, ...args: Parameters<DOMTokenList['toggle']>) {
+        if (classes.has(this)) writes += 1;
+        return toggle.apply(this, args);
+      };
+      try {
+        stage.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        return { writes, visibility: getComputedStyle(distant).visibility };
+      } finally {
+        CSSStyleDeclaration.prototype.setProperty = setProperty;
+        DOMTokenList.prototype.toggle = toggle;
+      }
     });
     expect(mutations).toEqual({ writes: 0, visibility: 'hidden' });
     await expectSelected(page, DISPUTED_ID);
@@ -516,6 +636,7 @@ test.describe('coverflow', () => {
         });
         source.after(list);
         let selected = '';
+        const emitted: { id: string; centerId: string | undefined }[] = [];
         const controller = enhanceStage({
           list,
           exhibits,
@@ -524,7 +645,9 @@ test.describe('coverflow', () => {
             selected = card.id;
           },
           onEnhanced: () => {},
-          onSettled: () => {},
+          onSettled: (card) => {
+            emitted.push({ id: card.id, centerId: list.dataset.centerId });
+          },
         });
         const afterPaint = () =>
           new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -546,11 +669,39 @@ test.describe('coverflow', () => {
           });
           await afterPaint();
         }
+        const beforeDestroy = list.dataset.centerId;
         controller.destroy();
+        const restored = {
+          center: list.hasAttribute('data-center-id'),
+          styles: items.filter((item) => item.hasAttribute('style')).map((item) => item.getAttribute('style')),
+        };
+        const mismatched = enhanceStage({
+          list,
+          exhibits: exhibits.slice(1),
+          initialId: exhibits[0]!.id,
+          onActive: () => {},
+          onEnhanced: () => {},
+          onSettled: () => {},
+        });
+        const mismatchedCenter = list.hasAttribute('data-center-id');
+        mismatched.destroy();
         list.remove();
-        return { jumps, selections, expected: [exhibits[size - 1]!.id, exhibits[0]!.id] };
+        return {
+          jumps,
+          selections,
+          expected: [exhibits[size - 1]!.id, exhibits[0]!.id],
+          emitted,
+          beforeDestroy,
+          restored,
+          mismatchedCenter,
+        };
       }, count);
       expect(result.selections).toEqual(result.expected);
+      expect(result.emitted[0]).toEqual({ id: result.expected[1], centerId: result.expected[1] });
+      for (const emission of result.emitted) expect(emission.centerId).toBe(emission.id);
+      expect(result.beforeDestroy).toBe(result.emitted.at(-1)!.id);
+      expect(result.restored).toEqual({ center: false, styles: [] });
+      expect(result.mismatchedCenter).toBe(false);
       // Two cards exchange center and side by a single step; three and four have a side-to-side jump.
       if (count > 2) expect(result.jumps.length).toBeGreaterThan(0);
       for (const jump of result.jumps) expect(jump).toEqual({ duration: '0s', animations: 0 });
@@ -576,6 +727,13 @@ test.describe('coverflow', () => {
         await page.evaluate(() => window.coverFlowTest.layoutShifts.reduce((total, value) => total + value, 0)),
         JSON.stringify(await page.evaluate(() => window.coverFlowTest.layoutShiftSources)),
       ).toBeLessThan(0.05);
+      expect(
+        await page.evaluate(() =>
+          (window.coverFlowTest.layoutShiftSources ?? [])
+            .flatMap((entry) => entry.sources)
+            .filter((source) => source.stage),
+        ),
+      ).toEqual([]);
       expect(
         await page
           .locator('#stage .stage-item')
@@ -633,6 +791,7 @@ async function expectStaticList(page: Page) {
         const restored = ['role', 'tabindex', 'aria-selected', 'aria-posinset', 'aria-setsize', 'aria-label'];
         return (
           getComputedStyle(item).transform === 'none' &&
+          !item.hasAttribute('style') &&
           restored.every((attribute) => !item.hasAttribute(attribute) && !link?.hasAttribute(attribute)) &&
           link?.tabIndex === 0
         );
