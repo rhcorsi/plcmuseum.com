@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="art" viewBox="0 0 640 260" role="img" aria-labelledby="fixture-silhouette-title">
+  <title id="fixture-silhouette-title">Fixture placeholder: generic controller outline</title>
+  <!-- Original placeholder drawn for fixtures (PLC Museum, CC BY 4.0). Generic shapes only, no brand marks. -->
+  <g fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round">
+    <rect x="40" y="40" width="560" height="180" rx="6"/>
+    <rect x="60" y="60" width="110" height="140" rx="3"/>
+    <path d="M190 60v140M250 60v140M310 60v140M370 60v140M430 60v140M490 60v140M550 60v140"/>
+  </g>
+  <g fill="currentColor" aria-hidden="true">
+    <circle cx="85" cy="85" r="6"/>
+    <circle cx="105" cy="85" r="6"/>
+    <rect x="80" y="150" width="70" height="30" rx="2" fill="none" stroke="currentColor" stroke-width="3"/>
+  </g>
+</svg>
