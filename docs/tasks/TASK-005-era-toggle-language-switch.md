@@ -137,4 +137,30 @@ Unit: `resolveEra` over every `enabled` × `centeredEra` (none, an era) × `page
 
 ## Implementation notes (implementer)
 
+### 2026-10-15: header controls handback
+
+- Started in a new worktree, `D:/ClaudeCode/plcmuseum-codex-005`, on `feat/task-005-era-toggle-language-switch` from `origin/main` (`77c900c`), after pushing TASK-001 round 2 (`1bb436b`) to PR #9. TASK-004 was not started.
+- Added the exact server-rendered EraToggle markup as the last rendered child of the header's top row, with localized data attributes and an initially empty status outside the switch. Token-only CSS reserves the button's box before initialization, hides the root without scripting, preserves native focus, and animates only visitor toggles, with an instant reduced-motion variant.
+- The synchronous EraToggle module reads the remembered preference defensively, applies the last valid centered era or the page era, writes only changed `data-era` values, and emits the contract event after applying state. Initialization is silent; center changes and persisted `pageshow` resyncs clear status only when effective state changes. Storage getter and method failures stay contained, including failed reads on resync.
+- LanguageLinks keeps its existing links and ARIA. Its delegated listener remembers only plain activations, including the current language and keyboard activation, without reading preferences, preventing navigation, or implementing the `/prefs.js` follow rule. Neither control imports React or a dictionary on the client.
+- Added the six scenario fixture pages and 144 unit cases for state, storage, announcement policy and every import form. The source guards parse TypeScript, resolve relative paths, check every module in each folder, require the exact external script tags, and reject forbidden import and navigation probes. JSON imports in Playwright use `with { type: 'json' }`; no TypeScript test imports a Node module.
+- Verification: `pnpm lint` passed; `pnpm typecheck` passed with 93 files and zero errors, warnings or hints; `pnpm test` passed 628 tests in 23 files; normal `pnpm build` passed (75 generated routes, 67 after dev removal). `PLCMUSEUM_E2E_FIXTURES=1 pnpm build` passed (76 generated routes, 68 after dev removal).
+- The two task `pages` specs passed three consecutive runs, without retries or code edits between them: **65/65 (35.1 s), 65/65 (31.8 s), 65/65 (30.5 s)**. The full `pages` project then passed **98/98 (43.0 s)** and the full `edge` project passed **33/33 (19.9 s)**.
+- Local Playwright used an ignored temporary config under `test-results/`, with this worktree as server cwd, isolated ports 14321 and 18787, and `reuseExistingServer: false`. Other worktrees were using the standard ports, and the first alternative port 15321 was in a Windows reserved range. The checked-in configuration is unchanged. Logs are `test-results/task005-pages-{1,2,3}.log`, `task005-pages-full.log` and `task005-edge-full.log`.
+- Mutation proof for e2e 8: temporarily replacing pre-init `visibility: hidden` with `display: none` made the test fail on the reserved-button assertion. Mutation proof for e2e 12: temporarily removing the `scripting: none` rule made both fixture and real-page cases fail because the root remained `display: block`. Both changes were restored before the three final runs; logs are `test-results/task005-mutation-pre-init-box.log` and `task005-mutation-no-script.log`.
+
+The edge test fetched every module script, module preload and static dependency over HTTP, rejected dynamic imports, and measured each file with `CompressionStream('gzip')`. Shared modules count in both per-control totals and once in the combined total:
+
+| File under `/_astro/` | Entry | Raw bytes | Gzip bytes |
+| --- | --- | ---: | ---: |
+| `LanguageLinks.astro_astro_type_script_index_0_lang.z-RntXPy.js` | LanguageSwitch | 531 | 376 |
+| `contracts.30odnZO8.js` | LanguageSwitch, EraToggle | 290 | 177 |
+| `EraToggle.astro_astro_type_script_index_0_lang.B7q5VCNb.js` | EraToggle | 1569 | 750 |
+| `era.CPrI5Rmy.js` | EraToggle | 137 | 125 |
+
+- Combined: **1428 / 3584 bytes gzip**. EraToggle: **1052 / 2048**. LanguageSwitch: **553 / 1536**. No React chunk, dependency, CSP configuration or other architect-owned file changed.
+- Sixteen captures from final run 3 are saved outside the repository at `D:/ClaudeCode/captures/task-005/`: 390 and 1280 px, off and all five eras in light mode, off and 1980s in dark mode. They show the header and fixture, excluding the footer's contact details, and were visually inspected. No captures are committed. TASK-002 is not on this base, so all era states intentionally use the museum tokens.
+- The GitHub browser attachment chooser rejected local uploads because the extension's "Allow access to file URLs" permission is disabled. The owner's round-2 handoff explicitly permits the local-capture fallback; these PNGs remain available for the owner to attach, with a ZIP at `D:/ClaudeCode/captures/task-005-captures.zip`.
+- Keyboard, accessibility-tree state, focus, forced colors and reduced-motion emulation passed in Chromium. NVDA/Chrome or VoiceOver/Safari speech, OS-level reduced motion, and integration Lighthouse checks were not performed here and remain for the architect's manual verification. No merge or deployment was performed.
+
 ## Review (Claude Code)

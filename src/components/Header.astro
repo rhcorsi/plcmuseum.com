@@ -1,9 +1,10 @@
 ---
-// Site header: brand, primary navigation, language links and the decade row. Plain links only, so the whole
-// header works without JS and with the keyboard.
+// Site header: brand, primary navigation, language links, Era style switch and the decade row.
+// Navigation stays usable without JS; the switch is enhanced by its external script.
 import type { Decade } from '../content/types';
 import { isMachineTranslated, type Lang, localizedPath, t } from '../i18n/utils';
 import DecadeSelector from './DecadeSelector.astro';
+import EraToggle from './EraToggle.astro';
 import LanguageLinks from './LanguageLinks.astro';
 import TranslationBadge from './TranslationBadge.astro';
 
@@ -38,6 +39,7 @@ const primary = [
         </ul>
       </nav>
       <LanguageLinks lang={lang} path={path} />
+      <EraToggle lang={lang} />
     </div>
     <DecadeSelector lang={lang} label={t(lang, 'nav.decades')} current={currentDecade} />
     {isMachineTranslated(lang) && <TranslationBadge lang={lang} message={t(lang, 'translation.machine')} />}

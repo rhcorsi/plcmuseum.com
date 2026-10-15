@@ -1,0 +1,39 @@
+---
+import Page from '../../../layouts/Page.astro';
+import { ERA_THEMES, type EraTheme } from '../../../lib/era';
+
+export function getStaticPaths() {
+  return ['none', ...ERA_THEMES].map((scenario) => ({ params: { scenario }, props: { scenario } }));
+}
+
+interface Props {
+  scenario: 'none' | EraTheme;
+}
+
+const { scenario } = Astro.props;
+---
+
+<Page
+  lang="en"
+  title={'EraToggle fixture: ' + scenario}
+  path={null}
+  noindex
+  pageEra={scenario === 'none' ? null : scenario}
+>
+  <h1>EraToggle fixture: {scenario}</h1>
+  <p>The header switch applies this page's era and keeps the preference for the next visit.</p>
+  <a id="fixture-link" href="#fixture-box">
+    Fixture link
+  </a>
+  <div id="fixture-box">Fixture surface</div>
+</Page>
+
+<style>
+  #fixture-box {
+    margin-block: var(--space-4);
+    padding: var(--space-5);
+    background: var(--color-surface);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+</style>
