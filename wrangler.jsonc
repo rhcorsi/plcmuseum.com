@@ -33,6 +33,11 @@
     { "pattern": "plcmuseum.com", "custom_domain": true },
     { "pattern": "www.plcmuseum.com", "custom_domain": true }
   ],
+  // Only the custom domains serve the site. A <name>.<subdomain>.workers.dev URL or a per-version preview URL would
+  // reach the preview Worker without Cloudflare Access (docs/SECURITY.md 3.5), and Wrangler turns workers.dev on by
+  // itself for any environment without routes. env.preview inherits both.
+  "workers_dev": false,
+  "preview_urls": false,
   "env": {
     "preview": {
       "name": "plcmuseum-preview",
