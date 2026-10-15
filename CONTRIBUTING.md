@@ -50,4 +50,6 @@ cp .dev.vars.example .dev.vars    # local Worker secrets (never committed)
 cp .env.example .env              # public build vars
 git config core.hooksPath scripts/hooks   # pre-commit: secret scan + content validation
 pnpm dev
+pnpm build && pnpm preview          # production build served through the Worker (wrangler dev, port 8787)
+pnpm exec playwright install chromium   # once, before pnpm test:e2e
 ```

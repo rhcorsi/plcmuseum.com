@@ -75,4 +75,4 @@ Weekly, owner only, on the owner's machine: `pnpm stories:moderate --list` → `
 
 - Monday: pick the exhibit of the week, prepare the post (image + question), schedule.
 - Wednesday: publish on LinkedIn (PT) with the EN version in the first comment; reply to every comment for 48 h.
-- Friday: export stories, approve, merge, deploy; note metrics in `docs/METRICS.md` (comments with memories, stories submitted, contributors).
+- Friday: moderate stories in D1, trigger the deploy workflow; note metrics in `docs/METRICS.md` (comments with memories, stories submitted, contributors).
