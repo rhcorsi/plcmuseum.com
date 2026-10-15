@@ -81,7 +81,9 @@ test('/dev/coverflow stage links carry the ids, name and description of the cont
   for (const item of await page.locator('.stage-list .stage-item').all()) {
     const id = await item.getAttribute('data-id');
     const part = async (kind: string) => ((await item.locator(`#stage-${kind}-${id}`).textContent()) ?? '').trim();
-    const [name, maker, year, tagline] = await Promise.all(['name', 'maker', 'year', 'tagline'].map(part));
+    const [name = '', maker = '', year = '', tagline = ''] = await Promise.all(
+      ['name', 'maker', 'year', 'tagline'].map(part),
+    );
     for (const text of [name, maker, year, tagline]) expect(text, `${id} part`).not.toBe('');
     const link = item.locator(`a.card#stage-link-${id}`);
     await expect(link).toHaveAccessibleName(`${name} ${maker} ${year}`);
