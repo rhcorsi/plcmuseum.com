@@ -1,0 +1,54 @@
+.coverflow-controls:not([hidden]) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.coverflow-controls button,
+.coverflow-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.coverflow-controls button:hover,
+.coverflow-open:hover {
+  background: var(--color-surface-hover);
+}
+
+.coverflow-controls :focus-visible {
+  outline: calc(var(--border-width) * 2) solid var(--color-focus);
+  outline-offset: var(--space-1);
+}
+
+.coverflow-controls button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.coverflow-announcement {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coverflow-controls {
+    display: none;
+  }
+}

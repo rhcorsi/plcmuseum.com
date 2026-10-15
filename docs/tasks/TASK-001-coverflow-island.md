@@ -72,6 +72,38 @@ Notes from the Phase 0 integration:
 
 ## Questions (implementer → architect)
 
+- Resolved by the owner on 2026-10-15: the required decorative year has no existing markup hook. May StageList add one `aria-hidden="true"` span per item while retaining all existing markup, ids and data attributes? Owner approved this specific addition in the task chat.
+- Visual baseline handoff: can the architect generate and approve Linux baselines before enabling `toHaveScreenshot` with `maxDiffPixelRatio: 0.001`? This host has Windows Chromium but no usable Linux browser runtime. The task's fallback is used: 26 Windows captures are committed and linked in the PR, and screenshot assertions are not introduced.
+
 ## Implementation notes (implementer)
+
+Implemented on 2026-10-15 in `feat/task-001-coverflow`, from `main` at `7642f26`.
+
+- `CoverFlow.tsx` renders controls and a polite, atomic announcement. Its controller enhances the existing list, retaining the original 12 item nodes, links, image dimensions, silhouettes and credits. No dictionary or new dependency enters the browser bundle.
+- The list has a single keyboard focus target with listbox/options, named options, active descendant and visible focus. Arrow keys wrap, Home/End jump, Enter follows the selected link, and side clicks select before opening. Controls expose the supplied localized labels and selected exhibit URL.
+- Horizontal wheel gestures and pointer swipes navigate. Vertical scrolling, pinch zoom and modified link clicks retain native behavior. Rapid input replaces the pending notification; the last selection emits `{ id, decade, era }` and calls the optional callback after the computed CSS transition plus 120 ms. The initial selection also emits once. Unknown external exhibit ids are ignored.
+- Geometry and transition styling consume the stage and motion tokens. Only the center and its two nearest neighbors use `will-change`. The owner-approved year span contains digits only and is `aria-hidden`; readable years and announcements use the supplied localized label.
+- The reduced-motion media query restores the original vertical list, link tab order and list semantics, including live preference changes. The no-JavaScript fallback is also covered. The fixture uses `client:load`, because hidden SSR controls do not provide a reliable intersection target for `client:visible`.
+- Header rendering, Era UI updates and production CSP hydration remain the architect's integration work. Events are emitted regardless of `eraUiEnabled`; the consumer decides whether to apply the era.
+
+Verification:
+
+- `pnpm lint`: passed, including ESLint and Prettier.
+- `pnpm typecheck`: passed, zero errors, warnings or hints from Astro.
+- `pnpm test`: 367 tests passed, including six CoverFlow logic tests in the existing Node environment.
+- `pnpm build`: passed, 69 routes; fixture pages and unreachable island assets were pruned as configured.
+- `pnpm test:e2e --project pages --grep coverflow --workers=2`: 38 tests passed (36 new checks plus two existing fixture checks), including interaction, original node identity, event coalescing, image/credit structure, focus, horizontal wheel, touch input, no JavaScript and reduced motion.
+- `pnpm test:e2e tests/e2e/pages.spec.ts tests/e2e/edge.spec.ts --workers=2`: all 35 existing page and Worker regression tests passed.
+- 26 PNG captures under `tests/e2e/coverflow.spec.ts-snapshots/`: museum plus five era attributes, light/dark, 390/1280 px, and two reduced-motion views. Tests assert all 12 items, the selected item, decorative year accessibility and no horizontal overflow. These are Windows visual evidence, not Linux comparison baselines.
+- The actual minified CoverFlow chunk captured during the production build before fixture pruning is 6,383 bytes, 2,692 bytes gzip (2.63 KiB), below the 45 KB allowance. Shared React/client chunks total 68,814 bytes gzip, counted separately. The home integration and its complete 150 KB budget are not part of this fixture-only delivery.
+- Lighthouse 13.5.0 mobile on the compiled fixture: performance 99, accessibility 100, best practices 96; LCP 1.8 s, CLS 0.036, TBT 60 ms. The fixture HTML and assets were captured before the existing build hook pruned them and served locally with gzip, without modifying configuration. The best-practices deduction was a missing favicon on this temporary server. This is not a production Worker/CSP measurement. The initial Astro-dev run scored 48/97/100 and loaded development modules; its decorative-year contrast finding was corrected before the final compiled run and screenshots.
+- Chromium 1248 on Windows, 390 x 844, CDP CPU throttle 4x, eight transitions on the compiled fixture: 395 frame intervals, median 16.7 ms, p95 16.8 ms, mean 59.25 fps, one interval over 33.4 ms (maximum 49.9 ms), zero long tasks, zero layout shift during navigation, three items with `will-change`. This is the task's desktop proxy, not a physical-device claim of sustained 60 fps.
+
+Limits for integration review:
+
+- TASK-002's era files on this base are empty token overrides, so all era attributes currently inherit the museum appearance. Recheck the screenshots after Gemini's themes are integrated.
+- Playwright verified the browser's reduced-motion setting both initially and during interaction. A manual Windows accessibility-setting check and physical Android test have not been performed.
+- Lighthouse's unweighted label/content advisory lists the cards, whose accessible names intentionally follow the contract's exhibit-name labels while visible cards also contain credits, year and metadata. Review this with assistive technology during integration; the scored accessibility checks pass.
+- No merge or deployment was performed. No architecture, contracts, content, Worker, configuration, dependencies or other documentation was changed.
 
 ## Review (Claude Code)
