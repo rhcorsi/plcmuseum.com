@@ -131,7 +131,7 @@ function lab(hex: string): Lab {
   return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
 }
 
-// CIEDE2000 color difference (Sharma, Wu and Dalal 2005). Below about 5, two colors side by side read as one.
+// CIEDE2000 color difference (Sharma, Wu and Dalal 2005).
 function deltaE2000([l1, a1, b1]: Lab, [l2, a2, b2]: Lab): number {
   const deg = Math.PI / 180;
   const pow7 = (x: number) => x ** 7;
@@ -167,17 +167,24 @@ function deltaE2000([l1, a1, b1]: Lab, [l2, a2, b2]: Lab): number {
   return Math.sqrt(dl ** 2 + dc ** 2 + dhs ** 2 + rT * dc * dhs);
 }
 
+// Reference pairs from Sharma, Wu and Dalal's CIEDE2000 test data: 11 and 15 take the hue-wrap branches, 7 and 33 are
+// near-achromatic, 17 is a large difference.
 test.each([
-  // Reference pairs 1, 7 and 17 from Sharma, Wu and Dalal's CIEDE2000 test data.
-  [[50, 2.6772, -79.7751], [50, 0, -82.7485], 2.0425],
-  [[50, 0, 0], [50, -1, 2], 2.3669],
-  [[22.7233, 20.0904, -46.694], [23.0331, 14.973, -42.5619], 2.0373],
-] as [Lab, Lab, number][])('CIEDE2000 matches the reference value %#', (first, second, expected) => {
+  [1, [50, 2.6772, -79.7751], [50, 0, -82.7485], 2.0425],
+  [7, [50, 0, 0], [50, -1, 2], 2.3669],
+  [11, [50, 2.49, -0.001], [50, -2.49, 0.0011], 7.2195],
+  [15, [50, -0.001, 2.49], [50, 0.0011, -2.49], 4.7461],
+  [17, [50, 2.5, 0], [73, 25, -18], 27.1492],
+  [29, [22.7233, 20.0904, -46.694], [23.0331, 14.973, -42.5619], 2.0373],
+  [33, [2.0776, 0.0795, -1.135], [0.9033, -0.0636, -0.5514], 0.9082],
+] as [number, Lab, Lab, number][])('CIEDE2000 matches reference pair %i', (_pair, first, second, expected) => {
   expect(deltaE2000(first, second)).toBeCloseTo(expected, 4);
+  expect(deltaE2000(second, first)).toBeCloseTo(expected, 4);
 });
 
 // Accent, focus ring and body text never read as a machine state: each stays at least this far (CIEDE2000) from every
 // state color, in every theme and scheme, so "color means state" holds in every era (docs/DESIGN_SYSTEM.md section 2).
+// 10 is a design floor: around 5 the difference is still visible side by side, but too small to carry meaning.
 const STATE_DISTANCE = 10;
 
 function stateLookalikes(tokens: Map<string, string>): string[] {
@@ -260,6 +267,14 @@ describe('era themes', () => {
     expect(files).toEqual(ERA_THEMES.map((era) => `/src/styles/themes/${era}.css`).sort());
   });
 
+  // Decoration sits behind the content (negative z-index), above html's background: a body background would hide it.
+  test('only html paints the page background', () => {
+    const bodyBackgrounds = parseRules(readStyle('/src/styles/global.css'))
+      .filter((rule) => rule.selectors.includes('body'))
+      .flatMap((rule) => [...rule.declarations.keys()].filter((name) => name.startsWith('background')));
+    expect(bodyBackgrounds).toEqual([]);
+  });
+
   // Tokens a theme may set: the contract minus motion, which lives in motion.css so reduced motion still wins, and
   // minus the stage geometry, which stays the museum's so the stage never moves again when Era UI switches the era.
   const THEMEABLE = CONTRACT_TOKENS.filter((token) => !MOTION_TOKENS.includes(token) && !token.startsWith('--stage-'));
@@ -315,29 +330,37 @@ describe('era themes', () => {
     });
 
     // A declaration that changes nothing in either scheme only freezes a museum value: a later tokens.css change
-    // would silently not reach visitors with Era UI on.
+    // would silently not reach visitors with Era UI on. Dark values are judged first, so when an era repeats its own
+    // light value in the dark block, only the dark copy is reported (the light one may be pinning dark mode).
     test('declares nothing the museum theme already provides', () => {
       const museumDark = SCHEMES.dark;
       const same = (a: string | undefined, b: string | undefined) => a !== undefined && normalized(a) === normalized(b);
-      const restated = [
-        ...[...eraLight]
-          .filter(
-            ([token, value]) =>
-              same(value, light.get(token)) && (eraDark.has(token) || same(value, museumDark.get(token))),
-          )
-          .map(([token]) => `${token} (light)`),
-        ...[...eraDark]
-          .filter(([token, value]) => same(value, eraLight.get(token) ?? museumDark.get(token)))
-          .map(([token]) => `${token} (dark)`),
-      ];
-      expect(restated).toEqual([]);
+      const restatedDark = [...eraDark]
+        .filter(([token, value]) => same(value, eraLight.get(token) ?? museumDark.get(token)))
+        .map(([token]) => token);
+      const keptDark = (token: string) => eraDark.has(token) && !restatedDark.includes(token);
+      const restatedLight = [...eraLight]
+        .filter(
+          ([token, value]) => same(value, light.get(token)) && (keptDark(token) || same(value, museumDark.get(token))),
+        )
+        .map(([token]) => token);
+      expect([
+        ...restatedLight.map((token) => `${token} (light)`),
+        ...restatedDark.map((token) => `${token} (dark)`),
+      ]).toEqual([]);
     });
 
+    // The cascade result of every body::before rule, so a later rule may refine an earlier one.
     test('keeps any decoration behind the content', () => {
-      for (const rule of rules.filter((candidate) => candidate.selectors.includes(`${base} body::before`))) {
-        expect(rule.declarations.get('position'), `${base} body::before position`).toBe('fixed');
-        expect(Number(rule.declarations.get('z-index')), `${base} body::before z-index`).toBeLessThan(0);
-      }
+      const decoration = new Map(
+        rules
+          .filter((rule) => rule.selectors.includes(`${base} body::before`))
+          .flatMap((rule) => [...rule.declarations])
+          .map(([name, value]) => [name, value.replace(/\s*!important$/, '')] as const),
+      );
+      if (decoration.size === 0) return;
+      expect(decoration.get('position'), `${base} body::before position`).toBe('fixed');
+      expect(Number(decoration.get('z-index')), `${base} body::before z-index`).toBeLessThan(0);
     });
 
     test.each(['light', 'dark'] as const)('keeps state colors distinct in the %s scheme', (scheme) => {
