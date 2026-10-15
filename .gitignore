@@ -35,3 +35,6 @@ content/stories/
 .claude/data/
 .claude/settings.local.json
 worker/worker-configuration.d.ts
+
+# gitleaks report written into the workspace by the CI action or a local scan
+results.sarif
