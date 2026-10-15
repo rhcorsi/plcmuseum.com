@@ -1,0 +1,106 @@
+---
+// Typed sources behind an exhibit's facts (docs/CONTENT_GUIDE.md section 2). Each item keeps the source id as its
+// anchor, so a fact can later link to the source that supports it.
+import type { Exhibit } from '../content/types';
+import { LANG_TAGS, type Lang, t } from '../i18n/utils';
+
+interface Props {
+  lang: Lang;
+  sources: Exhibit['sources'];
+}
+
+const { lang, sources } = Astro.props;
+// Access dates are calendar dates: format them in UTC so no time zone shifts the day.
+const dates = new Intl.DateTimeFormat(LANG_TAGS[lang], { dateStyle: 'long', timeZone: 'UTC' });
+// The schema accepts any URL for sources; only web links become anchors (no javascript:, data: or file: links).
+const isWebUrl = (url: string | null | undefined): url is string =>
+  typeof url === 'string' && /^https?:\/\//i.test(url);
+
+const items = sources.map((source) => ({
+  id: source.id,
+  kind: t(lang, `source.type.${source.type}`),
+  title: source.title,
+  url: isWebUrl(source.url) ? source.url : null,
+  details: [
+    source.publisher,
+    source.year == null ? null : String(source.year),
+    source.publication_number ? t(lang, 'source.publication', { number: source.publication_number }) : null,
+    source.isbn ? t(lang, 'source.isbn', { isbn: source.isbn }) : null,
+  ].filter((detail): detail is string => Boolean(detail)),
+  accessed: source.accessed,
+  accessedLabel: t(lang, 'source.accessed', { date: dates.format(new Date(`${source.accessed}T00:00:00Z`)) }),
+}));
+---
+
+{items.length === 0 ? (
+  <p class="empty">{t(lang, 'source.empty')}</p>
+) : (
+  <ol class="sources">
+    {items.map((item) => (
+      <li id={item.id}>
+        <span class="kind">{item.kind}</span>
+        <cite>
+          {item.url ? (
+            <a href={item.url} rel="noopener noreferrer">
+              {item.title}
+            </a>
+          ) : (
+            item.title
+          )}
+        </cite>
+        {item.details.length > 0 && <span class="details">{item.details.join(', ')}</span>}
+        <time class="details" datetime={item.accessed}>
+          {item.accessedLabel}
+        </time>
+      </li>
+    ))}
+  </ol>
+)}
+
+<style>
+  .sources {
+    display: grid;
+    gap: var(--space-4);
+    padding-inline-start: var(--space-5);
+    list-style: decimal;
+    margin: 0;
+  }
+
+  /* li keeps display: list-item so the number marker stays; its parts stack as blocks. */
+  li > * {
+    display: block;
+    margin-block-end: var(--space-1);
+  }
+
+  .kind {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  cite {
+    font-style: normal;
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    color: var(--color-text);
+    text-decoration: underline;
+    text-decoration-color: var(--color-accent);
+    text-underline-offset: 0.2em;
+    overflow-wrap: anywhere;
+  }
+
+  .details,
+  .empty {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .empty {
+    margin: 0;
+  }
+</style>

@@ -1,0 +1,58 @@
+---
+// External links of an exhibit (partner episodes, vendor history, videos, manuals). The schema only admits https.
+import type { Exhibit } from '../content/types';
+import { type Lang, t } from '../i18n/utils';
+
+interface Props {
+  lang: Lang;
+  links: NonNullable<Exhibit['links']>;
+}
+
+const { lang, links } = Astro.props;
+---
+
+<ul class="links">
+  {links.map((link) => (
+    <li>
+      <span class="kind">{t(lang, `link.type.${link.type}`)}</span>
+      <a href={link.url} rel="noopener noreferrer">
+        {link.label}
+      </a>
+      {link.partner && <span class="partner">{link.partner}</span>}
+    </li>
+  ))}
+</ul>
+
+<style>
+  .links {
+    display: grid;
+    gap: var(--space-3);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  li {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .kind,
+  .partner {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    color: var(--color-text);
+    text-decoration: underline;
+    text-decoration-color: var(--color-accent);
+    text-underline-offset: 0.2em;
+    overflow-wrap: anywhere;
+  }
+</style>

@@ -1,0 +1,43 @@
+---
+// Chrome of every localized page: the Base document shell plus header, the main landmark (target of the skip
+// link) and footer. Takes exactly Base's props, so a page can move between the two layouts freely.
+import type { ComponentProps } from 'astro/types';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import { DECADES } from '../content/schemas';
+import Base from './Base.astro';
+
+type Props = ComponentProps<typeof Base>;
+
+const props = Astro.props;
+const { lang, path } = props;
+// The decade row marks the decade page being shown; derived from the path to keep the props identical to Base.
+const currentDecade = DECADES.find((decade) => path === `/decades/${decade}`);
+---
+
+<Base {...props}>
+  <div class="page">
+    <Header lang={lang} path={path} currentDecade={currentDecade} />
+    <main id="main" tabindex="-1">
+      <slot />
+    </main>
+    <Footer lang={lang} />
+  </div>
+</Base>
+
+<style>
+  .page {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 100vh;
+    min-block-size: 100dvh;
+  }
+
+  main {
+    flex: 1;
+    inline-size: 100%;
+    max-inline-size: 72rem;
+    margin-inline: auto;
+    padding: var(--space-6) var(--space-4) 0;
+  }
+</style>

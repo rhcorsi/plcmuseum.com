@@ -1,0 +1,80 @@
+---
+// Language home: the stage of every visible exhibit, oldest first. The production build shows only published
+// exhibits, so until the first one is published the home shows the empty state.
+import DecadeSelector from '../../components/DecadeSelector.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import StageList from '../../components/StageList.astro';
+import { getVisibleExhibits } from '../../content/queries';
+import { type Lang, LANGS, localizedPath, t } from '../../i18n/utils';
+import Page from '../../layouts/Page.astro';
+import { toExhibitCard } from '../../lib/exhibit-card';
+
+export function getStaticPaths() {
+  return LANGS.map((lang) => ({ params: { lang }, props: { lang } }));
+}
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const cards = (await getVisibleExhibits()).map((exhibit) => toExhibitCard(exhibit, lang));
+const siteName = t(lang, 'site.name');
+---
+
+<Page lang={lang} title={siteName} path="/">
+  <section class="intro">
+    <h1>{siteName}</h1>
+    <p class="tagline">{t(lang, 'home.tagline')}</p>
+  </section>
+
+  <section class="decades" aria-labelledby="decades-heading">
+    <h2 id="decades-heading">{t(lang, 'home.decades_label')}</h2>
+    <DecadeSelector lang={lang} label={t(lang, 'home.decades_label')} layout="grid" />
+  </section>
+
+  {cards.length > 0 ? (
+    <StageList exhibits={cards} lang={lang} label={t(lang, 'home.stage_label')} />
+  ) : (
+    <EmptyState
+      message={t(lang, 'home.empty')}
+      href={localizedPath(lang, '/contribute')}
+      cta={t(lang, 'cta.propose')}
+    />
+  )}
+</Page>
+
+<style>
+  .intro {
+    display: grid;
+    gap: var(--space-3);
+    margin-block-end: var(--space-6);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    line-height: 1.1;
+  }
+
+  .tagline {
+    margin: 0;
+    max-inline-size: 50ch;
+    font-size: var(--text-lg);
+    line-height: 1.5;
+    color: var(--color-text-muted);
+  }
+
+  .decades {
+    display: grid;
+    gap: var(--space-3);
+    margin-block-end: var(--space-6);
+  }
+
+  h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+  }
+</style>

@@ -1,0 +1,98 @@
+---
+// Document shell for every page: <html lang data-era>, head metadata, hreflang alternates, the one stylesheet.
+// No inline scripts or styles anywhere below: the Worker sends `script-src 'self'; style-src 'self'`.
+import '../styles/global.css';
+import { DEFAULT_LANG, LANG_TAGS, LANGS, type Lang, localizedPath, t } from '../i18n/utils';
+import { type EraAttribute, MUSEUM_ERA } from '../lib/era';
+import { currentStage } from '../lib/stage';
+
+interface Props {
+  lang: Lang;
+  /** Page title without the site name. */
+  title: string;
+  description?: string;
+  /**
+   * Language-neutral path of this page ("/", "/exhibits/ab-plc-5"). It drives the canonical URL and the hreflang
+   * alternates; null for pages that exist in a single form (fixture pages, the language chooser).
+   */
+  path: string | null;
+  /** Era UI theme; "museum" (Era UI off) unless a fixture page asks for an era. */
+  era?: EraAttribute;
+  /** Forces a color scheme (fixture pages and screenshots); by default the OS preference applies. */
+  theme?: 'light' | 'dark';
+  noindex?: boolean;
+}
+
+const {
+  lang,
+  title,
+  description = t(lang, 'meta.description'),
+  path,
+  era = MUSEUM_ERA,
+  theme,
+  noindex = false,
+} = Astro.props;
+
+const siteName = t(lang, 'site.name');
+const fullTitle = title === siteName ? title : `${title} | ${siteName}`;
+const site = Astro.site ?? new URL('https://plcmuseum.com');
+const canonical = path === null ? null : new URL(localizedPath(lang, path), site).href;
+const alternateLinks =
+  path === null
+    ? []
+    : LANGS.map((code) => ({ hreflang: LANG_TAGS[code], href: new URL(localizedPath(code, path), site).href }));
+const xDefault = path === null ? null : new URL(localizedPath(DEFAULT_LANG, path), site).href;
+// Open Graph locales are language_TERRITORY.
+const OG_LOCALES: Record<Lang, string> = { pt: 'pt_BR', en: 'en_US', es: 'es_ES', de: 'de_DE', it: 'it_IT' };
+// Only the production build is indexable; preview and development show unpublished exhibits.
+const robots = noindex || currentStage() !== 'production' ? 'noindex, nofollow' : null;
+---
+
+<!doctype html>
+<html lang={LANG_TAGS[lang]} dir="ltr" data-era={era} data-theme={theme}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="light dark" />
+    {robots && <meta name="robots" content={robots} />}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {canonical && <link rel="canonical" href={canonical} />}
+    {alternateLinks.map((link) => (
+      <link rel="alternate" hreflang={link.hreflang} href={link.href} />
+    ))}
+    {xDefault && <link rel="alternate" hreflang="x-default" href={xDefault} />}
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:locale" content={OG_LOCALES[lang]} />
+    {canonical && <meta property="og:url" content={canonical} />}
+  </head>
+  <body>
+    <a class="skip-link" href="#main">
+      {t(lang, 'nav.skip')}
+    </a>
+    <slot />
+  </body>
+</html>
+
+<style>
+  .skip-link {
+    position: absolute;
+    inset-inline-start: var(--space-2);
+    inset-block-start: var(--space-2);
+    z-index: 100;
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: var(--border-width) solid var(--color-focus);
+    border-radius: var(--radius-sm);
+    transform: translateY(-200%);
+  }
+
+  .skip-link:focus-visible {
+    transform: none;
+  }
+</style>

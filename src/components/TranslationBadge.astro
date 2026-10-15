@@ -1,0 +1,43 @@
+---
+// "Help us review" badge (docs/I18N.md): shown wherever the visitor reads machine, unreviewed or fallback text,
+// and the recruiting hook for native engineers who can review it.
+import { type Lang, localizedPath, t } from '../i18n/utils';
+
+interface Props {
+  lang: Lang;
+  /** Why the badge is shown, already localized (machine translation, awaiting review, fallback language). */
+  message: string;
+}
+
+const { lang, message } = Astro.props;
+---
+
+<p class="badge" role="note">
+  <span>{message}</span>
+  <a href={localizedPath(lang, '/contribute')}>{t(lang, 'translation.help')}</a>
+</p>
+
+<style>
+  .badge {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-2);
+    margin: 0;
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--color-accent);
+    text-underline-offset: 0.2em;
+  }
+</style>

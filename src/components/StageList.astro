@@ -1,0 +1,130 @@
+---
+// Server-rendered stage: the semantic list of exhibits that works without JS and that the CoverFlow island
+// (docs/tasks/TASK-001-coverflow-island.md) enhances. Class names, ids and data attributes are the STAGE_HOOKS
+// contract in src/islands/contracts.ts: keep them stable, the island selects on them.
+import { LANG_TAGS, type Lang } from '../i18n/utils';
+import { type ExhibitCard, STAGE_HOOKS } from '../islands/contracts';
+import ExhibitVisual from './ExhibitVisual.astro';
+import YearLabel from './YearLabel.astro';
+
+interface Props {
+  exhibits: ExhibitCard[];
+  lang: Lang;
+  /** Exhibit the stage starts on; the first one when omitted. */
+  initialId?: string;
+  /** Accessible name of the list. */
+  label: string;
+  /** id of the <ol>; the CoverFlow island receives it as listId. */
+  id?: string;
+}
+
+const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Astro.props;
+---
+
+<ol class={STAGE_HOOKS.list} id={id} data-initial-id={initialId} aria-label={label}>
+  {exhibits.map((card) => {
+    const ids = { name: `stage-name-${card.id}`, year: `stage-year-${card.id}`, tagline: `stage-tagline-${card.id}` };
+    return (
+      <li
+        class={STAGE_HOOKS.item}
+        id={`stage-item-${card.id}`}
+        data-id={card.id}
+        data-decade={card.decade}
+        data-era={card.era}
+        data-year={card.year}
+      >
+        {/* Named by name and year, described by the tagline: the full card text would make a long link name. */}
+        <a class="card" href={card.href} aria-labelledby={`${ids.name} ${ids.year}`} aria-describedby={ids.tagline}>
+          <ExhibitVisual
+            card={card}
+            lang={lang}
+            sizes="(min-width: 48rem) 18rem, 100vw"
+            eager={card.id === initialId}
+          />
+          <span class="text">
+            <YearLabel class="year" id={ids.year} lang={lang} year={card.year} precision={card.yearPrecision} />
+            <span class="name" id={ids.name}>
+              {card.name}
+            </span>
+            <span class="maker">{card.manufacturer}</span>
+            <span class="tagline" id={ids.tagline} lang={card.textLang === lang ? undefined : LANG_TAGS[card.textLang]}>
+              {card.tagline}
+            </span>
+          </span>
+        </a>
+      </li>
+    );
+  })}
+</ol>
+
+<style>
+  .stage-list {
+    display: grid;
+    gap: var(--space-4);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .card {
+    display: grid;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    color: var(--color-text);
+    text-decoration: none;
+    background: var(--color-bg-elevated);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition:
+      background-color var(--motion-fast) var(--motion-ease),
+      box-shadow var(--motion-fast) var(--motion-ease);
+  }
+
+  .card:hover {
+    background: var(--color-surface-hover);
+    box-shadow: var(--shadow-md);
+  }
+
+  .text {
+    display: grid;
+    align-content: center;
+    gap: var(--space-1);
+  }
+
+  .year {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .name {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    line-height: 1.2;
+  }
+
+  .maker {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .tagline {
+    margin-block-start: var(--space-2);
+    font-size: var(--text-base);
+    line-height: 1.5;
+  }
+
+  @media (min-width: 48rem) {
+    .card {
+      grid-template-columns: 18rem 1fr;
+      align-items: center;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card {
+      transition: none;
+    }
+  }
+</style>

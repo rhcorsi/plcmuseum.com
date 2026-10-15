@@ -1,0 +1,111 @@
+---
+// Site header: brand, primary navigation, language links and the decade row. Plain links only, so the whole
+// header works without JS and with the keyboard.
+import type { Decade } from '../content/types';
+import { isMachineTranslated, type Lang, localizedPath, t } from '../i18n/utils';
+import DecadeSelector from './DecadeSelector.astro';
+import LanguageLinks from './LanguageLinks.astro';
+import TranslationBadge from './TranslationBadge.astro';
+
+interface Props {
+  lang: Lang;
+  path: string | null;
+  currentDecade?: Decade;
+}
+
+const { lang, path, currentDecade } = Astro.props;
+const primary = [
+  { path: '/about', label: t(lang, 'nav.about') },
+  { path: '/contribute', label: t(lang, 'nav.contribute') },
+];
+---
+
+<header class="site-header">
+  <div class="inner">
+    <div class="top">
+      <a class="brand" href={localizedPath(lang)}>
+        {t(lang, 'site.name')}
+      </a>
+      <nav class="primary" aria-label={t(lang, 'nav.primary')}>
+        <ul>
+          {primary.map((item) => (
+            <li>
+              <a href={localizedPath(lang, item.path)} aria-current={item.path === path ? 'page' : undefined}>
+                {item.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <LanguageLinks lang={lang} path={path} />
+    </div>
+    <DecadeSelector lang={lang} label={t(lang, 'nav.decades')} current={currentDecade} />
+    {isMachineTranslated(lang) && <TranslationBadge lang={lang} message={t(lang, 'translation.machine')} />}
+  </div>
+</header>
+
+<style>
+  .site-header {
+    background: var(--color-bg-elevated);
+    border-block-end: var(--border-width) solid var(--color-border);
+  }
+
+  .inner {
+    display: grid;
+    /* minmax(0, 1fr): the decade row scrolls inside the column instead of widening the page. */
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+    max-inline-size: 72rem;
+    margin-inline: auto;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    margin-inline-end: auto;
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .primary ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .primary a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    padding-inline: var(--space-3);
+    color: var(--color-text);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+  }
+
+  .primary a:hover {
+    background: var(--color-surface-hover);
+  }
+
+  .primary a[aria-current='page'] {
+    text-decoration: underline;
+    text-decoration-color: var(--color-accent);
+    text-decoration-thickness: calc(var(--border-width) * 2);
+    text-underline-offset: 0.3em;
+  }
+</style>

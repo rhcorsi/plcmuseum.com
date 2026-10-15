@@ -1,0 +1,62 @@
+---
+// One definition list of exhibit facts. Null shows a muted "Not yet verified" label instead of any value.
+import { type Lang, t } from '../i18n/utils';
+import type { FactRow } from './facts';
+
+interface Props {
+  lang: Lang;
+  rows: FactRow[];
+}
+
+const { lang, rows } = Astro.props;
+const unverified = t(lang, 'spec.unverified');
+---
+
+<dl class="facts">
+  {rows.map((row) => (
+    <div class="row">
+      <dt>{row.label}</dt>
+      <dd>
+        {row.value === null ? (
+          <span class="muted">{unverified}</span>
+        ) : (
+          <>
+            {row.value}
+            {row.unverified && <span class="muted flag">({unverified})</span>}
+          </>
+        )}
+      </dd>
+    </div>
+  ))}
+</dl>
+
+<style>
+  .facts {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+  }
+
+  dt {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  dd {
+    margin: 0;
+    font-size: var(--text-base);
+    overflow-wrap: anywhere;
+  }
+
+  .muted {
+    font-style: italic;
+    color: var(--color-text-muted);
+  }
+
+  .flag {
+    margin-inline-start: var(--space-1);
+    font-size: var(--text-sm);
+  }
+</style>

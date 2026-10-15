@@ -1,0 +1,87 @@
+---
+// The four spec groups of an exhibit (docs/DESIGN_SYSTEM.md section 3). Specs are language-neutral data: only
+// labels and enum names are translated, numbers go through Intl, codes (LD, SFC, DH+) are shown as recorded.
+import type { Exhibit } from '../content/types';
+import { type Lang, t } from '../i18n/utils';
+import FactList from './FactList.astro';
+import { factFormatter } from './facts';
+
+interface Props {
+  lang: Lang;
+  exhibit: Exhibit;
+}
+
+const { lang, exhibit } = Astro.props;
+const { specs, lifecycle } = exhibit;
+const f = factFormatter(lang, exhibit);
+
+const groups = [
+  {
+    title: t(lang, 'spec.group.cpu'),
+    rows: [
+      f.row(t(lang, 'spec.cpu'), 'specs.cpu', specs.cpu),
+      f.row(t(lang, 'spec.scan_time'), 'specs.scan_time_ms_per_k', f.number(specs.scan_time_ms_per_k)),
+      f.row(t(lang, 'spec.redundancy'), 'specs.redundancy', specs.redundancy),
+    ],
+  },
+  {
+    title: t(lang, 'spec.group.memory'),
+    rows: [
+      f.row(t(lang, 'spec.memory_words'), 'specs.memory_words', f.number(specs.memory_words)),
+      f.row(t(lang, 'spec.memory_kb'), 'specs.memory_kb', f.number(specs.memory_kb)),
+      f.row(t(lang, 'spec.memory_type'), 'specs.memory_type', specs.memory_type),
+      f.row(t(lang, 'spec.io_max'), 'specs.io_max', f.number(specs.io_max)),
+    ],
+  },
+  {
+    title: t(lang, 'spec.group.networks'),
+    rows: [
+      f.row(t(lang, 'spec.networks'), 'specs.networks', f.list(specs.networks)),
+      f.row(t(lang, 'spec.languages'), 'specs.languages', f.list(specs.languages)),
+    ],
+  },
+  {
+    title: t(lang, 'spec.group.application'),
+    rows: [
+      f.row(t(lang, 'spec.category'), 'category', t(lang, `category.${exhibit.category}`)),
+      f.row(t(lang, 'spec.architecture'), 'architecture', t(lang, `architecture.${exhibit.architecture}`)),
+      f.row(t(lang, 'spec.sectors'), 'sectors', f.list(exhibit.sectors?.map((sector) => t(lang, `sector.${sector}`)))),
+      f.row(t(lang, 'spec.discontinued'), 'lifecycle.discontinued_year', f.year(lifecycle.discontinued_year)),
+      f.row(t(lang, 'spec.end_of_support'), 'lifecycle.end_of_support_year', f.year(lifecycle.end_of_support_year)),
+    ],
+  },
+];
+---
+
+<div class="spec-grid">
+  {groups.map((group) => (
+    <section class="group">
+      <h3>{group.title}</h3>
+      <FactList lang={lang} rows={group.rows} />
+    </section>
+  ))}
+</div>
+
+<style>
+  .spec-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: var(--space-4);
+  }
+
+  .group {
+    display: grid;
+    align-content: start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--color-bg-elevated);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+  }
+</style>

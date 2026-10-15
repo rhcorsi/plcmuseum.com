@@ -1,0 +1,170 @@
+---
+// One page per language and visible exhibit. Text comes from the exhibit's block in the page language, falling
+// back to English, then Portuguese (textFor); every other fact is language-neutral and shown as recorded, with
+// "Not yet verified" where the curator has no source yet.
+import ExhibitHero from '../../../components/ExhibitHero.astro';
+import ExhibitLinks from '../../../components/ExhibitLinks.astro';
+import LifecycleDetails from '../../../components/LifecycleDetails.astro';
+import ModulePills from '../../../components/ModulePills.astro';
+import SourceList from '../../../components/SourceList.astro';
+import SpecGrid from '../../../components/SpecGrid.astro';
+import TranslationBadge from '../../../components/TranslationBadge.astro';
+import { getVisibleExhibits } from '../../../content/queries';
+import type { Exhibit } from '../../../content/types';
+import { LANG_TAGS, type Lang, LANGS, localizedPath, t } from '../../../i18n/utils';
+import Page from '../../../layouts/Page.astro';
+import { textFor, toExhibitCard } from '../../../lib/exhibit-card';
+
+export async function getStaticPaths() {
+  const exhibits = await getVisibleExhibits();
+  return LANGS.flatMap((lang) =>
+    exhibits.map((exhibit) => ({ params: { lang, slug: exhibit.slug }, props: { lang, exhibit } })),
+  );
+}
+
+interface Props {
+  lang: Lang;
+  exhibit: Exhibit;
+}
+
+const { lang, exhibit } = Astro.props;
+const card = toExhibitCard(exhibit, lang);
+const { text, textLang } = textFor(exhibit, lang);
+const textTag = LANG_TAGS[textLang];
+
+// One badge for the text block: fallback language first (the visitor reads another language), then its status.
+const badge =
+  textLang !== lang
+    ? t(lang, textLang === 'pt' ? 'translation.fallback_pt' : 'translation.fallback_en')
+    : text.status === 'machine'
+      ? t(lang, 'translation.machine')
+      : text.status === 'needs_review'
+        ? t(lang, 'translation.needs_review')
+        : null;
+
+const decadeLabel = t(lang, `decade.${exhibit.decade}`);
+---
+
+<Page lang={lang} title={exhibit.name} description={text.tagline} path={`/exhibits/${exhibit.slug}`}>
+  {exhibit.review_status !== 'published' && (
+    <p class="status" role="note" data-review-status={exhibit.review_status}>
+      {t(lang, exhibit.review_status === 'draft' ? 'exhibit.status.draft' : 'exhibit.status.review')}
+    </p>
+  )}
+
+  <article class="exhibit">
+    <ExhibitHero
+      lang={lang}
+      card={card}
+      currentOwner={exhibit.current_owner}
+      yearUnverified={exhibit.verification.unverified_fields.includes('year_introduced')}
+    >
+      {badge && <TranslationBadge lang={lang} message={badge} />}
+    </ExhibitHero>
+
+    <section aria-labelledby="summary-heading">
+      <h2 id="summary-heading">{t(lang, 'exhibit.summary')}</h2>
+      <p class="text-block" lang={textTag}>
+        {text.summary}
+      </p>
+    </section>
+
+    {text.field_quirk && (
+      <section aria-labelledby="quirk-heading">
+        <h2 id="quirk-heading">{t(lang, 'exhibit.field_quirk')}</h2>
+        <p class="text-block quirk" lang={textTag}>
+          {text.field_quirk}
+        </p>
+      </section>
+    )}
+
+    <section aria-labelledby="specs-heading">
+      <h2 id="specs-heading">{t(lang, 'exhibit.specs')}</h2>
+      <SpecGrid lang={lang} exhibit={exhibit} />
+    </section>
+
+    <section aria-labelledby="lifecycle-heading">
+      <h2 id="lifecycle-heading">{t(lang, 'exhibit.lifecycle')}</h2>
+      <LifecycleDetails lang={lang} exhibit={exhibit} />
+    </section>
+
+    {exhibit.related_modules && exhibit.related_modules.length > 0 && (
+      <section aria-labelledby="modules-heading">
+        <h2 id="modules-heading">{t(lang, 'exhibit.modules')}</h2>
+        <ModulePills modules={exhibit.related_modules} />
+      </section>
+    )}
+
+    {exhibit.links && exhibit.links.length > 0 && (
+      <section aria-labelledby="links-heading">
+        <h2 id="links-heading">{t(lang, 'exhibit.links')}</h2>
+        <ExhibitLinks lang={lang} links={exhibit.links} />
+      </section>
+    )}
+
+    <section aria-labelledby="sources-heading">
+      <h2 id="sources-heading">{t(lang, 'exhibit.sources')}</h2>
+      <SourceList lang={lang} sources={exhibit.sources} />
+    </section>
+
+    <p>
+      <a class="more" href={localizedPath(lang, `/decades/${exhibit.decade}`)}>
+        {t(lang, 'exhibit.more_from', { decade: decadeLabel })}
+      </a>
+    </p>
+  </article>
+</Page>
+
+<style>
+  .status {
+    margin: 0 0 var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: var(--border-width) solid var(--color-state-warn);
+    border-inline-start-width: calc(var(--border-width) * 4);
+    border-radius: var(--radius-sm);
+  }
+
+  .exhibit {
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  section {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    line-height: 1.2;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  .text-block {
+    max-inline-size: 65ch;
+    font-size: var(--text-lg);
+    line-height: 1.6;
+  }
+
+  .quirk {
+    padding-inline-start: var(--space-4);
+    border-inline-start: calc(var(--border-width) * 2) solid var(--color-accent);
+  }
+
+  .more {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    color: var(--color-text);
+    text-decoration: underline;
+    text-decoration-color: var(--color-accent);
+    text-underline-offset: 0.2em;
+  }
+</style>

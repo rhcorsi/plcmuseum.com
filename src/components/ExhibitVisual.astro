@@ -1,0 +1,98 @@
+---
+// The visual of one exhibit: its licensed photo, or else its original illustration labeled as such
+// (docs/DESIGN_SYSTEM.md section 8). The frame has a fixed aspect ratio, so nothing shifts while images load.
+import { LANG_TAGS, type Lang, t } from '../i18n/utils';
+import type { ExhibitCard } from '../islands/contracts';
+
+interface Props {
+  card: Pick<ExhibitCard, 'image' | 'silhouette' | 'alt' | 'textLang'>;
+  lang: Lang;
+  /** `sizes` for the photo's srcset in the caller's layout. */
+  sizes: string;
+  /** Eager only for the page's main visual (the LCP candidate). */
+  eager?: boolean;
+}
+
+const { card, lang, sizes, eager = false } = Astro.props;
+// The alt text comes from the exhibit's text block, which may be in another language while a translation is missing.
+const altLang = card.textLang === lang ? undefined : LANG_TAGS[card.textLang];
+---
+
+<span class="visual">
+  {card.image ? (
+    <>
+      <img
+        class="photo"
+        src={card.image.src}
+        srcset={card.image.srcset}
+        sizes={sizes}
+        width={card.image.width}
+        height={card.image.height}
+        alt={card.alt}
+        lang={altLang}
+        loading={eager ? 'eager' : 'lazy'}
+        decoding="async"
+      />
+      {/* License credit from the image sidecar: CC BY and CC BY-SA require it next to the photo. */}
+      <span class="credit">{card.image.credit}</span>
+    </>
+  ) : card.silhouette ? (
+    <>
+      <svg class="silhouette" viewBox="0 0 640 260" role="img" aria-label={card.alt} lang={altLang}>
+        <use href={card.silhouette} />
+      </svg>
+      <span class="label">{t(lang, 'visual.illustration')}</span>
+    </>
+  ) : null}
+</span>
+
+<style>
+  .visual {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 16 / 10;
+    inline-size: 100%;
+    padding: var(--space-3);
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .photo {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: contain;
+  }
+
+  .silhouette {
+    inline-size: 100%;
+    block-size: auto;
+    aspect-ratio: 640 / 260;
+    color: var(--color-text);
+  }
+
+  .credit {
+    position: absolute;
+    inset-block-end: var(--space-2);
+    inset-inline-end: var(--space-2);
+    max-inline-size: calc(100% - var(--space-4));
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    background: var(--color-bg);
+    border-radius: var(--radius-sm);
+  }
+
+  .label {
+    position: absolute;
+    inset-block-end: var(--space-2);
+    inset-inline-start: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+  }
+</style>

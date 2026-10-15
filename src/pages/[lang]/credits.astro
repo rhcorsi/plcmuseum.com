@@ -1,0 +1,32 @@
+---
+// Credits: illustrations, photographs (credited next to each image) and contributors by GitHub handle.
+import Prose from '../../components/Prose.astro';
+import { CONTRIBUTORS_URL } from '../../components/site';
+import { type Lang, LANGS, t } from '../../i18n/utils';
+import Page from '../../layouts/Page.astro';
+
+export function getStaticPaths() {
+  return LANGS.map((lang) => ({ params: { lang }, props: { lang } }));
+}
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+---
+
+<Page lang={lang} title={t(lang, 'credits.title')} path="/credits">
+  <Prose>
+    <h1>{t(lang, 'credits.title')}</h1>
+    <p class="lead">{t(lang, 'credits.lead')}</p>
+    <ul>
+      <li>{t(lang, 'credits.illustrations')}</li>
+      <li>{t(lang, 'credits.photos')}</li>
+      <li>{t(lang, 'credits.contributors')}</li>
+    </ul>
+    <p class="cta">
+      <a href={CONTRIBUTORS_URL}>{t(lang, 'credits.contributors_link')}</a>
+    </p>
+  </Prose>
+</Page>
