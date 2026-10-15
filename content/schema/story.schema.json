@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plcmuseum.com/schema/story.schema.json",
+  "title": "FieldStory",
+  "description": "A community story attached to an exhibit. Stories are stored in D1 and never committed to the repository; this shape validates the POST /api/stories body (minus status and dates) and the deploy-time fetch output in the gitignored content/stories cache.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "exhibit_id", "display_name", "original_lang", "text", "consent", "status", "submitted_at"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^st-[a-z0-9]{8,32}$" },
+    "exhibit_id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "display_name": { "type": "string", "minLength": 2, "maxLength": 60 },
+    "role": { "type": ["string", "null"], "maxLength": 80 },
+    "country": { "type": ["string", "null"], "pattern": "^[A-Z]{2}$" },
+    "original_lang": { "enum": ["pt", "en", "es", "de", "it", "other"] },
+    "year_of_memory": { "type": ["integer", "null"], "minimum": 1960, "maximum": 2100 },
+    "text": { "type": "string", "minLength": 40, "maxLength": 1500 },
+    "consent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publish_with_display_name", "license", "machine_translation"],
+      "properties": {
+        "publish_with_display_name": { "const": true },
+        "license": { "const": "CC-BY-4.0" },
+        "machine_translation": { "type": "boolean" }
+      }
+    },
+    "status": { "enum": ["approved"], "description": "Only approved stories are fetched for the build" },
+    "submitted_at": { "type": "string", "format": "date-time" },
+    "approved_at": { "type": ["string", "null"], "format": "date-time" },
+    "edited_note": { "type": ["string", "null"], "maxLength": 200, "description": "Only typo fixes agreed with the contributor" }
+  }
+}

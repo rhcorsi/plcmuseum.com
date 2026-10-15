@@ -1,0 +1,38 @@
+{
+  // Cloudflare Worker serving the static site (dist/) plus the tiny stories API.
+  // Fill database_id after creating the D1 database. Secrets via `wrangler secret put`.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "plcmuseum",
+  "main": "worker/src/index.ts",
+  "compatibility_date": "2026-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash"
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "plcmuseum-stories", "database_id": "REPLACE_WITH_D1_ID" }
+  ],
+  "vars": {
+    "ENVIRONMENT": "production",
+    "TURNSTILE_SITE_KEY": "REPLACE_WITH_PUBLIC_SITE_KEY"
+  },
+  "triggers": { "crons": ["17 3 * * *"] },
+  "observability": { "enabled": true },
+  "routes": [
+    { "pattern": "plcmuseum.com", "custom_domain": true },
+    { "pattern": "www.plcmuseum.com", "custom_domain": true }
+  ],
+  "env": {
+    "preview": {
+      "name": "plcmuseum-preview",
+      "vars": { "ENVIRONMENT": "preview", "TURNSTILE_SITE_KEY": "REPLACE_WITH_PUBLIC_SITE_KEY" },
+      "d1_databases": [
+        { "binding": "DB", "database_name": "plcmuseum-stories-preview", "database_id": "REPLACE_WITH_PREVIEW_D1_ID" }
+      ],
+      "routes": [{ "pattern": "preview.plcmuseum.com", "custom_domain": true }]
+    }
+  }
+}

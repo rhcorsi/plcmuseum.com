@@ -1,0 +1,4 @@
+# Local secrets for `wrangler dev`. Copy to .dev.vars (gitignored). Never commit real values.
+# Production and preview values live only in Cloudflare (`wrangler secret put`).
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+IP_HASH_SALT=change-me-locally

@@ -1,0 +1,129 @@
+# Architecture
+
+## 1. Context
+
+PLC Museum is a content-heavy, mostly static, multilingual site with two interactive showcases (Cover Flow stage, Era UI theming) and one community feature (field stories). Traffic is spiky (LinkedIn posts) and global. The team is one human plus three AI tools working in parallel. The architecture optimizes for: zero-ops hosting, a tiny attack surface, data-driven content, and safe parallel work by multiple implementers.
+
+## 2. Principles
+
+1. **Static-first.** Everything that can be computed at build time is. The CDN serves files; nothing renders per request.
+2. **Content is data, data has a schema.** JSON files validated by JSON Schema in CI and in a Claude Code hook. The site is a pure function of `content/`.
+3. **Contracts before implementation.** Types, fixtures and tokens are published before any component is written, so implementers (Codex, Gemini) work against stable interfaces.
+4. **Dependencies point inward.** `content` knows nothing about `src`; `src` knows nothing about `worker`; `worker` depends only on the story schema.
+5. **Smallest dynamic surface.** One POST endpoint, one health endpoint, nothing else.
+6. **Reversible decisions are cheap, irreversible ones get an ADR.**
+
+## 3. Layers
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ content/  (exhibits, stories, images+meta, glossary, schemas)│  data layer
+└──────────────────────────────┬──────────────────────────────┘
+                               │ build-time only (Astro content collections + Zod from schema)
+┌──────────────────────────────▼──────────────────────────────┐
+│ src/  pages · layouts · components · islands · i18n · styles │  presentation (static output in dist/)
+└──────────────────────────────┬──────────────────────────────┘
+                               │ dist/ served as static assets
+┌──────────────────────────────▼──────────────────────────────┐
+│ worker/  Cloudflare Worker: assets binding + /api/*  + D1    │  runtime (edge)
+└─────────────────────────────────────────────────────────────┘
+```
+
+## 4. Repository structure
+
+```
+plcmuseum/
+├── CLAUDE.md  AGENTS.md  GEMINI.md  README.md  LICENSE  LICENSE-CONTENT
+├── package.json  pnpm-lock.yaml  astro.config.mjs  tsconfig.json  wrangler.jsonc
+├── eslint.config.js  prettier.config.js  playwright.config.ts  vitest.config.ts
+├── content/
+│   ├── schema/exhibit.schema.json  schema/story.schema.json  schema/image-meta.schema.json
+│   ├── exhibits/<id>.json            one file per exhibit
+│   ├── stories/                      gitignored cache written by `pnpm stories:fetch` at deploy time only
+│   ├── images/<exhibit-id>/<file>.{jpg,png,svg} + <file>.meta.json
+│   └── glossary.json                 technical jargon per language
+├── src/
+│   ├── content/config.ts             collections + Zod (mirrors JSON Schema)
+│   ├── content/types.ts              generated from schemas (json-schema-to-typescript)
+│   ├── fixtures/                     typed sample data for components and tests
+│   ├── i18n/{pt,en,es,de,it}.json    UI strings
+│   ├── i18n/utils.ts                 t(), routing helpers
+│   ├── styles/tokens.css             base semantic tokens (museum theme)
+│   ├── styles/themes/{1970s,1980s,1990s,2000s,2020s}.css
+│   ├── styles/motion.css
+│   ├── layouts/Base.astro            html[lang][data-era], CSP-compatible head
+│   ├── components/                   static Astro components
+│   ├── islands/                      React islands (CoverFlow, EraToggle, StoryForm, TimelineScrubber)
+│   ├── pages/[lang]/index.astro      home: stage + decade selector + timeline
+│   ├── pages/[lang]/exhibits/[slug].astro
+│   ├── pages/[lang]/decades/[decade].astro
+│   ├── pages/[lang]/contribute.astro   story form + guidelines
+│   ├── pages/[lang]/about.astro, privacy.astro, credits.astro
+│   ├── pages/dev/*.astro             fixture pages (dev builds only)
+│   └── pages/og/[...].png.ts         build-time share cards
+├── worker/
+│   ├── src/index.ts                  fetch handler: assets passthrough, /api/stories, /api/health, security headers
+│   ├── src/stories.ts                validation (Zod), Turnstile verify, rate limit, insert
+│   ├── schema.sql                    D1 schema
+│   └── README.md                     API contract
+├── scripts/
+│   ├── validate-content.mjs          Ajv + custom rules (sources, licenses, ids)
+│   ├── images-process.mjs            sharp pipeline → src/assets/generated (never commits originals' derivatives twice)
+│   ├── stories-moderate.mjs          owner only: list / approve / reject rows in D1
+│   ├── stories-fetch.mjs             deploy only: approved rows → content/stories cache (gitignored)
+│   ├── check-public-safety.mjs       forbidden files and secret-looking values (pre-commit + CI)
+│   ├── gen-types.mjs                 schemas → src/content/types.ts
+│   └── hooks/post-edit.mjs           Claude Code hook: validate when content changes
+├── prototypes/                       throwaway visual prototypes
+├── docs/                             this folder (docs/private/ is gitignored: owner's plan and notes)
+└── .github/workflows/ci.yml deploy.yml
+```
+
+## 5. Data model (summary; schemas are the truth)
+
+**Exhibit** (`content/exhibits/<id>.json`): identity (`id`, `slug`, `name`, `family`, `manufacturer`, `brand_at_launch`, `current_owner`, `country_of_origin`), classification (`category`, `architecture`, `sectors`, `decade`, `year_introduced`, `year_introduced_precision`), language-neutral `specs` (cpu, scan_time_ms_per_k, memory, io_max, networks, languages), `lifecycle` (discontinued_year, end_of_support_year, last_firmware, migration_paths, still_in_service_note), `related_modules`, `images` (+ sidecar meta), `links` (partner, vendor history, video, manual), `sources` (typed, with URLs and access dates), `verification` (level, unverified_fields, reviewer, date), `text.<lang>` (tagline, summary, field_quirk, alt_text, status), `review_status` (draft, review, published), `tags`.
+
+Rules enforced by the validator: ids unique and equal to file names; `review_status: published` requires `verification.level: verified`, empty `unverified_fields`, at least one source, at least one image with a valid license, `text.pt` and `text.en` present and `verified`; every image referenced has a meta file whose license is in the allowlist.
+
+**Story** (shape in `content/schema/story.schema.json`, stored in D1, never in git): `exhibit_id`, `display_name`, `role`, `country`, `original_lang`, `year_of_memory`, `text` (≤ 1500 chars), `consent` (display_name, license, machine_translation), `status`, `submitted_at`, `approved_at`. At deploy time `pnpm stories:fetch` writes approved rows to the gitignored `content/stories/` cache; contributors and fork builds use `src/fixtures/stories.ts`. Translations are generated at build time into `translations.<lang>` and are always labeled as machine translation. Removal is a row delete plus a redeploy (ADR-0008).
+
+**Glossary** (`content/glossary.json`): term → per-language jargon (PLC/CLP/SPS, DCS/SDCD/PLS, LD/KOP, IL/AWL, FBD/FUP, ST/SCL, scan time/Zykluszeit...). Used by the translation skill and by the UI.
+
+## 6. Build pipeline
+
+1. `node scripts/check-public-safety.mjs` and `pnpm validate:content` (Ajv + rules) must pass.
+1b. Deploy pipeline only: `pnpm stories:fetch` pulls approved stories from D1 into the gitignored cache (skipped when the token is absent; the build then uses fixtures).
+2. `pnpm gen:types` regenerates `src/content/types.ts` from the schemas (committed, diff reviewed).
+3. `pnpm images:process` creates AVIF/WebP variants (320 to 1600 px) and cut-outs for the stage from licensed originals; outputs are build artifacts, not committed (cached in CI).
+4. `astro build` renders every page for every language: `/{lang}/`, `/{lang}/exhibits/{slug}`, `/{lang}/decades/{decade}`, plus `/` redirecting by `Accept-Language` at the edge (Worker) with a cookieless fallback to `/en/`.
+5. Share cards are rendered at build (`satori` + `resvg`) per exhibit and language.
+6. Output `dist/` is uploaded as Worker static assets.
+
+## 7. Runtime (Cloudflare)
+
+- One Worker (`wrangler.jsonc`): `assets` binding serves `dist/` with `not_found_handling: "404-page"`; the fetch handler adds security headers to every response, handles `/` language redirect, and routes `/api/*`.
+- `POST /api/stories`: JSON body validated with Zod (mirrors `story.schema.json`), Turnstile token verified server-side, per-IP rate limit (Cloudflare Rate Limiting rule plus a D1 `ip_hash` with a daily salt), HTML stripped, inserted with `status = 'pending'`. Returns `202` and a thank-you id. Nothing is readable through the API.
+- `GET /api/health`: build id and date, no secrets.
+- D1 database `plcmuseum-stories`. Moderation is done by the owner through `pnpm stories:moderate` (lists pending, approves or rejects by id directly in D1); the next deploy fetches approved stories at build time. Nothing about stories is committed to git. No admin UI in the MVP.
+- Cloudflare Web Analytics (cookieless) on the site; Workers logs for the API.
+- Environments: `local` (wrangler dev + miniflare D1), `preview` (`preview.plcmuseum.com` behind Cloudflare Access, deployed from any branch on demand), `production` (`plcmuseum.com` and `www`, deployed from `main` by the owner, later by CI once Phase 3 closes).
+
+## 8. Era UI contract
+
+`<html data-era="1980s">` activates a theme. Default (toggle off) is the museum theme defined in `tokens.css`. The `EraToggle` island only flips the attribute and persists the choice in `localStorage` (wrapped in try/catch). Each exhibit carries its decade; the stage sets `data-era` to the decade of the centered exhibit when Era UI is on. Components never read the attribute; they read tokens.
+
+## 9. Cover Flow contract
+
+`CoverFlow` island receives `exhibits: ExhibitCard[]` (id, slug, name, year, decade, image set, tagline) and `initialId`. It renders a horizontally navigable stage (CSS 3D transforms, scroll-snap, keyboard arrows, touch), emits `onCenterChange(id)`, and degrades to a vertical list when `prefers-reduced-motion` is set or JS is unavailable (the list is server-rendered first; the island enhances it). No WebGL.
+
+## 10. Scaling and performance
+
+Static assets scale with Cloudflare's edge. Budgets: ≤ 150 KB gzip JS on home, LCP ≤ 2.5 s on 4G, images AVIF/WebP with `srcset`, fonts self-hosted and subset, no layout shift from theme switch (tokens only change paint). D1 stays tiny (hundreds of stories); if stories outgrow the repo (thousands), move the wall to a read-only edge endpoint with caching (ADR required).
+
+## 11. Observability
+
+Cloudflare Web Analytics for pages; Worker logs (`wrangler tail`) and a weekly `GET /api/health` check from a scheduled task; CI badges; Lighthouse CI job on PRs.
+
+## 12. Decisions
+
+See `docs/adr/README.md` (ADR-0001 to ADR-0006).

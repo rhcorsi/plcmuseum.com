@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plcmuseum.com/schema/exhibit.schema.json",
+  "title": "Exhibit",
+  "description": "One exhibit (PLC, DCS, multiloop controller, HMI, programmer, network or software) in the PLC Museum catalog. Numbers and part numbers are language-neutral; only text blocks are translated.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "slug",
+    "name",
+    "manufacturer",
+    "current_owner",
+    "category",
+    "architecture",
+    "decade",
+    "year_introduced",
+    "year_introduced_precision",
+    "specs",
+    "lifecycle",
+    "images",
+    "sources",
+    "verification",
+    "text",
+    "review_status"
+  ],
+  "properties": {
+    "id": { "$ref": "#/$defs/slug" },
+    "slug": { "$ref": "#/$defs/slug" },
+    "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+    "family": { "type": ["string", "null"], "maxLength": 80 },
+    "manufacturer": { "type": "string", "minLength": 2, "maxLength": 80, "description": "Brand as printed on the device at launch" },
+    "brand_at_launch": { "type": ["string", "null"], "maxLength": 80 },
+    "current_owner": { "type": "string", "minLength": 2, "maxLength": 80, "description": "Company that owns the brand today" },
+    "country_of_origin": { "$ref": "#/$defs/country" },
+    "category": { "enum": ["plc", "dcs", "multiloop", "hmi", "programmer", "network", "software", "rtu"] },
+    "architecture": { "enum": ["modular", "compact", "micro", "pac", "dcs_redundant", "multiloop", "software_defined", "terminal", "protocol", "other"] },
+    "sectors": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["discrete", "process", "hybrid", "infrastructure", "automotive", "food_beverage", "pulp_paper", "oil_gas", "chemical", "metals", "water", "energy", "pharma", "other"] }
+    },
+    "decade": { "$ref": "#/$defs/decade" },
+    "year_introduced": { "type": "integer", "minimum": 1950, "maximum": 2100 },
+    "year_introduced_precision": { "enum": ["exact", "approximate", "disputed"] },
+    "era_theme_override": { "anyOf": [{ "$ref": "#/$defs/decade" }, { "type": "null" }] },
+    "specs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": { "type": ["string", "null"], "maxLength": 80 },
+        "scan_time_ms_per_k": { "type": ["number", "null"], "minimum": 0 },
+        "memory_words": { "type": ["integer", "null"], "minimum": 0 },
+        "memory_kb": { "type": ["number", "null"], "minimum": 0 },
+        "memory_type": { "type": ["string", "null"], "maxLength": 80 },
+        "io_max": { "type": ["integer", "null"], "minimum": 0 },
+        "networks": { "type": "array", "uniqueItems": true, "items": { "type": "string", "maxLength": 40 } },
+        "languages": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["LD", "IL", "ST", "FBD", "SFC", "CFC", "BASIC", "FORTH", "C", "proprietary"] }
+        },
+        "redundancy": { "type": ["string", "null"], "maxLength": 120 }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "discontinued_year": { "type": ["integer", "null"], "minimum": 1950, "maximum": 2100 },
+        "end_of_support_year": { "type": ["integer", "null"], "minimum": 1950, "maximum": 2100 },
+        "last_firmware": { "type": ["string", "null"], "maxLength": 40 },
+        "migration_paths": { "type": "array", "items": { "type": "string", "maxLength": 80 } },
+        "still_in_service_note": { "type": ["string", "null"], "maxLength": 240 }
+      }
+    },
+    "related_modules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label"],
+        "properties": {
+          "id": { "$ref": "#/$defs/slug" },
+          "label": { "type": "string", "maxLength": 80 },
+          "year": { "type": ["integer", "null"], "minimum": 1950, "maximum": 2100 },
+          "note": { "type": ["string", "null"], "maxLength": 240 }
+        }
+      }
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "role", "meta"],
+        "properties": {
+          "file": { "type": "string", "pattern": "^content/images/[a-z0-9-]+/[A-Za-z0-9._-]+\\.(jpg|jpeg|png|webp|svg)$" },
+          "role": { "enum": ["hero", "detail", "programmer", "console", "document"] },
+          "meta": { "type": "string", "pattern": "^content/images/[a-z0-9-]+/[A-Za-z0-9._-]+\\.meta\\.json$" },
+          "is_illustration": { "type": "boolean", "default": false }
+        }
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "label", "url"],
+        "properties": {
+          "type": { "enum": ["partner", "vendor_history", "video", "manual", "community", "archive"] },
+          "partner": { "type": ["string", "null"], "maxLength": 80 },
+          "label": { "type": "string", "maxLength": 120 },
+          "url": { "type": "string", "format": "uri", "pattern": "^https://" }
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "title", "accessed"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^src-[a-z0-9-]+$" },
+          "type": { "enum": ["manual", "datasheet", "vendor_history", "book", "article", "interview", "standard", "archive", "wikipedia_pointer"] },
+          "title": { "type": "string", "maxLength": 200 },
+          "publisher": { "type": ["string", "null"], "maxLength": 120 },
+          "publication_number": { "type": ["string", "null"], "maxLength": 60 },
+          "url": { "type": ["string", "null"], "format": "uri" },
+          "isbn": { "type": ["string", "null"], "maxLength": 20 },
+          "year": { "type": ["integer", "null"], "minimum": 1900, "maximum": 2100 },
+          "accessed": { "type": "string", "format": "date" },
+          "note": { "type": ["string", "null"], "maxLength": 300, "description": "Which fields this source supports" }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "unverified_fields"],
+      "properties": {
+        "level": { "enum": ["unverified", "partial", "verified"] },
+        "unverified_fields": { "type": "array", "uniqueItems": true, "items": { "type": "string", "maxLength": 80 } },
+        "reviewer": { "type": ["string", "null"], "maxLength": 80 },
+        "date": { "type": ["string", "null"], "format": "date" },
+        "notes": { "type": ["string", "null"], "maxLength": 1000 }
+      }
+    },
+    "text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pt"],
+      "properties": {
+        "pt": { "$ref": "#/$defs/textBlock" },
+        "en": { "$ref": "#/$defs/textBlock" },
+        "es": { "$ref": "#/$defs/textBlock" },
+        "de": { "$ref": "#/$defs/textBlock" },
+        "it": { "$ref": "#/$defs/textBlock" }
+      }
+    },
+    "tags": { "type": "array", "uniqueItems": true, "items": { "type": "string", "maxLength": 40 } },
+    "stories_enabled": { "type": "boolean", "default": true },
+    "review_status": { "enum": ["draft", "review", "published"] }
+  },
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 60 },
+    "country": { "type": ["string", "null"], "pattern": "^[A-Z]{2}$" },
+    "decade": { "enum": ["1960s", "1970s", "1980s", "1990s", "2000s", "2010s", "2020s"] },
+    "textBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tagline", "summary", "alt_text", "status"],
+      "properties": {
+        "tagline": { "type": "string", "minLength": 10, "maxLength": 120 },
+        "summary": { "type": "string", "minLength": 40, "maxLength": 600 },
+        "field_quirk": { "type": ["string", "null"], "maxLength": 240 },
+        "alt_text": { "type": "string", "minLength": 10, "maxLength": 200 },
+        "status": { "enum": ["verified", "machine", "needs_review"] }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "review_status": { "const": "published" } } },
+      "then": {
+        "properties": {
+          "verification": {
+            "properties": {
+              "level": { "const": "verified" },
+              "unverified_fields": { "maxItems": 0 }
+            }
+          },
+          "sources": { "minItems": 1 },
+          "images": { "minItems": 1 },
+          "text": {
+            "required": ["pt", "en"],
+            "properties": {
+              "pt": { "properties": { "status": { "const": "verified" } } },
+              "en": { "properties": { "status": { "const": "verified" } } }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

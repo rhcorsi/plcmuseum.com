@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 260" role="img" aria-labelledby="t">
+  <title id="t">Generic modular rack PLC silhouette (placeholder illustration)</title>
+  <!-- Placeholder: a generic rack outline, no brand marks. Replace with the designer's original illustration (TASK-003). -->
+  <rect x="20" y="40" width="600" height="180" rx="4" fill="none" stroke="currentColor" stroke-width="4"/>
+  <rect x="36" y="56" width="120" height="148" rx="2" fill="none" stroke="currentColor" stroke-width="3"/>
+  <circle cx="60" cy="80" r="5" fill="currentColor"/>
+  <circle cx="80" cy="80" r="5" fill="currentColor"/>
+  <circle cx="100" cy="80" r="5" fill="currentColor"/>
+  <rect x="168" y="56" width="56" height="148" fill="none" stroke="currentColor" stroke-width="3"/>
+  <rect x="236" y="56" width="56" height="148" fill="none" stroke="currentColor" stroke-width="3"/>
+  <rect x="304" y="56" width="56" height="148" fill="none" stroke="currentColor" stroke-width="3"/>
+  <rect x="372" y="56" width="56" height="148" fill="none" stroke="currentColor" stroke-width="3"/>
+  <rect x="440" y="56" width="56" height="148" fill="none" stroke="currentColor" stroke-width="3"/>
+  <rect x="508" y="56" width="56" height="148" fill="none" stroke="currentColor" stroke-width="3"/>
+  <line x1="20" y1="232" x2="620" y2="232" stroke="currentColor" stroke-width="2" opacity="0.4"/>
+</svg>

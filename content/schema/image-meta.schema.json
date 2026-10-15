@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plcmuseum.com/schema/image-meta.schema.json",
+  "title": "ImageMeta",
+  "description": "Sidecar file for every image under content/images/. The validator refuses images without it and licenses outside the allowlist.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["file", "author", "license", "source_url", "attribution_text", "permission_evidence", "modifications", "added"],
+  "properties": {
+    "file": { "type": "string", "pattern": "^content/images/[a-z0-9-]+/[A-Za-z0-9._-]+\\.(jpg|jpeg|png|webp|svg)$" },
+    "author": { "type": "string", "minLength": 2, "maxLength": 120 },
+    "license": { "enum": ["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "CC-BY-3.0", "CC-BY-SA-3.0", "public-domain", "own-work", "permission-granted", "original-illustration"] },
+    "source_url": { "type": ["string", "null"], "format": "uri" },
+    "attribution_text": { "type": "string", "maxLength": 300, "description": "Exact credit line shown on the site" },
+    "permission_evidence": { "type": ["string", "null"], "maxLength": 300, "description": "Reference to the written permission kept in the owner's private archive (date, sender initials, archive id). Never a file in this public repository. Required for permission-granted." },
+    "modifications": { "type": "array", "items": { "enum": ["cut-out", "color-correction", "crop", "resize", "none"] } },
+    "shows_logo": { "type": "boolean", "default": false, "description": "True when the device bears a brand mark; the mark must not be extracted or used elsewhere" },
+    "added": { "type": "string", "format": "date" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "license": { "const": "permission-granted" } } },
+      "then": { "properties": { "permission_evidence": { "type": "string", "minLength": 5 } } }
+    }
+  ]
+}

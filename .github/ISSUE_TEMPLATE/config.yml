@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Share a field story
+    url: https://plcmuseum.com/en/contribute
+    about: Stories are submitted on the site, not on GitHub.
+  - name: Report a security problem
+    url: https://github.com/rhcorsi/plcmuseum.com/security/advisories/new
+    about: Private vulnerability reporting. Please do not open a public issue.

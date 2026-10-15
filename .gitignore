@@ -1,0 +1,32 @@
+# dependencies and build output
+node_modules/
+dist/
+.astro/
+.wrangler/
+src/assets/generated/
+playwright-report/
+test-results/
+*.log
+.DS_Store
+Thumbs.db
+
+# secrets and local config: never committed
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+*.pem
+*.key
+*.p12
+*.pfx
+.secrets/
+
+# private material: never public
+docs/private/
+content/private/
+**/permission-evidence/
+
+# stories: local cache written by `pnpm stories:fetch` at deploy time only
+content/stories/

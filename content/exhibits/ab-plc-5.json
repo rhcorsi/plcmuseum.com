@@ -1,0 +1,95 @@
+{
+  "id": "ab-plc-5",
+  "slug": "ab-plc-5",
+  "name": "PLC-5",
+  "family": "1785 PLC-5",
+  "manufacturer": "Allen-Bradley",
+  "brand_at_launch": "Allen-Bradley",
+  "current_owner": "Rockwell Automation",
+  "country_of_origin": "US",
+  "category": "plc",
+  "architecture": "modular",
+  "sectors": ["discrete", "hybrid", "automotive", "food_beverage", "pulp_paper"],
+  "decade": "1980s",
+  "year_introduced": 1986,
+  "year_introduced_precision": "approximate",
+  "era_theme_override": null,
+  "specs": {
+    "cpu": null,
+    "scan_time_ms_per_k": null,
+    "memory_words": null,
+    "memory_kb": null,
+    "memory_type": null,
+    "io_max": null,
+    "networks": ["DH+", "Remote I/O"],
+    "languages": ["LD", "SFC"],
+    "redundancy": null
+  },
+  "lifecycle": {
+    "discontinued_year": null,
+    "end_of_support_year": null,
+    "last_firmware": null,
+    "migration_paths": ["ControlLogix 1756 (1785 to 1756 migration guides)"],
+    "still_in_service_note": null
+  },
+  "related_modules": [
+    { "id": "1771-io-chassis", "label": "1771 I/O chassis", "year": null, "note": "Backplane jumpers set the addressing mode" },
+    { "id": "1784-pcmk", "label": "1784-PCMK PCMCIA DH+ card", "year": null, "note": "The laptop card everyone fought over" }
+  ],
+  "images": [
+    {
+      "file": "content/images/ab-plc-5/silhouette.svg",
+      "role": "hero",
+      "meta": "content/images/ab-plc-5/silhouette.meta.json",
+      "is_illustration": true
+    }
+  ],
+  "links": [
+    {
+      "type": "partner",
+      "partner": "Automation Museum",
+      "label": "History of Automation: Allen-Bradley PLCs (from the 1774 to the PLC-5)",
+      "url": "https://theautomationblog.com/history-of-automation-ab-plcs"
+    }
+  ],
+  "sources": [
+    {
+      "id": "src-rockwell-literature-1785",
+      "type": "manual",
+      "title": "PLC-5 user documentation (1785 publications) in the Rockwell Automation Literature Library",
+      "publisher": "Rockwell Automation",
+      "publication_number": "1785-UM012 (verify exact publication for the facts cited)",
+      "url": "https://literature.rockwellautomation.com/",
+      "isbn": null,
+      "year": null,
+      "accessed": "2026-10-14",
+      "note": "To be used for networks, languages, I/O capacity and memory per processor model. Specs left null until the exact publication and page are recorded."
+    }
+  ],
+  "verification": {
+    "level": "unverified",
+    "unverified_fields": ["year_introduced", "specs.cpu", "specs.scan_time_ms_per_k", "specs.memory_words", "specs.io_max", "lifecycle.discontinued_year", "lifecycle.end_of_support_year"],
+    "reviewer": null,
+    "date": null,
+    "notes": "Sample file for the schema. Sources differ between 1985 and 1986 for the PLC-5 introduction; keep precision 'approximate' until a primary source is recorded."
+  },
+  "text": {
+    "pt": {
+      "tagline": "O bastidor 1771 que virou sinônimo de chão de fábrica nas Américas.",
+      "summary": "Família de CLPs modulares da Allen-Bradley que dominou a manufatura das Américas por décadas, ligada por Data Highway Plus e Remote I/O. Muitos ainda estão em operação, o que faz dela a referência de migração mais frequente para a plataforma Logix.",
+      "field_quirk": "Endereçamento octal (não existem 8 e 9) e jumpers no backplane do chassi 1771 que definiam o modo de endereçamento.",
+      "alt_text": "Silhueta de um CLP modular em bastidor com processador à esquerda e módulos de E/S à direita.",
+      "status": "needs_review"
+    },
+    "en": {
+      "tagline": "The 1771 rack that became shorthand for the factory floor across the Americas.",
+      "summary": "Allen-Bradley's modular PLC family that ruled manufacturing in the Americas for decades, networked over Data Highway Plus and Remote I/O. Many are still in service, which makes it the most common migration case toward the Logix platform.",
+      "field_quirk": "Octal addressing (no 8s or 9s) and backplane jumpers on the 1771 chassis that set the addressing mode.",
+      "alt_text": "Silhouette of a modular rack PLC with the processor on the left and I/O modules on the right.",
+      "status": "needs_review"
+    }
+  },
+  "tags": ["allen-bradley", "rockwell", "1785", "dh-plus", "rio"],
+  "stories_enabled": true,
+  "review_status": "draft"
+}

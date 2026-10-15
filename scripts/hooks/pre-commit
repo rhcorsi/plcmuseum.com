@@ -1,0 +1,16 @@
+#!/bin/sh
+# Install once per clone:  git config core.hooksPath scripts/hooks
+# Runs before every commit: secret scan, public-safety check, content validation.
+set -e
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --no-banner
+else
+  echo "pre-commit: gitleaks not installed; secret scan skipped locally (CI still runs it). Install: https://github.com/gitleaks/gitleaks"
+fi
+
+node scripts/check-public-safety.mjs --staged
+
+if git diff --cached --name-only | grep -qE '^content/'; then
+  node scripts/validate-content.mjs --quiet
+fi

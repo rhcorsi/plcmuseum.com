@@ -1,0 +1,19 @@
+# gitleaks configuration: default rules plus project allowlist.
+title = "plcmuseum"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known public values and placeholders"
+regexes = [
+  '''1x0000000000000000000000000000000AA''',   # Turnstile test secret (public, from Cloudflare docs)
+  '''1x00000000000000000000AA''',              # Turnstile test site key (public)
+  '''REPLACE_WITH_[A-Z0-9_]+''',
+  '''change-me-locally''',
+]
+paths = [
+  '''content/images/.*\.svg$''',
+  '''src/assets/illustrations/.*\.svg$''',
+  '''pnpm-lock\.yaml$''',
+]

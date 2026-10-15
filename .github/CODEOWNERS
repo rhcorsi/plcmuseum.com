@@ -1,0 +1,18 @@
+# Maintainer: @rhcorsi. Every PR needs the maintainer's review; sensitive paths are listed explicitly below.
+# Default: every PR needs the maintainer's review.
+*                         @rhcorsi
+
+# Paths that must never merge without the maintainer, even if other reviewers approve.
+/.github/                 @rhcorsi
+/worker/                  @rhcorsi
+/wrangler.jsonc           @rhcorsi
+/package.json             @rhcorsi
+/pnpm-lock.yaml           @rhcorsi
+/scripts/                 @rhcorsi
+/content/schema/          @rhcorsi
+/.claude/                 @rhcorsi
+/CLAUDE.md                @rhcorsi
+/AGENTS.md                @rhcorsi
+/GEMINI.md                @rhcorsi
+/.gitleaks.toml           @rhcorsi
+/.gitignore               @rhcorsi

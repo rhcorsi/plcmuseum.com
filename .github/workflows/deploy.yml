@@ -1,0 +1,42 @@
+# Deploys from a protected GitHub Environment ("preview" or "production") with required reviewers.
+# Secrets exist only in those environments, never at repository level. Manual until Phase 3 closes;
+# afterwards add `push: { branches: [main] }` for production.
+name: deploy
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "preview or production"
+        required: true
+        default: preview
+permissions:
+  contents: read
+concurrency:
+  group: deploy-${{ inputs.env }}
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/check-public-safety.mjs
+      - run: pnpm validate:content
+      - name: Fetch approved stories from D1 (never committed; build-time only)
+        run: pnpm stories:fetch
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          STORIES_ENV: ${{ inputs.env }}
+      - run: pnpm build
+      - name: Deploy with Wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: ${{ inputs.env == 'production' && 'deploy' || 'deploy --env preview' }}

@@ -1,0 +1,61 @@
+name: Exhibit proposal
+description: Propose a PLC, DCS, controller, terminal or network for the museum.
+title: "[exhibit] <manufacturer> <model>"
+labels: ["content", "exhibit-proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks. A proposal with sources gets into the museum much faster than one from memory. Please do not attach vendor press photos or marketplace photos."
+  - type: input
+    id: name
+    attributes:
+      label: Manufacturer and model
+      placeholder: "Siemens SIMATIC S5-115U"
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options: [PLC, DCS, Multiloop controller, HMI, Programming terminal, Network, Software, RTU]
+    validations:
+      required: true
+  - type: input
+    id: year
+    attributes:
+      label: Year introduced (and how sure you are)
+      placeholder: "1984, from the Siemens history page"
+  - type: textarea
+    id: sources
+    attributes:
+      label: Sources
+      description: "Manuals, datasheets, vendor history pages, books (ISBN), period articles, interviews. URLs or publication numbers."
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters
+      description: "What it replaced, what came after, where it was used."
+  - type: textarea
+    id: quirk
+    attributes:
+      label: The thing every veteran remembers (optional)
+      placeholder: "The 20 mA TTY cable, the orange EPROM cartridges..."
+  - type: dropdown
+    id: image
+    attributes:
+      label: Can you provide a licensed image?
+      options:
+        - "No"
+        - "Yes, my own photo (I grant permission with credit)"
+        - "Yes, a Wikimedia Commons image with a compatible license"
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Rules
+      options:
+        - label: I have not included logos, brand artwork, vendor press photos or marketplace photos.
+          required: true
+        - label: I have not included anyone's personal contact details.
+          required: true
