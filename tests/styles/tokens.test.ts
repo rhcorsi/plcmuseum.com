@@ -104,11 +104,89 @@ describe('tokens.css', () => {
   });
 });
 
+/** sRGB `#rrggbb` to linear-light channels. */
+function linearRgb(hex: string): [number, number, number] {
+  const [r = 0, g = 0, b = 0] = [1, 3, 5].map((start) => {
+    const c = Number.parseInt(hex.slice(start, start + 2), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return [r, g, b];
+}
+
 // WCAG 2.x relative luminance and contrast ratio.
 function luminance(hex: string): number {
-  const channels = [1, 3, 5].map((start) => Number.parseInt(hex.slice(start, start + 2), 16) / 255);
-  const [r = 0, g = 0, b = 0] = channels.map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  const [r, g, b] = linearRgb(hex);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+type Lab = [number, number, number];
+
+/** CIE L*a*b* under D65. */
+function lab(hex: string): Lab {
+  const [r, g, b] = linearRgb(hex);
+  const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
+  const fx = f((0.4124564 * r + 0.3575761 * g + 0.1804375 * b) / 0.95047);
+  const fy = f(0.2126729 * r + 0.7151522 * g + 0.072175 * b);
+  const fz = f((0.0193339 * r + 0.119192 * g + 0.9503041 * b) / 1.08883);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+
+// CIEDE2000 color difference (Sharma, Wu and Dalal 2005). Below about 5, two colors side by side read as one.
+function deltaE2000([l1, a1, b1]: Lab, [l2, a2, b2]: Lab): number {
+  const deg = Math.PI / 180;
+  const pow7 = (x: number) => x ** 7;
+  const cBar = (Math.hypot(a1, b1) + Math.hypot(a2, b2)) / 2;
+  const g = 0.5 * (1 - Math.sqrt(pow7(cBar) / (pow7(cBar) + pow7(25))));
+  const [a1p, a2p] = [(1 + g) * a1, (1 + g) * a2];
+  const [c1p, c2p] = [Math.hypot(a1p, b1), Math.hypot(a2p, b2)];
+  const hue = (b: number, a: number) => (b === 0 && a === 0 ? 0 : (Math.atan2(b, a) / deg + 360) % 360);
+  const [h1p, h2p] = [hue(b1, a1p), hue(b2, a2p)];
+  const chromatic = c1p * c2p !== 0;
+  let dh = chromatic ? h2p - h1p : 0;
+  if (dh > 180) dh -= 360;
+  else if (dh < -180) dh += 360;
+  const dH = 2 * Math.sqrt(c1p * c2p) * Math.sin((dh / 2) * deg);
+  const lBar = (l1 + l2) / 2;
+  const cBarP = (c1p + c2p) / 2;
+  let hBar = h1p + h2p;
+  if (chromatic) hBar = Math.abs(h1p - h2p) > 180 ? (hBar + (hBar < 360 ? 360 : -360)) / 2 : hBar / 2;
+  const t =
+    1 -
+    0.17 * Math.cos((hBar - 30) * deg) +
+    0.24 * Math.cos(2 * hBar * deg) +
+    0.32 * Math.cos((3 * hBar + 6) * deg) -
+    0.2 * Math.cos((4 * hBar - 63) * deg);
+  const sL = 1 + (0.015 * (lBar - 50) ** 2) / Math.sqrt(20 + (lBar - 50) ** 2);
+  const sC = 1 + 0.045 * cBarP;
+  const sH = 1 + 0.015 * cBarP * t;
+  const rT =
+    -Math.sin(2 * 30 * Math.exp(-(((hBar - 275) / 25) ** 2)) * deg) *
+    2 *
+    Math.sqrt(pow7(cBarP) / (pow7(cBarP) + pow7(25)));
+  const [dl, dc, dhs] = [(l2 - l1) / sL, (c2p - c1p) / sC, dH / sH];
+  return Math.sqrt(dl ** 2 + dc ** 2 + dhs ** 2 + rT * dc * dhs);
+}
+
+test.each([
+  // Reference pairs 1, 7 and 17 from Sharma, Wu and Dalal's CIEDE2000 test data.
+  [[50, 2.6772, -79.7751], [50, 0, -82.7485], 2.0425],
+  [[50, 0, 0], [50, -1, 2], 2.3669],
+  [[22.7233, 20.0904, -46.694], [23.0331, 14.973, -42.5619], 2.0373],
+] as [Lab, Lab, number][])('CIEDE2000 matches the reference value %#', (first, second, expected) => {
+  expect(deltaE2000(first, second)).toBeCloseTo(expected, 4);
+});
+
+// Accent, focus ring and body text never read as a machine state: each stays at least this far (CIEDE2000) from every
+// state color, in every theme and scheme, so "color means state" holds in every era (docs/DESIGN_SYSTEM.md section 2).
+const STATE_DISTANCE = 10;
+
+function stateLookalikes(tokens: Map<string, string>): string[] {
+  return ['accent', 'focus', 'text'].flatMap((name) =>
+    ['state-ok', 'state-warn', 'state-alarm'].flatMap((state) => {
+      const distance = deltaE2000(lab(tokens.get(`--color-${name}`) ?? ''), lab(tokens.get(`--color-${state}`) ?? ''));
+      return distance >= STATE_DISTANCE ? [] : [`--color-${name} vs --color-${state}: ${distance.toFixed(1)}`];
+    }),
+  );
 }
 
 function contrast(a: string, b: string): number {
@@ -150,6 +228,10 @@ describe.each(Object.entries(SCHEMES))('contrast in the %s scheme', (_scheme, to
     if (fg === undefined || bg === undefined) throw new Error('missing color token');
     expect(contrast(fg, bg)).toBeGreaterThanOrEqual(minimum);
   });
+
+  test(`accent, focus and text stay ${STATE_DISTANCE} CIEDE2000 from every state color`, () => {
+    expect(stateLookalikes(tokens)).toEqual([]);
+  });
 });
 
 describe('motion.css', () => {
@@ -178,9 +260,11 @@ describe('era themes', () => {
     expect(files).toEqual(ERA_THEMES.map((era) => `/src/styles/themes/${era}.css`).sort());
   });
 
-  // Tokens a theme may set: the contract minus motion, which lives in motion.css so reduced motion still wins.
-  const THEMEABLE = CONTRACT_TOKENS.filter((token) => !MOTION_TOKENS.includes(token));
+  // Tokens a theme may set: the contract minus motion, which lives in motion.css so reduced motion still wins, and
+  // minus the stage geometry, which stays the museum's so the stage never moves again when Era UI switches the era.
+  const THEMEABLE = CONTRACT_TOKENS.filter((token) => !MOTION_TOKENS.includes(token) && !token.startsWith('--stage-'));
   const DECORATION_GUARD = '@media (prefers-reduced-motion: no-preference) and (prefers-contrast: no-preference)';
+  const normalized = (value: string | undefined) => value?.toLowerCase().replace(/\s+/g, ' ').trim();
 
   describe.each(ERA_THEMES)('%s.css', (era) => {
     const rules = parseRules(readStyle(`/src/styles/themes/${era}.css`));
@@ -190,6 +274,18 @@ describe('era themes', () => {
       [`${base}:not([data-theme="light"])`, [DARK_MEDIA]],
       [`${base}[data-theme="dark"]`, []],
     ]);
+    const declared = (selector: string) =>
+      new Map(
+        rules.filter((rule) => rule.selectors.join() === selector).flatMap((rule) => [...customProperties(rule)]),
+      );
+    const eraLight = declared(base);
+    const eraDark = declared(`${base}[data-theme="dark"]`);
+    // Era themes are unlayered, so an era's light values also apply in dark mode unless its dark block overrides
+    // them; the effective palette per scheme is the museum one with the era layered on top.
+    const effective = {
+      light: new Map([...light, ...eraLight]),
+      dark: new Map([...light, ...darkForced, ...eraLight, ...eraDark]),
+    };
 
     test(`has exactly one light ${base} block`, () => {
       const lightBlocks = rules.filter((rule) => rule.selectors.join() === base && rule.atRules.length === 0);
@@ -210,7 +306,7 @@ describe('era themes', () => {
       }
     });
 
-    test('overrides contract tokens only, motion excluded', () => {
+    test('overrides contract tokens only, motion and stage geometry excluded', () => {
       const tokenRulesOfEra = rules.filter((rule) => rule.selectors.some((selector) => tokenSelectors.has(selector)));
       const stray = tokenRulesOfEra.flatMap((rule) =>
         [...rule.declarations.keys()].filter((name) => !THEMEABLE.includes(name)),
@@ -218,26 +314,41 @@ describe('era themes', () => {
       expect(stray).toEqual([]);
     });
 
-    // Era themes are unlayered, so an era's light values also apply in dark mode unless its dark block overrides
-    // them; the effective palette per scheme is the museum one with the era layered on top.
+    // A declaration that changes nothing in either scheme only freezes a museum value: a later tokens.css change
+    // would silently not reach visitors with Era UI on.
+    test('declares nothing the museum theme already provides', () => {
+      const museumDark = SCHEMES.dark;
+      const same = (a: string | undefined, b: string | undefined) => a !== undefined && normalized(a) === normalized(b);
+      const restated = [
+        ...[...eraLight]
+          .filter(
+            ([token, value]) =>
+              same(value, light.get(token)) && (eraDark.has(token) || same(value, museumDark.get(token))),
+          )
+          .map(([token]) => `${token} (light)`),
+        ...[...eraDark]
+          .filter(([token, value]) => same(value, eraLight.get(token) ?? museumDark.get(token)))
+          .map(([token]) => `${token} (dark)`),
+      ];
+      expect(restated).toEqual([]);
+    });
+
+    test('keeps any decoration behind the content', () => {
+      for (const rule of rules.filter((candidate) => candidate.selectors.includes(`${base} body::before`))) {
+        expect(rule.declarations.get('position'), `${base} body::before position`).toBe('fixed');
+        expect(Number(rule.declarations.get('z-index')), `${base} body::before z-index`).toBeLessThan(0);
+      }
+    });
+
+    test.each(['light', 'dark'] as const)('keeps state colors distinct in the %s scheme', (scheme) => {
+      expect(stateLookalikes(effective[scheme])).toEqual([]);
+    });
+
     test.each(['light', 'dark'] as const)('keeps the contrast floor in the %s scheme', (scheme) => {
-      const eraLight = new Map(
-        rules
-          .filter((rule) => rule.selectors.join() === base && rule.atRules.length === 0)
-          .flatMap((rule) => [...customProperties(rule)]),
-      );
-      const eraDark = new Map(
-        rules
-          .filter((rule) => rule.selectors.join() === `${base}[data-theme="dark"]`)
-          .flatMap((rule) => [...customProperties(rule)]),
-      );
       for (const [token, value] of [...eraLight, ...eraDark]) {
         if (COLOR_TOKENS.includes(token)) expect(value, `${era} ${token}`).toMatch(/^#[0-9a-f]{6}$/i);
       }
-      const tokens =
-        scheme === 'light'
-          ? new Map([...light, ...eraLight])
-          : new Map([...light, ...darkForced, ...eraLight, ...eraDark]);
+      const tokens = effective[scheme];
       const failures = CONTRAST_PAIRS.flatMap(([foreground, background, minimum]) => {
         const fg = tokens.get(`--color-${foreground}`) ?? '';
         const bg = tokens.get(`--color-${background}`) ?? '';

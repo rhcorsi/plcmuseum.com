@@ -22,7 +22,7 @@ Dark mode: tokens are defined for light under `:root` and for dark under `@media
 
 ## 2. Era themes (`src/styles/themes/*.css`, owner: Gemini)
 
-Activated by `html[data-era="<era>"]`. Each theme file overrides semantic tokens and may add decorative layers on `body::before` (scanlines, bevel textures) guarded by `@media (prefers-reduced-motion: no-preference)` and `@media (prefers-contrast: no-preference)`.
+Activated by `html[data-era="<era>"]`. Each theme file overrides semantic tokens and may add decorative layers on `body::before` (scanlines, bevel textures) guarded by `@media (prefers-reduced-motion: no-preference)` and `@media (prefers-contrast: no-preference)`. Rules every era keeps (enforced by `tests/styles/tokens.test.ts`): decoration stays behind the content and never covers exhibit images or text; the stage geometry (`--stage-*`) is the museum's, so the stage does not move when the era switches; a theme declares only what differs from the museum theme; and state colors keep their meaning, with accent, focus ring and body text at least 10 CIEDE2000 from every state color.
 
 | Era | Mood | Type | Shape | Notes |
 |---|---|---|---|---|
