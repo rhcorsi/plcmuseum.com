@@ -21,7 +21,7 @@ Identifiers are not secrets: the Cloudflare account id, D1 database ids and the 
 
 | Secret | Scope | Stored in | Rotation |
 |---|---|---|---|
-| `CLOUDFLARE_API_TOKEN` | Workers Scripts:Edit + D1:Edit on this account only | GitHub Environments `preview` and `production` (required reviewers) | Every 6 months or on suspicion |
+| `CLOUDFLARE_API_TOKEN` | Workers (created from the "Edit Cloudflare Workers" template: the first deploy creates the Worker, which needs Workers Admin), Zone > Workers Routes > Write on plcmuseum.com (the custom domains in wrangler.jsonc) and D1 Edit (Phase 3 stories:fetch); this account and zone only, anything else the template adds removed | GitHub Environments `preview` and `production` (required reviewers) | Every 6 months or on suspicion |
 | `CLOUDFLARE_ACCOUNT_ID` | identifier | GitHub Environment variable | n/a |
 | `TURNSTILE_SECRET` | Worker | `wrangler secret put TURNSTILE_SECRET` (and `--env preview`) | Yearly or on suspicion |
 | `IP_HASH_SALT` | Worker | `wrangler secret put IP_HASH_SALT` | Monthly (invalidates old hashes, which is desired) |

@@ -1,6 +1,6 @@
 {
   // Cloudflare Worker serving the static site (dist/) plus the tiny stories API.
-  // Fill database_id after creating the D1 database. Secrets via `wrangler secret put`.
+  // D1 database ids are identifiers, not secrets (docs/OPEN_SOURCE.md). Secrets via `wrangler secret put`.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "plcmuseum",
   "main": "worker/src/index.ts",
@@ -17,7 +17,7 @@
     "html_handling": "auto-trailing-slash"
   },
   "d1_databases": [
-    { "binding": "DB", "database_name": "plcmuseum-stories", "database_id": "REPLACE_WITH_D1_ID" }
+    { "binding": "DB", "database_name": "plcmuseum-stories", "database_id": "58274be7-dc32-4631-8075-3d6c9902f6e9" }
   ],
   "vars": {
     "ENVIRONMENT": "production",
@@ -38,7 +38,7 @@
       "name": "plcmuseum-preview",
       "vars": { "ENVIRONMENT": "preview", "TURNSTILE_SITE_KEY": "REPLACE_WITH_PUBLIC_SITE_KEY" },
       "d1_databases": [
-        { "binding": "DB", "database_name": "plcmuseum-stories-preview", "database_id": "REPLACE_WITH_PREVIEW_D1_ID" }
+        { "binding": "DB", "database_name": "plcmuseum-stories-preview", "database_id": "5ece5db5-29ad-4964-b67a-873211b7e3a6" }
       ],
       "routes": [{ "pattern": "preview.plcmuseum.com", "custom_domain": true }]
     }
