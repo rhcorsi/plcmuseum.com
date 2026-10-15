@@ -57,4 +57,12 @@ Accepted 2026-10-14. Astro 5 had a critical and several high advisories fixed on
 
 ## ADR-0010: CSP hashes for island hydration scripts
 
-Proposed 2026-10-14, to be decided before TASK-001 is integrated into real pages: Astro islands need inline hydration scripts, which the CSP refuses; build-time hashes read by the Worker keep `'unsafe-inline'` out. Full record: `docs/adr/0010-csp-hashes-for-islands.md`.
+Accepted 2026-10-15. Astro islands need inline hydration scripts, which the CSP refuses; Astro's `security.csp` hashes them at build time, the build lists the hashes in `dist/csp.json` and the Worker adds them to `script-src` and `style-src`, so `'unsafe-inline'` stays out. Full record: `docs/adr/0010-csp-hashes-for-islands.md`.
+
+## ADR-0011: Header controls without React
+
+Accepted 2026-10-15. EraToggle and LanguageSwitch are script components (an Astro component plus a same-origin TypeScript module, no framework, at most 3.5 KB gzip together), so exhibit pages stay within their JS budget; the language picked with a plain click is remembered in localStorage and followed on a language home reached through the `/` redirect, with no cookie and no Worker change. Full record: `docs/adr/0011-header-controls-without-react.md`.
+
+## ADR-0012: Preferences applied before first paint
+
+Accepted and implemented 2026-10-15. A classic, render-blocking, same-origin `/prefs.js` first in every `<head>` applies the stored era and follows the remembered language before first paint, with no CSP change and a budget of 1 KB gzip. Full record: `docs/adr/0012-preferences-before-first-paint.md`.

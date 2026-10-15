@@ -45,7 +45,7 @@ const badge =
 const decadeLabel = t(lang, `decade.${exhibit.decade}`);
 ---
 
-<Page lang={lang} title={exhibit.name} description={text.tagline} path={`/exhibits/${exhibit.slug}`}>
+<Page lang={lang} title={exhibit.name} description={text.tagline} path={`/exhibits/${exhibit.slug}`} pageEra={card.era}>
   {exhibit.review_status !== 'published' && (
     <p class="status" role="note" data-review-status={exhibit.review_status}>
       {t(lang, exhibit.review_status === 'draft' ? 'exhibit.status.draft' : 'exhibit.status.review')}

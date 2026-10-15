@@ -1,6 +1,7 @@
 // The Worker in front of the static site (docs/ARCHITECTURE.md section 7). Phase 0 surface: the "/" language
 // redirect, GET /api/health and the assets; every other /api path is 404 until POST /api/stories lands in Phase 3
 // (worker/README.md). Nothing is logged: no bodies, headers or IPs (docs/SECURITY.md 3.2).
+import { BASE_POLICY, readPolicy } from './csp';
 import { readHealth } from './health';
 import { negotiateLanguage } from './language';
 import { withSecurityHeaders } from './security-headers';
@@ -52,8 +53,19 @@ async function route(request: Request, env: Bindings): Promise<Response> {
   return env.ASSETS.fetch(request);
 }
 
-export default {
-  async fetch(request: Request, env: Bindings): Promise<Response> {
-    return withSecurityHeaders(await route(request, env));
-  },
-} satisfies ExportedHandler<Env>;
+/**
+ * The fetch handler and its one piece of state: the Content-Security-Policy built from csp.json. It is read on the
+ * first request that finds a valid file and kept for the life of the isolate (csp.json changes only with a deploy,
+ * which starts new isolates); until then every response carries the documented policy.
+ */
+export function createWorker() {
+  let policy: string | null = null;
+  return {
+    async fetch(request: Request, env: Bindings): Promise<Response> {
+      policy ??= await readPolicy(env.ASSETS, request.url);
+      return withSecurityHeaders(await route(request, env), policy ?? BASE_POLICY);
+    },
+  } satisfies ExportedHandler<Env>;
+}
+
+export default createWorker();

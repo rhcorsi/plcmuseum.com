@@ -23,7 +23,13 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
 
 <ol class={STAGE_HOOKS.list} id={id} data-initial-id={initialId} aria-label={label}>
   {exhibits.map((card) => {
-    const ids = { name: `stage-name-${card.id}`, year: `stage-year-${card.id}`, tagline: `stage-tagline-${card.id}` };
+    const ids = {
+      link: `stage-link-${card.id}`,
+      name: `stage-name-${card.id}`,
+      maker: `stage-maker-${card.id}`,
+      year: `stage-year-${card.id}`,
+      tagline: `stage-tagline-${card.id}`,
+    };
     return (
       <li
         class={STAGE_HOOKS.item}
@@ -33,8 +39,15 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
         data-era={card.era}
         data-year={card.year}
       >
-        {/* Named by name and year, described by the tagline: the full card text would make a long link name. */}
-        <a class="card" href={card.href} aria-labelledby={`${ids.name} ${ids.year}`} aria-describedby={ids.tagline}>
+        {/* Named by name, maker and year, described by the tagline: the full card text would make a long link name.
+            CoverFlow turns this link into the listbox option, so the option keeps the same name and description. */}
+        <a
+          class="card"
+          id={ids.link}
+          href={card.href}
+          aria-labelledby={`${ids.name} ${ids.maker} ${ids.year}`}
+          aria-describedby={ids.tagline}
+        >
           <ExhibitVisual
             card={card}
             lang={lang}
@@ -46,7 +59,9 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
             <span class="name" id={ids.name}>
               {card.name}
             </span>
-            <span class="maker">{card.manufacturer}</span>
+            <span class="maker" id={ids.maker}>
+              {card.manufacturer}
+            </span>
             <span class="tagline" id={ids.tagline} lang={card.textLang === lang ? undefined : LANG_TAGS[card.textLang]}>
               {card.tagline}
             </span>

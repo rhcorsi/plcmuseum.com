@@ -87,6 +87,11 @@
     color: var(--color-text);
     font-family: var(--font-body);
     font-size: 100%;
+    /* A word wider than its line (German compounds at 320 px, monospace eras, WCAG text spacing) breaks instead of
+       pushing its box past the column (WCAG 1.4.10 reflow). "anywhere" rather than "break-word" because it also lowers
+       the min-content width that sizes grid and flex items; only words that cannot fit are broken. The cost: a short
+       label in a flex row that must not shrink (a caption, a year) needs flex-shrink: 0, or it breaks mid-word. */
+    overflow-wrap: anywhere;
   }
 
   :focus-visible {

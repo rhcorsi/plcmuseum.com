@@ -49,8 +49,9 @@ const STEPS = [
   {
     name: `astro build (${target})`,
     args: [nodeModule('astro', 'bin', 'astro.mjs'), 'build'],
-    // Set explicitly, overriding the shell: an inherited stage would publish the wrong set of exhibits.
-    env: { PLCMUSEUM_STAGE: target },
+    // Set explicitly, overriding the shell: an inherited stage would publish the wrong set of exhibits, and an
+    // inherited PLCMUSEUM_E2E_FIXTURES would publish the e2e test pages.
+    env: { PLCMUSEUM_STAGE: target, PLCMUSEUM_E2E_FIXTURES: '' },
   },
   {
     name: `wrangler deploy (${target})`,

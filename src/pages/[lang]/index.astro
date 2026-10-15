@@ -1,6 +1,7 @@
 ---
 // Language home: the stage of every visible exhibit, oldest first. The production build shows only published
-// exhibits, so until the first one is published the home shows the empty state.
+// exhibits, so until the first one is published the home shows the empty state. The page era is the first card's,
+// where the stage starts (ERA_HOOKS.page); whoever integrates CoverFlow keeps its initialId equal to cards[0].id.
 import DecadeSelector from '../../components/DecadeSelector.astro';
 import EmptyState from '../../components/EmptyState.astro';
 import StageList from '../../components/StageList.astro';
@@ -22,7 +23,7 @@ const cards = (await getVisibleExhibits()).map((exhibit) => toExhibitCard(exhibi
 const siteName = t(lang, 'site.name');
 ---
 
-<Page lang={lang} title={siteName} path="/">
+<Page lang={lang} title={siteName} path="/" pageEra={cards[0]?.era ?? null}>
   <section class="intro">
     <h1>{siteName}</h1>
     <p class="tagline">{t(lang, 'home.tagline')}</p>
