@@ -23,7 +23,7 @@ Boundaries: browser ↔ Worker (public internet); Worker ↔ D1 (binding, no net
 | XSS through stories or exhibit text | Medium | Stories are plain text only (HTML stripped server-side, escaped at render), strict CSP, no `dangerouslySetInnerHTML`, no inline scripts |
 | Supply chain (malicious or vulnerable dependency, typosquat) | Medium | Lockfile, pinned versions, `pnpm audit` in CI, Renovate weekly, no post-install scripts without review, minimal dependency count |
 | Secrets leak in repo or logs | Medium | gitleaks pre-commit and CI, `.env`/`.dev.vars` ignored and denied to Claude Code, secrets only via `wrangler secret`, logs never print bodies |
-| Account takeover (Cloudflare, GitHub) | Low, high impact | Hardware key MFA on both, scoped API token (Workers Scripts:Edit, D1:Edit on this account only), no global API key |
+| Account takeover (Cloudflare, GitHub) | Low, high impact | Hardware key MFA on both, scoped API token (Workers, Workers Routes on the plcmuseum.com zone and D1, this account only; see docs/OPEN_SOURCE.md section 2), no global API key |
 | Defacement through CI | Low | Branch protection on `main`, required checks, deploy only from `main`, human-only production deploy until Phase 3 |
 | DDoS / scraping | Medium | Cloudflare proxy, WAF managed rules, rate limiting rule on `/api/*`, static assets cacheable |
 | Trademark or image rights complaint | Medium | License sidecar enforced by validator, no logos, nominative-use notice, takedown process with 72 h SLA |
@@ -63,7 +63,7 @@ Boundaries: browser ↔ Worker (public internet); Worker ↔ D1 (binding, no net
 - `main` protected: PR required, CODEOWNERS review required, CI green required, linear history, no force push. Actions require approval for outside collaborators; `pull_request_target` is banned; fork PRs never receive secrets.
 - Secrets only in GitHub Environments with required reviewers (deploy) and in Cloudflare (`wrangler secret`); none at repository level.
 - CI: `validate:content`, lint, typecheck, unit tests, build, `pnpm audit --audit-level=high`, gitleaks, Playwright e2e against `astro dev` and against the production build under `wrangler dev` (headers, redirect, CSP violations); planned: Playwright smoke on preview, Lighthouse budget.
-- Deploy workflow uses a Cloudflare API token scoped to this account with Workers Scripts:Edit and D1:Edit; stored as a GitHub secret; rotated every 6 months.
+- Deploy workflow uses a Cloudflare API token scoped to this account and the plcmuseum.com zone (permissions in docs/OPEN_SOURCE.md section 2); stored as a GitHub Environment secret; rotated every 6 months.
 - Renovate (or Dependabot) weekly, grouped minor updates, majors reviewed by `security-reviewer`.
 
 ### 3.5 Cloudflare account
