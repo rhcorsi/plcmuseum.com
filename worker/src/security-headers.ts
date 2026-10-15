@@ -11,11 +11,13 @@ export const SECURITY_HEADERS = {
 } as const satisfies Record<string, string>;
 
 /**
- * The same response with the security headers set, replacing any value it already had.
+ * The same response with the security headers set, replacing any value it already had. `policy` is the
+ * Content-Security-Policy to send: the documented one, plus the build's island hashes once csp.json is read (csp.ts).
  * Responses from the assets binding have immutable headers, so the response is rebuilt rather than modified.
  */
-export function withSecurityHeaders(response: Response): Response {
+export function withSecurityHeaders(response: Response, policy: string): Response {
   const secured = new Response(response.body, response);
-  for (const [name, value] of Object.entries(SECURITY_HEADERS)) secured.headers.set(name, value);
+  const headers = { ...SECURITY_HEADERS, 'Content-Security-Policy': policy };
+  for (const [name, value] of Object.entries(headers)) secured.headers.set(name, value);
   return secured;
 }

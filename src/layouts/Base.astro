@@ -1,6 +1,7 @@
 ---
 // Document shell for every page: <html lang data-era>, head metadata, hreflang alternates, the one stylesheet.
-// No inline scripts or styles anywhere below: the Worker sends `script-src 'self'; style-src 'self'`.
+// No author-written inline scripts or styles anywhere below: the Worker sends `script-src 'self'; style-src 'self'`,
+// plus build-time hashes for Astro's own island scripts and style only (docs/adr/0010-csp-hashes-for-islands.md).
 import '../styles/global.css';
 import { DEFAULT_LANG, LANG_TAGS, LANGS, type Lang, localizedPath, t } from '../i18n/utils';
 import { type EraAttribute, MUSEUM_ERA } from '../lib/era';
