@@ -30,7 +30,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
         if: hashFiles('pnpm-lock.yaml') != ''
       - name: Secret scan (gitleaks)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Public-safety check (forbidden files and values)
