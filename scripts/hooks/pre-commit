@@ -11,6 +11,8 @@ fi
 
 node scripts/check-public-safety.mjs --staged
 
-if git diff --cached --name-only | grep -qE '^content/'; then
+# The validator also gates the site illustrations. A pathspec instead of grepping the name list: git quotes
+# non-ASCII names in that list ("content/caf\303\251.json"), which a ^content/ pattern would miss.
+if ! git diff --cached --quiet -- content src/assets/illustrations; then
   node scripts/validate-content.mjs --quiet
 fi
