@@ -1,29 +1,33 @@
-// wrangler.jsonc invariants that keep the preview private: the Workers answer only on their custom domains, so a
-// workers.dev or per-version preview URL can never serve the site around Cloudflare Access (docs/SECURITY.md 3.5).
-import { readFileSync } from 'node:fs';
+// wrangler.jsonc invariants that keep the preview private: the Workers answer only on their custom domains, so no
+// workers.dev URL, per-version preview URL or custom-domain branch preview (<name>.preview.plcmuseum.com, which the
+// Access application does not cover) can serve the site around Cloudflare Access (docs/SECURITY.md 3.5).
+// The config is resolved by Wrangler itself, so inheritance into env.preview is checked, not assumed.
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
+import { experimental_readRawConfig, unstable_readConfig } from 'wrangler';
 import { REPO } from '../scripts/helpers.mjs';
 
-// The file uses whole-line // comments only, so dropping those lines leaves plain JSON.
-const config = JSON.parse(
-  readFileSync(path.join(REPO, 'wrangler.jsonc'), 'utf8')
-    .split('\n')
-    .filter((line) => !line.trimStart().startsWith('//'))
-    .join('\n'),
-);
+const CONFIG = path.join(REPO, 'wrangler.jsonc');
+const ENVS = [undefined, 'preview'];
 
-describe('wrangler.jsonc', () => {
-  test('turns workers.dev and preview URLs off at the top level', () => {
+describe.each(ENVS)('wrangler.jsonc resolved for env %s', (env) => {
+  const config = unstable_readConfig({ config: CONFIG, env });
+
+  test('workers.dev and preview URLs are off', () => {
     expect(config.workers_dev).toBe(false);
     expect(config.preview_urls).toBe(false);
   });
 
-  test.each(Object.keys(config.env ?? {}))('env.%s never turns them back on and keeps a custom domain', (name) => {
-    const env = config.env[name];
-    expect(env.workers_dev ?? false).toBe(false);
-    expect(env.preview_urls ?? false).toBe(false);
-    expect(env.routes?.length).toBeGreaterThan(0);
-    for (const route of env.routes) expect(route.custom_domain).toBe(true);
+  test('every route is a custom domain without branch previews', () => {
+    expect(config.routes?.length).toBeGreaterThan(0);
+    for (const route of config.routes ?? []) {
+      expect(route).toMatchObject({ custom_domain: true });
+      expect(route.previews_enabled ?? false).toBe(false);
+    }
   });
+});
+
+test('the environments checked above are all the environments in wrangler.jsonc', () => {
+  const declared = Object.keys(experimental_readRawConfig({ config: CONFIG }).rawConfig.env ?? {}).sort();
+  expect(declared).toEqual(ENVS.filter(Boolean).sort());
 });

@@ -68,7 +68,7 @@ Boundaries: browser ↔ Worker (public internet); Worker ↔ D1 (binding, no net
 
 ### 3.5 Cloudflare account
 - MFA with hardware key; separate member account for CI token issuance if the plan allows.
-- `preview.plcmuseum.com` behind Cloudflare Access (one-time PIN for named e-mails) so unreleased work can be shown privately. The Workers answer only on their custom domains (`workers_dev` and `preview_urls` are `false` in wrangler.jsonc), so no `workers.dev` URL bypasses Access.
+- `preview.plcmuseum.com` behind Cloudflare Access (one-time PIN for named e-mails) so unreleased work can be shown privately. The Workers answer only on their custom domains (`workers_dev` and `preview_urls` are `false` in wrangler.jsonc, and no custom-domain route sets `previews_enabled`), so no `workers.dev` URL or branch preview such as `<name>.preview.plcmuseum.com` bypasses Access, which covers the exact hostname only. `tests/config/wrangler.test.mjs` checks the config as Wrangler resolves it.
 - DNS: DNSSEC on; `SPF` (`v=spf1 -all` if the domain never sends mail, or the sending provider's include), `DMARC` (`p=reject`), `DKIM` for the sending provider; Email Routing for `hello@plcmuseum.com`.
 - WAF managed ruleset on; rate limiting rule on `/api/*`; Turnstile on the story form (Phase 3). Bot Fight Mode stays off (owner decision, 2026-10-15): it sets cookies (`__cf_bm`, `cf_clearance`) and injects a script into every page, which would break the privacy notice ("no cookies, no third-party scripts") and the CSP.
 
