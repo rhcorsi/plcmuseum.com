@@ -18,7 +18,7 @@
   "timeline.value": "{name}, {maker}, {year}",
   "era.toggle": "Epochenstil",
   "era.announce_on": "Das Museum sieht jetzt aus wie in den {decade}-Jahren.",
-  "era.announce_on_no_era": "Der Epochenstil ist eingeschaltet und erscheint auf den Seiten der Exponate und Jahrzehnte.",
+  "era.announce_on_no_era": "Der Epochenstil ist eingeschaltet und erscheint auf der Startseite sowie auf den Seiten der Exponate und Jahrzehnte.",
   "era.announce_off": "Zurück zum Museumsstil.",
   "lang.pt": "Português",
   "lang.en": "English",

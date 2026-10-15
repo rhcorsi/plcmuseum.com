@@ -17,7 +17,7 @@
   "timeline.value": "{name}, {maker}, {year}",
   "era.toggle": "Visual de época",
   "era.announce_on": "O museu agora tem o visual dos {decade}.",
-  "era.announce_on_no_era": "O visual de época está ligado e aparece nas páginas de peças e de décadas.",
+  "era.announce_on_no_era": "O visual de época está ligado e aparece na página inicial e nas páginas de peças e de décadas.",
   "era.announce_off": "De volta ao visual do museu.",
   "lang.pt": "Português",
   "lang.en": "English",

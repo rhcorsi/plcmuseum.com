@@ -18,7 +18,7 @@
   "timeline.value": "{name}, {maker}, {year}",
   "era.toggle": "Estilo de época",
   "era.announce_on": "El museo ahora tiene el aspecto de los {decade}.",
-  "era.announce_on_no_era": "El estilo de época está activado y se ve en las páginas de piezas y de décadas.",
+  "era.announce_on_no_era": "El estilo de época está activado y se ve en la página de inicio y en las páginas de piezas y de décadas.",
   "era.announce_off": "De vuelta al aspecto del museo.",
   "lang.pt": "Português",
   "lang.en": "English",

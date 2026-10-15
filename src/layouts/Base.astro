@@ -61,6 +61,8 @@ const robots = noindex || currentStage() !== 'production' ? 'noindex, nofollow' 
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {/* Before first paint (ADR-0012). The build moves it to the end of <head>, after the CSP meta and stylesheets
+        Astro injects there, so it does not hold back the stylesheet requests (astro.config.mjs, placePrefsScriptLast). */}
     <script is:inline src="/prefs.js"></script>
     <title>{fullTitle}</title>
     <meta name="description" content={description} />

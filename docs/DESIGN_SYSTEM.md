@@ -50,7 +50,7 @@ Script components (owner: Codex; an Astro component plus a TypeScript module und
 - `EraToggle`: props `{ lang }` (`EraToggleProps`); a native switch button that persists `STORAGE_KEYS.eraUi`, applies `html[data-page-era]`, follows `CENTER_CHANGE_EVENT`, emits `ERA_CHANGE_EVENT` and announces only the visitor's own changes (hooks `ERA_HOOKS`, `ERA_TOGGLE_HOOKS`). `/prefs.js` has already applied the stored state before first paint (ADR-0012), so the toggle starts without a museum-first flash.
 - `LanguageSwitch`: behavior on `LanguageLinks` (hooks `LANGUAGE_HOOKS`) that stores a plain click in `STORAGE_KEYS.lang`; `/prefs.js` follows it on a language home reached through the `/` redirect (ADR-0012). The links work without JS.
 
-`public/prefs.js` (ADR-0012, owner: Claude Code) is not a component: a classic script loaded first in every page's `<head>` that applies the stored era and follows the remembered language before first paint. It only reads storage, and stays at most 1 KB gzip.
+`public/prefs.js` (ADR-0012, owner: Claude Code) is not a component: a classic script ending every built page's `<head>` that applies the stored era and follows the remembered language before first paint. It only reads storage, and stays at most 1 KB gzip.
 
 Types live in `src/content/types.ts` (generated) and `src/islands/contracts.ts` (props and events). Changing a contract is a Claude Code task and bumps the task files that depend on it.
 
@@ -71,7 +71,7 @@ Home: ≤ 150 KB gzip JS, LCP ≤ 2.5 s on simulated 4G, CLS ≤ 0.05. Exhibit p
 
 ## 7. Fixture pages and visual tests
 
-Every component has `src/pages/dev/<component>.astro` rendering `src/fixtures/` data in the default theme and in each era (query `?era=1980s`, plus `?theme=light|dark`). Astro strips the query string from prerendered pages, so `src/components/dev/FixtureSwitches.astro` applies both in the browser after load: screenshot tests wait for `html[data-era]`. The Astro dev toolbar is off so it never shows in screenshots. Playwright captures 390 px and 1280 px screenshots; diffs over 0.1% fail the test and require a reviewer note. Dev pages are excluded from production builds.
+Every component has `src/pages/dev/<component>.astro` rendering `src/fixtures/` data in the default theme and in each era (query `?era=1980s`, plus `?theme=light|dark`). Astro strips the query string from prerendered pages, so `src/components/dev/FixtureSwitches.astro` applies both in the browser after load: screenshot tests wait for `html[data-era]`. The Astro dev toolbar is off so it never shows in screenshots. Implementers attach 390 px and 1280 px captures to the PR and never commit them; the architect adds Linux screenshot baselines (diffs over 0.1% fail) after TASK-002. A task file may prescribe its own fixture routes instead (per-scenario pages, or real pages) when FixtureSwitches would write `data-era` itself. Dev pages are excluded from production builds.
 
 ## 8. Imagery
 

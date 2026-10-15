@@ -1,5 +1,5 @@
 // /prefs.js (ADR-0012) against `wrangler dev` over the production build (project "edge", which runs every
-// *edge.spec.ts): the head loads it first and blocking, the first frame already wears the stored era, and a
+// *edge.spec.ts): the head ends with it, classic and blocking, the first frame already wears the stored era, and a
 // remembered language replaces the home the "/" redirect chose before that home gets a body. Only the Worker
 // answers "/" with a redirect, so this cannot run against `astro dev`.
 import { expect, test, type Page } from '@playwright/test';
@@ -56,14 +56,27 @@ async function recordBodyOnLeave(page: Page): Promise<void> {
   });
 }
 
-test('every page loads /prefs.js first in <head>, classic and blocking, before the stylesheet', async ({ request }) => {
-  const html = await (await request.get(DECADE_PAGE, { maxRedirects: 0 })).text();
-  const head = html.slice(0, html.search(/<\/head>/i));
-  const firstScript = head.match(/<script\b[^>]*>/)?.[0];
-  expect(firstScript, 'no async, defer or type: a classic, parser-blocking script').toBe('<script src="/prefs.js">');
-  const stylesheet = head.search(/<link\b[^>]*\brel="stylesheet"/);
-  expect(stylesheet, 'a stylesheet in <head>').toBeGreaterThan(-1);
-  expect(head.indexOf(firstScript ?? '')).toBeLessThan(stylesheet);
+// The build moves the script to the end of <head> (astro.config.mjs, placePrefsScriptLast): in front of Astro's CSP
+// meta it held back every stylesheet request in Chromium by one round trip. It still blocks rendering there.
+test('every page ends <head> with /prefs.js, classic and blocking, after the CSP meta and the stylesheets', async ({
+  request,
+}) => {
+  for (const path of [DECADE_PAGE, '/en/', '/en/about', '/en/does-not-exist']) {
+    const html = await (await request.get(path, { maxRedirects: 0 })).text();
+    const head = html.slice(0, html.search(/<\/head>/i));
+    const scripts = head.match(/<script\b[^>]*>/g) ?? [];
+    expect(scripts.at(-1), `${path}: no async, defer or type, a classic parser-blocking script`).toBe(
+      '<script src="/prefs.js">',
+    );
+    expect(head.trimEnd().endsWith('<script src="/prefs.js"></script>'), `${path}: the last element of <head>`).toBe(
+      true,
+    );
+    const lastStylesheet = [...head.matchAll(/<link\b[^>]*\brel="stylesheet"/g)].at(-1)?.index ?? -1;
+    const cspMeta = head.search(/<meta http-equiv="content-security-policy"/);
+    expect(lastStylesheet, `${path}: a stylesheet in <head>`).toBeGreaterThan(-1);
+    expect(cspMeta, `${path}: Astro's CSP meta in <head>`).toBeGreaterThan(-1);
+    expect(head.indexOf('<script src="/prefs.js">')).toBeGreaterThan(Math.max(lastStylesheet, cspMeta));
+  }
 
   const script = await request.get('/prefs.js', { maxRedirects: 0 });
   expect(script.status()).toBe(200);

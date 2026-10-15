@@ -156,3 +156,85 @@ describe('/prefs.js never breaks the page', () => {
     expect((await new Response(gzipped).arrayBuffer()).byteLength).toBeLessThanOrEqual(1024);
   });
 });
+
+// The privacy page promises that a remembered choice never leaves the device and that the site sets no cookie
+// (privacy.preferences, privacy.lead), and SECURITY.md 3.1 that /prefs.js only reads storage. The stubs above would
+// accept a cookie write and the script swallows a failing fetch, so here every global is a proxy that records what
+// the script touches: it may read only these members and write nothing.
+const ALLOWED_READS = new Set([
+  'window.localStorage',
+  'window.stop',
+  'storage.getItem',
+  'document.documentElement',
+  'root.getAttribute',
+  'root.setAttribute',
+  'location.pathname',
+  'location.search',
+  'location.hash',
+  'location.replace',
+  'performance.getEntriesByType',
+  'entry.type',
+  'entry.redirectCount',
+]);
+
+function audit(source: string) {
+  const touched = new Set<string>();
+  const writes: string[] = [];
+  const watch = <T extends object>(name: string, target: T): T =>
+    new Proxy(target, {
+      get(object, key, receiver) {
+        if (typeof key === 'string') touched.add(`${name}.${key}`);
+        return Reflect.get(object, key, receiver);
+      },
+      set(object, key, value) {
+        writes.push(`${name}.${String(key)}`);
+        return Reflect.set(object, key, value);
+      },
+    });
+  const attributes = new Map<string, string>([[ERA_HOOKS.page, '1980s']]);
+  const root = watch('root', {
+    getAttribute: (name: string) => attributes.get(name) ?? null,
+    setAttribute: (name: string, value: string) => attributes.set(name, value),
+  });
+  const storage = watch('storage', {
+    getItem: (key: string) => ({ [STORAGE_KEYS.eraUi]: '1', [STORAGE_KEYS.lang]: 'pt' })[key] ?? null,
+  });
+  const entry = watch('entry', { type: 'navigate', redirectCount: 1 });
+  for (const path of ['/en/decades/1980s', '/en/']) {
+    const run = new Function('window', 'document', 'location', 'performance', source);
+    run(
+      watch('window', { localStorage: storage, stop: () => undefined }),
+      watch('document', { documentElement: root }),
+      watch('location', { pathname: path, search: '', hash: '', replace: () => undefined }),
+      watch('performance', { getEntriesByType: () => [entry] }),
+    );
+  }
+  return { outside: [...touched].filter((member) => !ALLOWED_READS.has(member)).sort(), writes };
+}
+
+describe('/prefs.js only reads the preferences', () => {
+  it('touches only the allowed members and assigns nothing, on the era path and on the follow path', () => {
+    expect(audit(SOURCE)).toEqual({ outside: [], writes: [] });
+  });
+
+  it.each([
+    ['a cookie', "document.cookie = 'era=1';"],
+    ['a request', "window.fetch('/beacon');"],
+    ['a storage write', "store.setItem('x', '1');"],
+    ['a beacon', "window.navigator.sendBeacon('/beacon', era);"],
+  ])('fails the audit when the script adds %s', (_name, line) => {
+    const tampered = SOURCE.replace(
+      "root.setAttribute('data-era', era);",
+      `root.setAttribute('data-era', era); ${line}`,
+    );
+    expect(tampered).not.toBe(SOURCE);
+    const result = audit(tampered);
+    expect(result.outside.length + result.writes.length).toBeGreaterThan(0);
+  });
+
+  it('names no network, cookie or storage-writing API in its source', () => {
+    expect(SOURCE).not.toMatch(
+      /cookie|fetch|XMLHttpRequest|sendBeacon|WebSocket|EventSource|setItem|removeItem|import\(/,
+    );
+  });
+});

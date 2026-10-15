@@ -1,5 +1,5 @@
-// Preferences applied before first paint (docs/adr/0012-preferences-before-first-paint.md): Base.astro loads this
-// classic script first in <head>. It only reads storage. Its literals mirror src/islands/contracts.ts, src/lib/era.ts
+// Preferences applied before first paint (docs/adr/0012-preferences-before-first-paint.md): Base.astro writes this
+// classic script into <head> and the build moves it to the end of <head>, after the stylesheets. It only reads storage. Its literals mirror src/islands/contracts.ts, src/lib/era.ts
 // and src/i18n/langs.ts; tests/islands/prefs-head.test.ts keeps them in step and the file under 1 KB gzip.
 (function () {
   try {

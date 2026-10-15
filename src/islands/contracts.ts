@@ -87,6 +87,10 @@ export type CoverFlowProps = {
   listId: string;
   initialId: string;
   lang: Lang;
+  /**
+   * Inert since ADR-0011: CoverFlow always emits CENTER_CHANGE_EVENT and never writes data-era; EraToggle and /prefs.js
+   * decide the theme. Kept while PR #9 is open; the TASK-001 integration removes it.
+   */
   eraUiEnabled: boolean;
   /** Control and announcement strings, resolved by the page with t(); islands never import src/i18n/utils.ts. */
   labels: { prev: string; next: string; open: string };
@@ -257,7 +261,7 @@ export const ERA_HOOKS = {
   /**
    * EraAttribute applied now; "museum" in the server-rendered HTML. In production two scripts write it: /prefs.js,
    * before first paint, from the stored preference (ADR-0012), and EraToggle after it. FixtureSwitches writes it on
-   * the /dev pages that use it (/dev/tokens, /dev/coverflow), which render no EraToggle and carry no data-page-era;
+   * the /dev pages that render it, which render no EraToggle and carry no data-page-era;
    * /dev/era-toggle/<scenario> (TASK-005) renders the real header and the scenario's data-page-era (none on
    * /dev/era-toggle/none), and no FixtureSwitches.
    */
