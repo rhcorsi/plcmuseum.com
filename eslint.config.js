@@ -4,12 +4,15 @@ import astro from 'eslint-plugin-astro';
 import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
-// Globals the Node scripts use; listed by hand to avoid a dependency for a dozen names.
+// Globals the Node scripts and the one browser script use; listed by hand to avoid a dependency for a dozen names.
 const NODE_GLOBALS = Object.fromEntries(
   ['process', 'console', 'URL', 'Buffer', 'setTimeout', 'clearTimeout', 'fetch', 'AbortController'].map((name) => [
     name,
     'readonly',
   ]),
+);
+const BROWSER_GLOBALS = Object.fromEntries(
+  ['window', 'document', 'location', 'performance'].map((name) => [name, 'readonly']),
 );
 
 export default defineConfig([
@@ -34,7 +37,13 @@ export default defineConfig([
   astro.configs.recommended,
   {
     files: ['**/*.{js,mjs}'],
+    ignores: ['public/**'],
     languageOptions: { globals: NODE_GLOBALS },
+  },
+  {
+    // public/prefs.js: a classic script the browser runs before first paint (ADR-0012), never a module.
+    files: ['public/**/*.js'],
+    languageOptions: { sourceType: 'script', globals: BROWSER_GLOBALS },
   },
   {
     rules: {

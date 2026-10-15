@@ -1,6 +1,7 @@
 ---
-// Privacy notice for what is true today (Phase 0: static pages, no cookies, no forms). The story form brings its
-// full notice with it (docs/SECURITY.md section 3.3); update this page in the same change.
+// Privacy notice for what is true today (Phase 0: static pages, no cookies, no forms; the header remembers Era style
+// and the language in local storage). The story form brings its full notice with it (docs/SECURITY.md section 3.3);
+// update this page in the same change.
 import Prose from '../../components/Prose.astro';
 import { CONTACT_EMAIL } from '../../components/site';
 import { type Lang, LANGS, t } from '../../i18n/utils';
@@ -23,6 +24,7 @@ const { lang } = Astro.props;
     <p class="lead">{t(lang, 'privacy.lead')}</p>
     <p>{t(lang, 'privacy.hosting')}</p>
     <p>{t(lang, 'privacy.no_forms')}</p>
+    <p>{t(lang, 'privacy.preferences')}</p>
     <p>{t(lang, 'privacy.stories')}</p>
     <p>
       {t(lang, 'privacy.contact')} <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>

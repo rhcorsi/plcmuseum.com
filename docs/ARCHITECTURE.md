@@ -51,9 +51,9 @@ plcmuseum/
 │   ├── styles/tokens.css             base semantic tokens (museum theme)
 │   ├── styles/themes/{1970s,1980s,1990s,2000s,2020s}.css
 │   ├── styles/motion.css
-│   ├── layouts/Base.astro            html[lang][data-era], CSP-compatible head
+│   ├── layouts/Base.astro            html[lang][data-era][data-page-era], CSP-compatible head, /prefs.js first
 │   ├── components/                   static Astro components
-│   ├── islands/                      React islands (CoverFlow, EraToggle, StoryForm, TimelineScrubber)
+│   ├── islands/                      React islands (CoverFlow, StoryForm, TimelineScrubber) and the client modules of script components (era-toggle, language-switch)
 │   ├── pages/[lang]/index.astro      home: stage + decade selector + timeline
 │   ├── pages/[lang]/exhibits/[slug].astro
 │   ├── pages/[lang]/decades/[decade].astro
@@ -61,6 +61,7 @@ plcmuseum/
 │   ├── pages/[lang]/about.astro, privacy.astro, credits.astro
 │   ├── pages/dev/*.astro             fixture pages (dev builds only)
 │   └── pages/og/[...].png.ts         build-time share cards
+├── public/                           copied as is: favicon, robots.txt, prefs.js (preferences before first paint, ADR-0012)
 ├── worker/
 │   ├── src/index.ts                  fetch handler: assets passthrough, /api/stories, /api/health, security headers
 │   ├── src/stories.ts                validation (Zod), Turnstile verify, rate limit, insert
@@ -95,7 +96,7 @@ Rules enforced by the validator: ids unique and equal to file names; `review_sta
 1b. Deploys only (`.github/workflows/deploy.yml`, or the owner's `pnpm deploy:preview|deploy:prod` through `scripts/deploy.mjs`): `pnpm stories:fetch` pulls approved stories from D1 into the gitignored cache before `pnpm validate:content` runs, so the cache is validated too. It fails with a clear message when `CLOUDFLARE_API_TOKEN` is absent (contributor and fork builds simply do not run it). Until Phase 3 it writes an empty cache, so preview and production show no stories rather than fixtures.
 2. `pnpm gen:types` regenerates `src/content/types.ts` from the schemas (committed, diff reviewed).
 3. `pnpm images:process` creates AVIF/WebP variants (320 to 1600 px) and cut-outs for the stage from licensed originals; outputs are build artifacts, not committed (cached in CI).
-4. `astro build` renders every page for every language: `/{lang}/`, `/{lang}/exhibits/{slug}`, `/{lang}/decades/{decade}`, plus `/` redirecting by `Accept-Language` at the edge (Worker) with a cookieless fallback to `/en/`. With `security.csp` on, Astro hashes its inline island scripts and styles into a CSP meta element per page. The `siteBuild` integration in `astro.config.mjs` then writes `build.json` (for `/api/health`), removes `/dev` and unreachable assets, and writes `csp.json`, the union of those hashes, for the Worker's header (ADR-0010). The e2e job alone builds with `PLCMUSEUM_E2E_FIXTURES=1`, which adds the test page `/e2e/islands`.
+4. `astro build` renders every page for every language: `/{lang}/`, `/{lang}/exhibits/{slug}`, `/{lang}/decades/{decade}`, plus `/` redirecting by `Accept-Language` at the edge (Worker) with a cookieless fallback to `/en/`. With `security.csp` on, Astro hashes its inline island scripts and styles into a CSP meta element per page. The `siteBuild` integration in `astro.config.mjs` then writes `build.json` (for `/api/health`), removes `/dev` and unreachable assets, and writes `csp.json`, the union of those hashes, for the Worker's header (ADR-0010). The e2e job alone builds with `PLCMUSEUM_E2E_FIXTURES=1`, which adds one test page per `tests/e2e/fixtures/*.astro` under `/e2e/` (for example `/e2e/islands`).
 5. Share cards are rendered at build (`satori` + `resvg`) per exhibit and language.
 6. Output `dist/` is uploaded as Worker static assets.
 
@@ -110,7 +111,7 @@ Rules enforced by the validator: ids unique and equal to file names; `review_sta
 
 ## 8. Era UI contract
 
-`<html data-era="1980s">` activates a theme. Default (toggle off) is the museum theme defined in `tokens.css`. The `EraToggle` island only flips the attribute and persists the choice in `localStorage` (wrapped in try/catch). Each exhibit carries its decade; the stage sets `data-era` to the decade of the centered exhibit when Era UI is on. Components never read the attribute; they read tokens.
+`<html data-era>` selects the theme: "museum" (Era UI off, tokens.css) or one of the five eras. Pages that have an era also carry `data-page-era` (the exhibit's era, the decade's era, or on the home the first exhibit's era), written by Base.astro. The EraToggle script component (ADR-0011) keeps the preference in localStorage (try/catch), applies `data-page-era` while Era UI is on, and follows the stage's CENTER_CHANGE_EVENT. `/prefs.js`, a classic script loaded first in every `<head>` (ADR-0012), applies the stored preference before first paint, so a visitor with Era UI on never sees the museum theme first. These two are the only writers of `data-era` in production. Components never read the attribute; they read tokens.
 
 ## 9. Cover Flow contract
 
@@ -118,7 +119,7 @@ Rules enforced by the validator: ids unique and equal to file names; `review_sta
 
 ## 10. Scaling and performance
 
-Static assets scale with Cloudflare's edge. Budgets: ≤ 150 KB gzip JS on home, LCP ≤ 2.5 s on 4G, images AVIF/WebP with `srcset`, fonts self-hosted and subset, no layout shift from theme switch (tokens only change paint). D1 stays tiny (hundreds of stories); if stories outgrow the repo (thousands), move the wall to a read-only edge endpoint with caching (ADR required).
+Static assets scale with Cloudflare's edge. Budgets: ≤ 150 KB gzip JS on home, LCP ≤ 2.5 s on 4G, images AVIF/WebP with `srcset`, fonts self-hosted and subset. Era themes may change fonts and borders, so a theme switch can reflow: a switch the visitor makes falls inside the input window, the stored era is applied before first paint (ADR-0012), and stage-driven switches with Era UI on are an accepted cost (ADR-0011). D1 stays tiny (hundreds of stories); if stories outgrow the repo (thousands), move the wall to a read-only edge endpoint with caching (ADR required).
 
 ## 11. Observability
 
@@ -126,4 +127,4 @@ Workers Logs (exceptions only) and `wrangler tail` while debugging; a weekly `GE
 
 ## 12. Decisions
 
-See `docs/adr/README.md` (ADR-0001 to ADR-0010).
+See `docs/adr/README.md` (ADR-0001 to ADR-0012).
