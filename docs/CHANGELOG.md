@@ -2,6 +2,7 @@
 
 Dated lines, newest first. One line per merged PR or content batch. No personal data.
 
+- 2026-10-15: TASK-001 review decisions in the contracts: stage tokens `--stage-item-width`, `--stage-pitch` and `--stage-depth`; the stage link `a.card` gets an id and a name with the maker, and becomes the listbox option when CoverFlow is active (no control nested in an option); the initial center-change event and focus on external selection are specified; the year watermark span joins `STAGE_HOOKS`.
 - 2026-10-15: first preview deploy, behind Cloudflare Access; wrangler.jsonc pins `workers_dev` and `preview_urls` to false so no workers.dev URL can bypass Access.
 - 2026-10-15: ADR-0010 accepted and implemented: Astro's `security.csp` hashes the inline island scripts and styles, the build lists them in `csp.json`, and the Worker adds them to `script-src` and `style-src` of its CSP (read once per isolate, documented policy as fallback), so React islands hydrate without `'unsafe-inline'`. The edge e2e tests check the header against `csp.json` and hydrate a test island with `client:load`, `client:idle` and `client:visible` under `wrangler dev` (test page built only with `PLCMUSEUM_E2E_FIXTURES=1`, as CI's e2e job does).
 - 2026-10-15: D1 databases created for stories (production and preview) and their ids set in wrangler.jsonc; API token permissions documented as Cloudflare requires them for the first deploy and the custom domains.
