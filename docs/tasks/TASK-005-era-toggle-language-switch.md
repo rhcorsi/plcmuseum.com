@@ -139,7 +139,7 @@ Unit: `resolveEra` over every `enabled` × `centeredEra` (none, an era) × `page
 
 ### 2026-10-15: header controls handback
 
-- Started in a new worktree, `D:/ClaudeCode/plcmuseum-codex-005`, on `feat/task-005-era-toggle-language-switch` from `origin/main` (`77c900c`), after pushing TASK-001 round 2 (`1bb436b`) to PR #9. TASK-004 was not started.
+- Started in a separate worktree, on `feat/task-005-era-toggle-language-switch` from `origin/main` (`77c900c`), after pushing TASK-001 round 2 (`1bb436b`) to PR #9. TASK-004 was not started.
 - Added the exact server-rendered EraToggle markup as the last rendered child of the header's top row, with localized data attributes and an initially empty status outside the switch. Token-only CSS reserves the button's box before initialization, hides the root without scripting, preserves native focus, and animates only visitor toggles, with an instant reduced-motion variant.
 - The synchronous EraToggle module reads the remembered preference defensively, applies the last valid centered era or the page era, writes only changed `data-era` values, and emits the contract event after applying state. Initialization is silent; center changes and persisted `pageshow` resyncs clear status only when effective state changes. Storage getter and method failures stay contained, including failed reads on resync.
 - LanguageLinks keeps its existing links and ARIA. Its delegated listener remembers only plain activations, including the current language and keyboard activation, without reading preferences, preventing navigation, or implementing the `/prefs.js` follow rule. Neither control imports React or a dictionary on the client.
@@ -159,8 +159,7 @@ The edge test fetched every module script, module preload and static dependency 
 | `era.CPrI5Rmy.js` | EraToggle | 137 | 125 |
 
 - Combined: **1428 / 3584 bytes gzip**. EraToggle: **1052 / 2048**. LanguageSwitch: **553 / 1536**. No React chunk, dependency, CSP configuration or other architect-owned file changed.
-- Sixteen captures from final run 3 are saved outside the repository at `D:/ClaudeCode/captures/task-005/`: 390 and 1280 px, off and all five eras in light mode, off and 1980s in dark mode. They show the header and fixture, excluding the footer's contact details, and were visually inspected. No captures are committed. TASK-002 is not on this base, so all era states intentionally use the museum tokens.
-- The GitHub browser attachment chooser rejected local uploads because the extension's "Allow access to file URLs" permission is disabled. The owner's round-2 handoff explicitly permits the local-capture fallback; these PNGs remain available for the owner to attach, with a ZIP at `D:/ClaudeCode/captures/task-005-captures.zip`.
+- Sixteen captures from final run 3: 390 and 1280 px, off and all five eras in light mode, off and 1980s in dark mode. They show the header and fixture, excluding the footer's contact details. The captures were kept outside the repository and inspected by the architect; they are not committed. TASK-002 is not on this base, so all era states intentionally use the museum tokens.
 - Keyboard, accessibility-tree state, focus, forced colors and reduced-motion emulation passed in Chromium. NVDA/Chrome or VoiceOver/Safari speech, OS-level reduced motion, and integration Lighthouse checks were not performed here and remain for the architect's manual verification. No merge or deployment was performed.
 
 ## Review (Claude Code)
