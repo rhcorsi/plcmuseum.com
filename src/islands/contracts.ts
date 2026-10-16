@@ -88,10 +88,11 @@ export type CoverFlowProps = {
   initialId: string;
   lang: Lang;
   /**
-   * Inert since ADR-0011: CoverFlow always emits CENTER_CHANGE_EVENT and never writes data-era; EraToggle and /prefs.js
-   * decide the theme. Kept while PR #9 is open; the TASK-001 integration removes it.
+   * @deprecated Inert since ADR-0011, and ignored: CoverFlow always emits CENTER_CHANGE_EVENT and never writes data-era;
+   * EraToggle and /prefs.js decide the theme. Pages do not pass it. Optional only so the TASK-004 fixture pages that
+   * still pass it keep compiling; it goes once no caller passes it.
    */
-  eraUiEnabled: boolean;
+  eraUiEnabled?: boolean;
   /** Control and announcement strings, resolved by the page with t(); islands never import src/i18n/utils.ts. */
   labels: { prev: string; next: string; open: string };
   /**
