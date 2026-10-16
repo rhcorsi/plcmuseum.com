@@ -323,4 +323,14 @@ export const STAGE_HOOKS = {
    * centered exhibit. Added with TASK-001 as the one owner-approved exception to "StageList markup stays" (2026-10-15).
    */
   watermark: 'stage-watermark',
+  /**
+   * Class on the `<ol>` of a list that a CoverFlow island is about to enhance: StageList renders it, with `is-center`
+   * on the item the stage starts on, when its `coverflow` prop is set, and CoverFlow removes it when it attaches (in
+   * both motion modes, and from a list it does not enhance). Under `(scripting: enabled) and (prefers-reduced-motion:
+   * no-preference)` the first paint then already has the stage's block size and shows that item and its year only, so
+   * hydration resizes nothing (no layout shift) and the largest paint does not wait for the island's code. Without
+   * scripting, under reduced motion, and where `scripting` is unknown, it changes nothing. Added at the TASK-001
+   * integration (2026-10-16).
+   */
+  pending: 'is-pending',
 } as const;

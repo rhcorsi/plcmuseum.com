@@ -38,7 +38,7 @@ The default museum theme is neutral, high-contrast, image-first, and must look g
 
 Static Astro components (owner: Claude Code unless assigned):
 - `Header` (brand text, primary navigation, language links enhanced by the LanguageSwitch script, the EraToggle, decade selector), `Footer`, `DecadeSelector`, `SpecGrid` (4 columns: CPU & scan, memory & I/O, networks & languages, application & lifecycle), `ModulePills`, `SourceList`, `StoryWall` (server-rendered list), `ShareCard` (build-time only), `ExhibitHero` (year watermark, cut-out image or silhouette, title, tagline).
-- `StageList`: the server-rendered `<ol class="stage-list">` that the CoverFlow island enhances (class and data hooks in `STAGE_HOOKS`, `src/islands/contracts.ts`).
+- `StageList`: the server-rendered `<ol class="stage-list">` that the CoverFlow island enhances (class and data hooks in `STAGE_HOOKS`, `src/islands/contracts.ts`). With its `coverflow` prop, which every page that mounts CoverFlow passes, the first paint already has the stage's geometry and its centered year (`STAGE_HOOKS.pending`, when scripting is on and motion allowed), so hydration moves nothing (CLS) and the largest paint does not wait for the island.
 - Smaller building blocks in `src/components/`: `LanguageLinks` (static language switch), `LanguageChooser`, `ExhibitVisual` (photo or `<use>` illustration), `YearLabel` (approx. label), `FactList`, `LifecycleDetails`, `ExhibitLinks`, `TranslationBadge`, `EmptyState`, `Prose`; `src/components/dev/FixtureSwitches.astro` for fixture pages.
 
 React islands (owner: Codex):

@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 import { CENTER_CHANGE_EVENT, EXHIBIT_SELECT_EVENT, type CenterChangeDetail } from '../../src/islands/contracts';
+import { holdCoverFlow, measureStage, recordFrames, stopFrames } from './helpers/stage';
 
 declare global {
   interface Window {
@@ -915,6 +916,45 @@ test.describe('coverflow', () => {
     await expect(page.locator('#stage .stage-item.is-parked')).toHaveCount(0);
     await expectStaticList(page);
   });
+
+  // StageList paints the list as the stage before the island's code arrives (its coverflow prop): hydration then
+  // resizes nothing below the stage, whatever the tallest of the 12 cards, and the centered card and its year stay
+  // painted through the swap.
+  for (const viewport of [
+    { width: 1280, height: 1200 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`the first paint already has the stage geometry at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await recordStage(page, false);
+      const island = await holdCoverFlow(page);
+      await gotoFixture(page, 'museum', 'light');
+      const firstPaint = await measureStage(page, INITIAL_ID);
+      expect(island.held(), 'the CoverFlow module was held').toBe(true);
+      expect(firstPaint).toMatchObject({
+        enhanced: false,
+        visibleIds: [INITIAL_ID],
+        item: { visibility: 'visible' },
+        year: { opacity: '1' },
+      });
+      expect(firstPaint.year.height).toBeGreaterThan(0);
+      await recordFrames(page, INITIAL_ID);
+      island.release();
+      await expectAttached(page, false);
+      await expect(page.locator('#stage')).not.toHaveClass(/\bis-initializing\b/);
+      const hydrated = await measureStage(page, INITIAL_ID);
+      expect(hydrated.enhanced).toBe(true);
+      expect({ stage: hydrated.stage, item: hydrated.item, year: hydrated.year }).toEqual({
+        stage: firstPaint.stage,
+        item: firstPaint.item,
+        year: firstPaint.year,
+      });
+      const blinks = (await stopFrames(page)).filter(
+        (frame) => frame.visibility !== 'visible' || frame.yearOpacity !== '1' || frame.yearDisplay !== 'block',
+      );
+      expect(blinks, 'frames where the centered card or its year was not painted').toEqual([]);
+    });
+  }
 
   for (const width of [390, 1280]) {
     test(`hydration and image loading stay below the layout-shift budget at ${width}px`, async ({ page }) => {

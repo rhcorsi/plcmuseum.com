@@ -12,6 +12,9 @@ type StageOptions = {
 };
 
 export function enhanceStage({ list, controls, exhibits, initialId, onActive, onSettled, onEnhanced }: StageOptions) {
+  // Until now the server's first paint showed the list as the stage (STAGE_HOOKS.pending). The island's own classes
+  // take over in this same task, so no frame shows the list in between; a mismatched list becomes the static list.
+  list.classList.remove(STAGE_HOOKS.pending);
   const items = Array.from(list.querySelectorAll<HTMLElement>(`.${STAGE_HOOKS.item}`));
   const links = items.map((item) => item.querySelector<HTMLAnchorElement>('a.card'));
   // A mismatched server list remains usable instead of enhancing the wrong exhibits.
