@@ -155,8 +155,11 @@ function measureOverflow() {
         `${name} "${node.textContent.trim().slice(0, 24)}": ${Math.round(textRight)} > ${Math.round(contentRight(box))}`,
       );
     // That box pushed past its own column, which a long word does to grid and flex items through their min-content.
+    // An absolutely positioned box is placed rather than laid out in a column (the stage's decorative year is wider
+    // than its card on purpose), so only its glyphs are checked, above.
     const column = layoutBox(box.parentElement);
-    if (column && box.getBoundingClientRect().right > contentRight(column) + 1)
+    const placed = ['absolute', 'fixed'].includes(getComputedStyle(box).position);
+    if (column && !placed && box.getBoundingClientRect().right > contentRight(column) + 1)
       spills.add(`${name} box: ${Math.round(box.getBoundingClientRect().right)} > ${Math.round(contentRight(column))}`);
   }
   const page = document.scrollingElement ?? document.documentElement;

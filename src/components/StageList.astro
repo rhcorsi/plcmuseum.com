@@ -16,12 +16,22 @@ interface Props {
   label: string;
   /** id of the <ol>; the CoverFlow island receives it as listId. */
   id?: string;
+  /**
+   * A CoverFlow island enhances this list: it then paints as the stage from the first paint on, before the island
+   * attaches (STAGE_HOOKS.pending).
+   */
+  coverflow?: boolean;
 }
 
-const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Astro.props;
+const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage', coverflow = false } = Astro.props;
 ---
 
-<ol class={STAGE_HOOKS.list} id={id} data-initial-id={initialId} aria-label={label}>
+<ol
+  class:list={[STAGE_HOOKS.list, { [STAGE_HOOKS.pending]: coverflow }]}
+  id={id}
+  data-initial-id={initialId}
+  aria-label={label}
+>
   {exhibits.map((card) => {
     const ids = {
       link: `stage-link-${card.id}`,
@@ -32,7 +42,7 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
     };
     return (
       <li
-        class={STAGE_HOOKS.item}
+        class:list={[STAGE_HOOKS.item, { 'is-center': coverflow && card.id === initialId }]}
         id={`stage-item-${card.id}`}
         data-id={card.id}
         data-decade={card.decade}
@@ -81,6 +91,9 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
   }
 
   .stage-list {
+    /* The stage's year size: the stage and its first paint (.is-pending) reserve the same room above the cards. */
+    --coverflow-watermark-size: clamp(5rem, 15vw, 12rem);
+
     display: grid;
     gap: var(--space-4);
     padding: 0;
@@ -146,8 +159,6 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
 
   @media (prefers-reduced-motion: no-preference) {
     .stage-list.is-coverflow {
-      --coverflow-watermark-size: clamp(5rem, 15vw, 12rem);
-
       position: relative;
       isolation: isolate;
       grid-template-columns: minmax(0, 1fr);
@@ -220,8 +231,9 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
       opacity: 1;
     }
 
-    /* Settle geometry before exposing cards on the first paint, keeping the listbox focusable. */
-    .is-coverflow.is-initializing .stage-item {
+    /* Settle geometry before exposing cards on the first paint, keeping the listbox focusable. The centered card
+       keeps showing: on a list painted pending it is already in place, and hiding it would make it blink. */
+    .is-coverflow.is-initializing .stage-item:not(.is-center) {
       visibility: hidden;
     }
 
@@ -241,6 +253,55 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
     .is-coverflow:focus-visible .is-center .card {
       outline: calc(var(--border-width) * 2) solid var(--color-focus);
       outline-offset: var(--space-1);
+    }
+  }
+
+  /* First paint of a list a CoverFlow island is about to enhance (STAGE_HOOKS.pending, removed when it attaches):
+     the block geometry of the .is-coverflow rules above, every card stacked in one cell at the stage width, with
+     only the card the stage starts on and its year shown. Hydration then changes no size, so nothing below the stage
+     moves (layout shift), and the year, often the largest paint, does not wait for the island's code. The same
+     declarations as above on purpose: .is-coverflow must not depend on `scripting`, which older browsers do not
+     know (they paint the static list first), while without scripting this state must never apply. */
+  @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+    .stage-list.is-pending {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+      padding-block: calc(var(--coverflow-watermark-size) + var(--space-4)) var(--space-6);
+      overflow: hidden;
+    }
+
+    .is-pending .stage-item {
+      position: relative;
+      grid-area: 1 / 1;
+      justify-self: center;
+      inline-size: var(--stage-item-width);
+      min-inline-size: 0;
+    }
+
+    .is-pending .stage-item:not(.is-center) {
+      visibility: hidden;
+    }
+
+    .is-pending .card {
+      position: relative;
+      block-size: 100%;
+      grid-template-columns: minmax(0, 1fr);
+      align-content: start;
+      box-shadow: var(--shadow-stage);
+      overflow-wrap: anywhere;
+    }
+
+    .is-pending .stage-watermark {
+      position: absolute;
+      display: block;
+      inset-inline: -25%;
+      inset-block-start: calc((var(--coverflow-watermark-size) + var(--space-4)) * -1);
+      font-family: var(--font-numeric);
+      font-size: var(--coverflow-watermark-size);
+      line-height: 1;
+      text-align: center;
+      color: var(--color-text-muted);
+      pointer-events: none;
     }
   }
 

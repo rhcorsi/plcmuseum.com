@@ -88,10 +88,11 @@ export type CoverFlowProps = {
   initialId: string;
   lang: Lang;
   /**
-   * Inert since ADR-0011: CoverFlow always emits CENTER_CHANGE_EVENT and never writes data-era; EraToggle and /prefs.js
-   * decide the theme. Kept while PR #9 is open; the TASK-001 integration removes it.
+   * @deprecated Inert since ADR-0011, and ignored: CoverFlow always emits CENTER_CHANGE_EVENT and never writes data-era;
+   * EraToggle and /prefs.js decide the theme. Pages do not pass it. Optional only so the TASK-004 fixture pages that
+   * still pass it keep compiling; it goes once no caller passes it.
    */
-  eraUiEnabled: boolean;
+  eraUiEnabled?: boolean;
   /** Control and announcement strings, resolved by the page with t(); islands never import src/i18n/utils.ts. */
   labels: { prev: string; next: string; open: string };
   /**
@@ -322,4 +323,14 @@ export const STAGE_HOOKS = {
    * centered exhibit. Added with TASK-001 as the one owner-approved exception to "StageList markup stays" (2026-10-15).
    */
   watermark: 'stage-watermark',
+  /**
+   * Class on the `<ol>` of a list that a CoverFlow island is about to enhance: StageList renders it, with `is-center`
+   * on the item the stage starts on, when its `coverflow` prop is set, and CoverFlow removes it when it attaches (in
+   * both motion modes, and from a list it does not enhance). Under `(scripting: enabled) and (prefers-reduced-motion:
+   * no-preference)` the first paint then already has the stage's block size and shows that item and its year only, so
+   * hydration resizes nothing (no layout shift) and the largest paint does not wait for the island's code. Without
+   * scripting, under reduced motion, and where `scripting` is unknown, it changes nothing. Added at the TASK-001
+   * integration (2026-10-16).
+   */
+  pending: 'is-pending',
 } as const;

@@ -25,10 +25,9 @@ import Base from '../../layouts/Base.astro';
       listId="stage"
       initialId={fixtureInitialId}
       lang="en"
-      eraUiEnabled
       labels={{ prev: t('en', 'stage.prev'), next: t('en', 'stage.next'), open: t('en', 'stage.open') }}
     />
-    <StageList exhibits={fixtureExhibits} lang="en" initialId={fixtureInitialId} label="Fixture exhibits" />
+    <StageList exhibits={fixtureExhibits} lang="en" initialId={fixtureInitialId} label="Fixture exhibits" coverflow />
   </main>
 </Base>
 

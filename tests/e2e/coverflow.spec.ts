@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 import { CENTER_CHANGE_EVENT, EXHIBIT_SELECT_EVENT, type CenterChangeDetail } from '../../src/islands/contracts';
+import { holdCoverFlow, measureStage, recordFrames, stopFrames } from './helpers/stage';
 
 declare global {
   interface Window {
@@ -14,6 +15,8 @@ declare global {
         value: number;
         sources: { node?: string; stage: boolean; previous: unknown; current: unknown }[];
       }[];
+      /** performance.now() when each observed item first carried is-parked. */
+      parkedAt?: Record<string, number>;
     };
   }
 }
@@ -26,6 +29,13 @@ const DISPUTED_ID = 'fx-phosphor-terminal-pt80';
 test.use({ reducedMotion: 'no-preference' });
 
 async function openStage(page: Page, { reduced = false, era = '1980s', theme = 'dark' } = {}) {
+  await recordStage(page, reduced);
+  await gotoFixture(page, era, theme);
+  await expectAttached(page, reduced);
+}
+
+/** Emulates the motion preference and records events, layout shifts and stage keys from the first byte. */
+async function recordStage(page: Page, reduced: boolean) {
   await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
   await page.addInitScript((eventName) => {
     const observed = window;
@@ -91,10 +101,16 @@ async function openStage(page: Page, { reduced = false, era = '1980s', theme = '
       true,
     );
   }, CENTER_CHANGE_EVENT);
+}
+
+async function gotoFixture(page: Page, era: string, theme: string) {
   const response = await page.goto(`/dev/coverflow?era=${era}&theme=${theme}`);
   expect(response?.status()).toBe(200);
   await expect(page.locator('html')).toHaveAttribute('data-era', era);
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+}
+
+async function expectAttached(page: Page, reduced: boolean) {
   // The initial event proves the controller attached, including when its static fallback has no role.
   await expect.poll(() => centerChanges(page)).toEqual([{ id: INITIAL_ID, decade: '1980s', era: '1980s' }]);
   await expect(page.locator('[aria-live="polite"]')).toBeEmpty();
@@ -133,6 +149,17 @@ async function selectExhibit(page: Page, id: string) {
     ({ eventName, selectedId }) => document.dispatchEvent(new CustomEvent(eventName, { detail: { id: selectedId } })),
     { eventName: EXHIBIT_SELECT_EVENT, selectedId: id },
   );
+}
+
+/** One CENTER_CHANGE_EVENT after the initial one, at least the resolved --motion-stage plus 120 ms after the last key. */
+async function expectOneSettledEmission(page: Page, keyCount: number) {
+  const { emissions, keys } = await page.evaluate(() => window.coverFlowTest);
+  expect(keys).toHaveLength(keyCount);
+  expect(emissions).toHaveLength(2);
+  const lastKey = keys.at(-1)!;
+  expect(emissions[1]!.at - lastKey.at).toBeGreaterThanOrEqual(lastKey.motionMs + 120);
+  await page.waitForTimeout(lastKey.motionMs + 120);
+  expect(await centerChanges(page)).toHaveLength(2);
 }
 
 async function expectAnnouncement(page: Page, id: string) {
@@ -346,24 +373,121 @@ test.describe('coverflow', () => {
     await expect(page).toHaveURL(/\/dev\/coverflow\?/);
   });
 
-  for (const steps of [1, 3]) {
-    test(`emits once after the complete motion delay for ${steps} keyboard steps`, async ({ page }) => {
+  // End jumps the new center in from a parked slot, so its own transition-duration is 0s: the delay must come from
+  // the resolved --motion-stage all the same.
+  for (const [key, selectedId] of [
+    ['ArrowRight', DISPUTED_ID],
+    ['End', LAST_ID],
+  ] as const) {
+    test(`emits once after the complete motion delay for ${key}`, async ({ page }) => {
       await openStage(page);
       await afterPaint(page);
       await page.getByRole('listbox').focus();
-      for (let step = 0; step < steps; step += 1) await page.keyboard.press('ArrowRight');
-      const selectedId = steps === 1 ? DISPUTED_ID : 'fx-bevel-station-bs95';
+      await page.keyboard.press(key);
       await expectSelected(page, selectedId);
       await expectSilentSettle(page, selectedId);
-      const { emissions, keys } = await page.evaluate(() => window.coverFlowTest);
-      expect(keys).toHaveLength(steps);
-      expect(emissions).toHaveLength(2);
-      const lastKey = keys.at(-1)!;
-      expect(emissions[1]!.at - lastKey.at).toBeGreaterThanOrEqual(lastKey.motionMs + 120);
-      await page.waitForTimeout(lastKey.motionMs + 120);
-      expect(await centerChanges(page)).toHaveLength(2);
+      await expectOneSettledEmission(page, 1);
     });
   }
+
+  // Three keydowns in one task, so the steps always land within one frame (Playwright's key presses may not): the
+  // card entering at plus 2 on the first step must lose is-jumping on the next ones and animate into the center.
+  test('a burst of three steps animates the new center and emits once after the last step', async ({ page }) => {
+    await openStage(page);
+    await afterPaint(page);
+    const selectedId = 'fx-bevel-station-bs95';
+    const center = await page.evaluate(() => {
+      const stage = document.getElementById('stage')!;
+      for (let step = 0; step < 3; step += 1) {
+        stage.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      }
+      const item = stage.querySelector<HTMLElement>('.stage-item.is-center')!;
+      const running = item
+        .getAnimations()
+        .filter((animation) => animation instanceof CSSTransition && animation.playState === 'running')
+        .map((animation) => (animation as CSSTransition).transitionProperty);
+      return { id: item.dataset.id, running };
+    });
+    expect(center).toEqual({ id: selectedId, running: expect.arrayContaining(['transform']) });
+    await expectSelected(page, selectedId);
+    await expectSilentSettle(page, selectedId);
+    await expectOneSettledEmission(page, 3);
+  });
+
+  test('cards that leave the window during a burst fade out before they are parked', async ({ page }) => {
+    await openStage(page);
+    await afterPaint(page);
+    // Opaque before the burst (the center and minus 1); three steps take both past minus 2.
+    const leavingIds = [INITIAL_ID, 'fx-process-hiway-ph1'];
+    const burst = await page.evaluate((ids) => {
+      const stage = document.getElementById('stage')!;
+      // When each leaving card is parked, not only whether: a parking due before its fade is over hides it mid-fade.
+      const parkedAt: Record<string, number> = {};
+      window.coverFlowTest.parkedAt = parkedAt;
+      for (const id of ids) {
+        const item = document.getElementById(`stage-item-${id}`)!;
+        new MutationObserver(() => {
+          if (item.classList.contains('is-parked')) parkedAt[id] ??= performance.now();
+        }).observe(item, { attributes: true, attributeFilter: ['class'] });
+      }
+      const duration = getComputedStyle(stage).getPropertyValue('--motion-stage').trim();
+      const at = performance.now();
+      for (let step = 0; step < 3; step += 1) {
+        stage.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      }
+      const states = ids.map((id) => {
+        const item = document.getElementById(`stage-item-${id}`)!;
+        const fade = item
+          .getAnimations()
+          .find((animation) => animation instanceof CSSTransition && animation.transitionProperty === 'opacity');
+        return {
+          id,
+          parked: item.classList.contains('is-parked'),
+          visibility: getComputedStyle(item).visibility,
+          fade: fade?.playState,
+        };
+      });
+      return { at, motionMs: parseFloat(duration) * (duration.endsWith('ms') ? 1 : 1000), states };
+    }, leavingIds);
+    expect(burst.states).toEqual(
+      leavingIds.map((id) => ({ id, parked: false, visibility: 'visible', fade: 'running' })),
+    );
+    for (const id of leavingIds) {
+      const item = page.locator(`#stage-item-${id}`);
+      await expect(item).toHaveClass(/\bis-parked\b/);
+      await expect(item).toHaveCSS('visibility', 'hidden');
+      await expect(item).toHaveCSS('opacity', '0');
+    }
+    const parkedAt = await page.evaluate(() => window.coverFlowTest.parkedAt!);
+    for (const id of leavingIds) {
+      // The whole fade, the resolved --motion-stage, less 1 ms for the coarsened clock of performance.now().
+      expect(parkedAt[id]! - burst.at, `${id} parked before its fade was over`).toBeGreaterThanOrEqual(
+        burst.motionMs - 1,
+      );
+    }
+    await expect(page.getByRole('option')).toHaveCount(5);
+  });
+
+  test('a card that comes back before its fade time is over is never parked', async ({ page }) => {
+    await openStage(page);
+    await afterPaint(page);
+    // At minus 2 before the steps: it leaves the window on the first and is back at minus 2 on the second.
+    const returning = page.locator('#stage-item-fx-logic-cabinet-lc20');
+    const motionMs = await page.evaluate(() => {
+      const stage = document.getElementById('stage')!;
+      for (const key of ['ArrowRight', 'ArrowLeft']) {
+        stage.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+      }
+      const duration = getComputedStyle(stage).getPropertyValue('--motion-stage').trim();
+      return parseFloat(duration) * (duration.endsWith('ms') ? 1 : 1000);
+    });
+    // Past the moment its parking was due.
+    await page.waitForTimeout(motionMs + 250);
+    await expect(returning).not.toHaveClass(/\bis-parked\b/);
+    await expect(returning).toHaveCSS('visibility', 'visible');
+    await expect(page.getByRole('option')).toHaveCount(5);
+    await expectSelected(page, INITIAL_ID);
+  });
 
   test('incoming neighbor runs a transition from the transparent outer slot', async ({ page }) => {
     await openStage(page);
@@ -570,6 +694,9 @@ test.describe('coverflow', () => {
     const mutations = await page.evaluate(async () => {
       const stage = document.getElementById('stage')!;
       const distant = stage.querySelector<HTMLElement>(`[data-id="fx-edge-pac-ep21"]`)!;
+      // Leaves the window (from minus 2) on this step and is parked once its fade time is over; parking it must not
+      // touch the cards that were parked already.
+      const left = stage.querySelector<HTMLElement>(`[data-id="fx-logic-cabinet-lc20"]`)!;
       const targets = [distant, ...distant.querySelectorAll<HTMLElement>('*')];
       const styles = new Set(targets.map((element) => element.style));
       const classes = new Set(targets.map((element) => element.classList));
@@ -590,113 +717,119 @@ test.describe('coverflow', () => {
       try {
         stage.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-        return { writes, visibility: getComputedStyle(distant).visibility };
+        const step = {
+          writes,
+          visibility: getComputedStyle(distant).visibility,
+          leftParked: left.matches('.is-parked'),
+        };
+        await new Promise<void>((resolve) => {
+          const waitForPark = () => (left.matches('.is-parked') ? resolve() : setTimeout(waitForPark, 50));
+          waitForPark();
+        });
+        return { step, parked: { writes, visibility: getComputedStyle(distant).visibility } };
       } finally {
         CSSStyleDeclaration.prototype.setProperty = setProperty;
         DOMTokenList.prototype.toggle = toggle;
       }
     });
-    expect(mutations).toEqual({ writes: 0, visibility: 'hidden' });
+    expect(mutations).toEqual({
+      step: { writes: 0, visibility: 'hidden', leftParked: false },
+      parked: { writes: 0, visibility: 'hidden' },
+    });
     await expectSelected(page, DISPUTED_ID);
   });
 
-  for (const count of [2, 3, 4]) {
-    test(`wrap-around parks jumps without transitions with ${count} exhibits`, async ({ page }) => {
+  for (const count of [1, 2, 3, 4]) {
+    test(`a stage of ${count}: wrap-around without transitions, one option per exhibit, clean teardown`, async ({
+      page,
+    }) => {
       await openStage(page);
-      const result = await page.evaluate(async (size) => {
-        const stageModule = '/src/islands/coverflow/stage.ts';
-        const fixtureModule = '/src/fixtures/exhibits.ts';
-        const { enhanceStage } = (await import(stageModule)) as typeof import('../../src/islands/coverflow/stage');
-        const { fixtureExhibits } = (await import(fixtureModule)) as typeof import('../../src/fixtures/exhibits');
-        const exhibits = fixtureExhibits.slice(0, size);
-        const source = document.getElementById('stage')!;
-        const list = source.cloneNode(false) as HTMLElement;
-        list.id = `short-stage-${size}`;
-        list.classList.remove('is-coverflow', 'is-initializing');
-        const items = [...source.querySelectorAll<HTMLElement>('.stage-item')].slice(0, size).map((sourceItem) => {
-          const item = sourceItem.cloneNode(true) as HTMLElement;
-          item.classList.remove('is-center', 'is-near', 'is-parked', 'is-jumping');
-          item.removeAttribute('style');
-          for (const element of [item, ...item.querySelectorAll<HTMLElement>('*')]) {
-            if (element.id) element.id = `short-${size}-${element.id}`;
-            for (const attribute of ['aria-labelledby', 'aria-describedby']) {
-              const value = element.getAttribute(attribute);
-              if (value)
-                element.setAttribute(
-                  attribute,
-                  value
-                    .split(' ')
-                    .map((id) => `short-${size}-${id}`)
-                    .join(' '),
-                );
-            }
-          }
-          list.append(item);
-          return item;
-        });
-        source.after(list);
-        let selected = '';
-        const emitted: { id: string; centerId: string | undefined }[] = [];
-        const controller = enhanceStage({
-          list,
-          exhibits,
-          initialId: exhibits[0]!.id,
-          onActive: (card) => {
-            selected = card.id;
-          },
-          onEnhanced: () => {},
-          onSettled: (card) => {
-            emitted.push({ id: card.id, centerId: list.dataset.centerId });
-          },
-        });
-        const afterPaint = () =>
-          new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-        await afterPaint();
-        const jumps: { duration: string; animations: number }[] = [];
-        const selections: string[] = [];
-        for (const key of ['ArrowLeft', 'ArrowRight']) {
-          const previous = items.map((item) => Number(item.style.getPropertyValue('--coverflow-offset')));
-          list.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
-          selections.push(selected);
-          items.forEach((item, index) => {
-            const offset = Number(item.style.getPropertyValue('--coverflow-offset'));
-            if (Math.abs(offset - previous[index]!) > 1) {
-              jumps.push({
-                duration: getComputedStyle(item).transitionDuration,
-                animations: item.getAnimations().length,
-              });
-            }
+      const listId = await cloneStage(page, count, `short-${count}-`);
+      const result = await page.evaluate(
+        async ({ size, cloneId }) => {
+          const stageModule = '/src/islands/coverflow/stage.ts';
+          const fixtureModule = '/src/fixtures/exhibits.ts';
+          const { enhanceStage } = (await import(stageModule)) as typeof import('../../src/islands/coverflow/stage');
+          const { fixtureExhibits } = (await import(fixtureModule)) as typeof import('../../src/fixtures/exhibits');
+          const exhibits = fixtureExhibits.slice(0, size);
+          const list = document.getElementById(cloneId)!;
+          const items = [...list.querySelectorAll<HTMLElement>('.stage-item')];
+          let selected = '';
+          const emitted: { id: string; centerId: string | undefined }[] = [];
+          const controller = enhanceStage({
+            list,
+            exhibits,
+            initialId: exhibits[0]!.id,
+            onActive: (card) => {
+              selected = card.id;
+            },
+            onEnhanced: () => {},
+            onSettled: (card) => {
+              emitted.push({ id: card.id, centerId: list.dataset.centerId });
+            },
           });
+          const afterPaint = () =>
+            new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
           await afterPaint();
-        }
-        const beforeDestroy = list.dataset.centerId;
-        controller.destroy();
-        const restored = {
-          center: list.hasAttribute('data-center-id'),
-          styles: items.filter((item) => item.hasAttribute('style')).map((item) => item.getAttribute('style')),
-        };
-        const mismatched = enhanceStage({
-          list,
-          exhibits: exhibits.slice(1),
-          initialId: exhibits[0]!.id,
-          onActive: () => {},
-          onEnhanced: () => {},
-          onSettled: () => {},
-        });
-        const mismatchedCenter = list.hasAttribute('data-center-id');
-        mismatched.destroy();
-        list.remove();
-        return {
-          jumps,
-          selections,
-          expected: [exhibits[size - 1]!.id, exhibits[0]!.id],
-          emitted,
-          beforeDestroy,
-          restored,
-          mismatchedCenter,
-        };
-      }, count);
+          const jumps: { duration: string; animations: number }[] = [];
+          const selections: string[] = [];
+          for (const key of ['ArrowLeft', 'ArrowRight']) {
+            const previous = items.map((item) => Number(item.style.getPropertyValue('--coverflow-offset')));
+            list.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+            selections.push(selected);
+            items.forEach((item, index) => {
+              const offset = Number(item.style.getPropertyValue('--coverflow-offset'));
+              if (Math.abs(offset - previous[index]!) > 1) {
+                jumps.push({
+                  duration: getComputedStyle(item).transitionDuration,
+                  animations: item.getAnimations().length,
+                });
+              }
+            });
+            await afterPaint();
+          }
+          const options = [...list.querySelectorAll('[role="option"]')].map((option) => ({
+            posinset: option.getAttribute('aria-posinset'),
+            setsize: option.getAttribute('aria-setsize'),
+          }));
+          const active = list.getAttribute('aria-activedescendant');
+          const beforeDestroy = list.dataset.centerId;
+          controller.destroy();
+          const restored = {
+            center: list.hasAttribute('data-center-id'),
+            styles: items.filter((item) => item.hasAttribute('style')).map((item) => item.getAttribute('style')),
+          };
+          const mismatched = enhanceStage({
+            list,
+            exhibits: exhibits.slice(1),
+            initialId: exhibits[0]!.id,
+            onActive: () => {},
+            onEnhanced: () => {},
+            onSettled: () => {},
+          });
+          const mismatchedCenter = list.hasAttribute('data-center-id');
+          mismatched.destroy();
+          list.remove();
+          return {
+            jumps,
+            selections,
+            expected: [exhibits[size - 1]!.id, exhibits[0]!.id],
+            emitted,
+            options,
+            active,
+            beforeDestroy,
+            restored,
+            mismatchedCenter,
+          };
+        },
+        { size: count, cloneId: listId },
+      );
+      // A single exhibit is a listbox of one option that the keys leave selected.
       expect(result.selections).toEqual(result.expected);
+      expect(result.options).toEqual(
+        Array.from({ length: count }, (_, index) => ({ posinset: String(index + 1), setsize: String(count) })),
+      );
+      expect(result.active).toBe(`short-${count}-stage-link-${result.expected[1]}`);
       expect(result.emitted[0]).toEqual({ id: result.expected[1], centerId: result.expected[1] });
       for (const emission of result.emitted) expect(emission.centerId).toBe(emission.id);
       expect(result.beforeDestroy).toBe(result.emitted.at(-1)!.id);
@@ -705,6 +838,121 @@ test.describe('coverflow', () => {
       // Two cards exchange center and side by a single step; three and four have a side-to-side jump.
       if (count > 2) expect(result.jumps.length).toBeGreaterThan(0);
       for (const jump of result.jumps) expect(jump).toEqual({ duration: '0s', animations: 0 });
+    });
+  }
+
+  // A card leaving the window is parked by a timer once its fade is over. Tearing the stage down during that fade must
+  // cancel the timer, or it parks a card of the restored list, or of the stage a remount builds on the same list (its
+  // new center included).
+  for (const teardown of ['destroy', 'remount'] as const) {
+    test(`${teardown} while cards are still fading out parks no card afterwards`, async ({ page }) => {
+      await openStage(page);
+      const listId = await cloneStage(page, 12, `${teardown}-`);
+      const result = await page.evaluate(
+        async ({ cloneId, remount, initialId }) => {
+          const stageModule = '/src/islands/coverflow/stage.ts';
+          const fixtureModule = '/src/fixtures/exhibits.ts';
+          const { enhanceStage } = (await import(stageModule)) as typeof import('../../src/islands/coverflow/stage');
+          const { fixtureExhibits } = (await import(fixtureModule)) as typeof import('../../src/fixtures/exhibits');
+          const list = document.getElementById(cloneId)!;
+          const items = [...list.querySelectorAll<HTMLElement>('.stage-item')];
+          const unparked = () => items.filter((item) => !item.classList.contains('is-parked'));
+          const options = {
+            list,
+            exhibits: fixtureExhibits,
+            initialId,
+            onActive: () => {},
+            onEnhanced: () => {},
+            onSettled: () => {},
+          };
+          const first = enhanceStage(options);
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+          const duration = getComputedStyle(list).getPropertyValue('--motion-stage').trim();
+          const motionMs = parseFloat(duration) * (duration.endsWith('ms') ? 1 : 1000);
+          for (let step = 0; step < 3; step += 1) {
+            list.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+          }
+          // The window of five plus the three cards that left it and are still fading out.
+          const fading = unparked().length;
+          first.destroy();
+          const second = remount ? enhanceStage(options) : undefined;
+          await new Promise((resolve) => setTimeout(resolve, motionMs + 300));
+          const center = list.querySelector<HTMLElement>('.stage-item.is-center');
+          const outcome = {
+            fading,
+            unparked: unparked().length,
+            styled: items.filter((item) => item.hasAttribute('style')).length,
+            center: center && { id: center.dataset.id, visibility: getComputedStyle(center).visibility },
+          };
+          second?.destroy();
+          list.remove();
+          return outcome;
+        },
+        { cloneId: listId, remount: teardown === 'remount', initialId: INITIAL_ID },
+      );
+      if (teardown === 'destroy') expect(result).toEqual({ fading: 8, unparked: 12, styled: 0, center: null });
+      // The remount starts on the initial card again, whose window of five is exactly where the cards were fading out.
+      else expect(result).toMatchObject({ fading: 8, unparked: 5, center: { id: INITIAL_ID, visibility: 'visible' } });
+    });
+  }
+
+  test('a switch to reduced motion while cards are still fading out parks no card afterwards', async ({ page }) => {
+    await openStage(page);
+    await afterPaint(page);
+    const burst = await page.evaluate(() => {
+      const stage = document.getElementById('stage')!;
+      const duration = getComputedStyle(stage).getPropertyValue('--motion-stage').trim();
+      const at = performance.now();
+      for (let step = 0; step < 3; step += 1) {
+        stage.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      }
+      return { at, motionMs: parseFloat(duration) * (duration.endsWith('ms') ? 1 : 1000) };
+    });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect(page.locator('#stage')).not.toHaveAttribute('role', 'listbox');
+    // The list was restored while the leaving cards' parking was still due.
+    expect((await page.evaluate(() => performance.now())) - burst.at).toBeLessThan(burst.motionMs);
+    await page.waitForTimeout(burst.motionMs + 300);
+    await expect(page.locator('#stage .stage-item.is-parked')).toHaveCount(0);
+    await expectStaticList(page);
+  });
+
+  // StageList paints the list as the stage before the island's code arrives (its coverflow prop): hydration then
+  // resizes nothing below the stage, whatever the tallest of the 12 cards, and the centered card and its year stay
+  // painted through the swap.
+  for (const viewport of [
+    { width: 1280, height: 1200 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`the first paint already has the stage geometry at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await recordStage(page, false);
+      const island = await holdCoverFlow(page);
+      await gotoFixture(page, 'museum', 'light');
+      const firstPaint = await measureStage(page, INITIAL_ID);
+      expect(island.held(), 'the CoverFlow module was held').toBe(true);
+      expect(firstPaint).toMatchObject({
+        enhanced: false,
+        visibleIds: [INITIAL_ID],
+        item: { visibility: 'visible' },
+        year: { opacity: '1' },
+      });
+      expect(firstPaint.year.height).toBeGreaterThan(0);
+      await recordFrames(page, INITIAL_ID);
+      island.release();
+      await expectAttached(page, false);
+      await expect(page.locator('#stage')).not.toHaveClass(/\bis-initializing\b/);
+      const hydrated = await measureStage(page, INITIAL_ID);
+      expect(hydrated.enhanced).toBe(true);
+      expect({ stage: hydrated.stage, item: hydrated.item, year: hydrated.year }).toEqual({
+        stage: firstPaint.stage,
+        item: firstPaint.item,
+        year: firstPaint.year,
+      });
+      const blinks = (await stopFrames(page)).filter(
+        (frame) => frame.visibility !== 'visible' || frame.yearOpacity !== '1' || frame.yearDisplay !== 'block',
+      );
+      expect(blinks, 'frames where the centered card or its year was not painted').toEqual([]);
     });
   }
 
@@ -777,6 +1025,44 @@ test.describe('coverflow visual captures', () => {
     }
   }
 });
+
+/**
+ * Puts a copy of the first `size` items of #stage after it, unenhanced and with every id and id reference prefixed,
+ * for a controller the test enhances and tears down itself. Returns the copy's id.
+ */
+async function cloneStage(page: Page, size: number, prefix: string) {
+  return page.evaluate(
+    ({ count, idPrefix }) => {
+      const source = document.getElementById('stage')!;
+      const list = source.cloneNode(false) as HTMLElement;
+      list.id = `${idPrefix}stage`;
+      list.classList.remove('is-coverflow', 'is-initializing');
+      for (const sourceItem of [...source.querySelectorAll<HTMLElement>('.stage-item')].slice(0, count)) {
+        const item = sourceItem.cloneNode(true) as HTMLElement;
+        item.classList.remove('is-center', 'is-near', 'is-parked', 'is-jumping');
+        item.removeAttribute('style');
+        for (const element of [item, ...item.querySelectorAll<HTMLElement>('*')]) {
+          if (element.id) element.id = `${idPrefix}${element.id}`;
+          for (const attribute of ['aria-labelledby', 'aria-describedby']) {
+            const value = element.getAttribute(attribute);
+            if (value)
+              element.setAttribute(
+                attribute,
+                value
+                  .split(' ')
+                  .map((id) => `${idPrefix}${id}`)
+                  .join(' '),
+              );
+          }
+        }
+        list.append(item);
+      }
+      source.after(list);
+      return list.id;
+    },
+    { count: size, idPrefix: prefix },
+  );
+}
 
 async function expectStaticList(page: Page) {
   const stage = page.locator('#stage');
