@@ -56,6 +56,40 @@ test('only plain clicks and Enter remember the selected language', async ({ page
     expect(await page.evaluate((key) => window.localStorage.getItem(key), STORAGE_KEYS.lang)).toBeNull();
   }
 
+  // Chromium sends no click for a real middle button (auxclick only), and Windows and Linux have no Meta click, so
+  // the real clicks above cannot fail on the button or metaKey checks, nor reach altKey or defaultPrevented.
+  // Synthetic clicks reach the nav's listener with each property; a document listener, after the nav's, keeps the page.
+  const syntheticClick = (init: Pick<MouseEventInit, 'button' | 'altKey' | 'metaKey'>, cancelOnLink = false) =>
+    page.evaluate(
+      ({ selector, init, cancelOnLink, key }) => {
+        const link = document.querySelector(selector)!;
+        const prevent = (event: Event) => event.preventDefault();
+        document.addEventListener('click', prevent);
+        // A capture listener on the target runs before the nav's bubble listener sees the event.
+        if (cancelOnLink) link.addEventListener('click', prevent, { capture: true });
+        const notCancelled = link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...init }));
+        document.removeEventListener('click', prevent);
+        link.removeEventListener('click', prevent, { capture: true });
+        return { notCancelled, stored: window.localStorage.getItem(key) };
+      },
+      { selector: `${NAV} a[${LANGUAGE_HOOKS.lang}="pt"]`, init, cancelOnLink, key: STORAGE_KEYS.lang },
+    );
+  for (const [init, cancelOnLink] of [
+    [{ button: 1 }, false],
+    [{ altKey: true }, false],
+    [{ metaKey: true }, false],
+    [{}, true],
+  ] as const) {
+    expect(await syntheticClick(init, cancelOnLink), JSON.stringify({ init, cancelOnLink })).toEqual({
+      notCancelled: false,
+      stored: null,
+    });
+    expect(new URL(page.url()).pathname).toBe('/en/about');
+  }
+  // The same harness with a plain click does reach the listener.
+  expect(await syntheticClick({})).toEqual({ notCancelled: false, stored: 'pt' });
+  expect(new URL(page.url()).pathname).toBe('/en/about');
+
   await page.locator(NAV).getByRole('link', { name: en['lang.en'], exact: true }).click();
   await expect(page.locator(READY)).toHaveCount(1);
   expect(new URL(page.url()).pathname).toBe('/en/about');
