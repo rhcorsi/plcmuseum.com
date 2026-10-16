@@ -54,8 +54,10 @@ html[data-era='1970s'] {
     sans-serif;
   --font-body: 'Gill Sans', 'Trebuchet MS', 'Segoe UI', 'Noto Sans', 'Liberation Sans', system-ui, sans-serif;
   --font-mono:
-    ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Courier New', Courier, 'Liberation Mono', monospace;
-  --font-numeric: 'DSEG7 Classic', 'Cascadia Mono', 'Consolas', 'Courier New', ui-monospace, monospace;
+    ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Menlo, Consolas, 'Courier New', Courier, 'Liberation Mono',
+    monospace;
+  /* Courier New stays out: its hairline strokes wash out the year digits (macOS and iOS reach it before ui-monospace). */
+  --font-numeric: 'DSEG7 Classic', ui-monospace, 'Cascadia Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
   --radius-sm: 0rem;
   --radius-md: 0.125rem;
@@ -124,6 +126,12 @@ html[data-era='1970s'][data-theme='dark'] {
     inset: 0;
     pointer-events: none;
     z-index: -1;
-    background: repeating-linear-gradient(0deg, transparent 0px, transparent 3px, #00000008 3px, #00000008 4px);
+    background: repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 3px,
+      color-mix(in srgb, var(--color-text) 3%, transparent) 3px,
+      color-mix(in srgb, var(--color-text) 3%, transparent) 4px
+    );
   }
 }

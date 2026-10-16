@@ -50,7 +50,8 @@ html[data-era='1990s'] {
 
   --font-display: 'Segoe UI', 'Liberation Sans', 'Noto Sans', Arial, system-ui, sans-serif;
   --font-body: 'Segoe UI', 'Liberation Sans', 'Noto Sans', Arial, system-ui, sans-serif;
-  --font-mono: ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Courier New', 'Liberation Mono', monospace;
+  --font-mono:
+    ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Menlo, Consolas, 'Courier New', 'Liberation Mono', monospace;
 
   --radius-sm: 0rem;
   --radius-md: 0rem;

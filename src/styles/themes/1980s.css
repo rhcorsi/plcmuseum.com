@@ -52,7 +52,10 @@ html[data-era='1980s'] {
 
   --font-display: var(--font-mono);
   --font-body: var(--font-mono);
-  --font-mono: 'Cascadia Mono', 'Consolas', 'SFMono-Regular', 'Liberation Mono', 'Courier New', ui-monospace, monospace;
+  /* Platform monospace first: macOS and iOS have none of Cascadia Mono, Consolas or Liberation Mono, and Courier New's
+     hairline strokes would set every word of this era. */
+  --font-mono:
+    ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
   --font-numeric: var(--font-mono);
 
   --radius-sm: 0rem;
@@ -113,6 +116,12 @@ html[data-era='1980s'][data-theme='dark'] {
     inset: 0;
     pointer-events: none;
     z-index: -1;
-    background: repeating-linear-gradient(to bottom, transparent 0px, transparent 2px, #0000000a 2px, #0000000a 4px);
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      color-mix(in srgb, var(--color-text) 4%, transparent) 2px,
+      color-mix(in srgb, var(--color-text) 4%, transparent) 4px
+    );
   }
 }
