@@ -1,0 +1,27 @@
+---
+// e2e fixture page (docs/tasks/TASK-001-coverflow-island.md): the CoverFlow island over its StageList inside the real
+// page layout, header controls included, as on the home, so the stage hydrates under the same head, stylesheets and
+// CSP meta element as a published page. The production build has no published exhibit yet, so the home cannot show
+// the stage there; this page uses the fictional fixtures instead. astro.config.mjs injects it at /e2e/coverflow only
+// when PLCMUSEUM_E2E_FIXTURES=1; deploy builds never contain it. Test tooling, so the text is literal English.
+import StageList from '../../../src/components/StageList.astro';
+import { fixtureExhibits, fixtureInitialId } from '../../../src/fixtures/exhibits';
+import { t } from '../../../src/i18n/utils';
+import CoverFlow from '../../../src/islands/CoverFlow';
+import Page from '../../../src/layouts/Page.astro';
+
+const initial = fixtureExhibits.find((card) => card.id === fixtureInitialId);
+---
+
+<Page lang="en" title="CoverFlow fixture" path={null} noindex pageEra={initial?.era ?? null}>
+  <h1>CoverFlow fixture</h1>
+  <CoverFlow
+    client:load
+    exhibits={fixtureExhibits}
+    listId="stage"
+    initialId={fixtureInitialId}
+    lang="en"
+    labels={{ prev: t('en', 'stage.prev'), next: t('en', 'stage.next'), open: t('en', 'stage.open') }}
+  />
+  <StageList exhibits={fixtureExhibits} lang="en" initialId={fixtureInitialId} label="Fixture exhibits" />
+</Page>

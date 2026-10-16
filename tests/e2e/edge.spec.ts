@@ -2,7 +2,15 @@
 // "edge"): the "/" redirect, the security headers, /api, the 404 pages and island hydration under the CSP. Requests
 // never follow redirects, so the Worker's own answer is what gets checked.
 import { expect, test, type APIResponse, type Page } from '@playwright/test';
+import en from '../../src/i18n/en.json' with { type: 'json' };
+import { CENTER_CHANGE_EVENT, type CenterChangeDetail } from '../../src/islands/contracts';
 import { SECURITY_HEADERS } from '../../worker/src/security-headers';
+
+declare global {
+  interface Window {
+    coverFlowEdge: { centers: string[]; violations: string[] };
+  }
+}
 
 const NO_REDIRECTS = { maxRedirects: 0 } as const;
 const HASH_SOURCE = /^'sha(256|384|512)-[A-Za-z0-9+/]+={0,2}'$/;
@@ -232,6 +240,54 @@ test.describe('pages under the production CSP', () => {
       const probe = page.locator(`[data-probe="${directive}"]`);
       await expect(probe, `client:${directive}`).toHaveAttribute('data-hydrated', 'true');
     }
+    expect(errors).toEqual([]);
+  });
+
+  // /e2e/coverflow exists only in builds with PLCMUSEUM_E2E_FIXTURES=1 (tests/e2e/fixtures/coverflow.astro): the real
+  // CoverFlow island over the fixture StageList in the page layout, as the home renders it once an exhibit is
+  // published. Fixture ids are spelled out: src/fixtures/exhibits.ts imports a ?url asset that Playwright cannot load.
+  test('the CoverFlow stage enhances, and the Era UI follows it, with no CSP violation', async ({ page }) => {
+    const initialId = 'fx-octal-rack-or5';
+    const lastId = 'fx-edge-pac-ep21';
+    const errors = collectErrors(page);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.addInitScript((eventName) => {
+      const seen: Window['coverFlowEdge'] = { centers: [], violations: [] };
+      window.coverFlowEdge = seen;
+      document.addEventListener(eventName, (event) => {
+        seen.centers.push((event as CustomEvent<CenterChangeDetail>).detail.id);
+      });
+      document.addEventListener('securitypolicyviolation', (event) => {
+        seen.violations.push(`${event.violatedDirective} ${event.blockedURI}`);
+      });
+    }, CENTER_CHANGE_EVENT);
+    const response = await page.goto('/e2e/coverflow');
+    expect(response?.status(), 'the fixture page exists: build with PLCMUSEUM_E2E_FIXTURES=1').toBe(200);
+    expect((await response?.allHeaders())?.['content-security-policy'], 'Content-Security-Policy').toBe(expectedPolicy);
+
+    // A positive signal that the island ran: its initial event, then the enhanced list.
+    await expect.poll(() => page.evaluate(() => window.coverFlowEdge.centers)).toEqual([initialId]);
+    const stage = page.locator('#stage');
+    await expect(stage).toHaveAttribute('role', 'listbox');
+    await expect(stage).toHaveAttribute('aria-activedescendant', `stage-link-${initialId}`);
+    await expect(stage).toHaveAttribute('data-center-id', initialId);
+    // The geometry arrives through CSSOM writes, which the policy allows (style attributes in markup it would drop).
+    const center = page.locator(`#stage-item-${initialId}`);
+    expect(await center.evaluate((item) => item.style.getPropertyValue('--coverflow-offset'))).toBe('0');
+    await expect(center).toHaveCSS('visibility', 'visible');
+    await expect(center).toHaveCSS('opacity', '1');
+
+    // CENTER_CHANGE_EVENT reaches the EraToggle script under the same policy.
+    const toggle = page.getByRole('switch', { name: en['era.toggle'], exact: true });
+    await toggle.click();
+    await expect(page.locator('html')).toHaveAttribute('data-era', '1980s');
+    await stage.focus();
+    await page.keyboard.press('End');
+    await expect(stage).toHaveAttribute('aria-activedescendant', `stage-link-${lastId}`);
+    await expect(page.locator('html')).toHaveAttribute('data-era', '2020s');
+    await expect(stage).toHaveAttribute('data-center-id', lastId);
+
+    expect(await page.evaluate(() => window.coverFlowEdge.violations)).toEqual([]);
     expect(errors).toEqual([]);
   });
 });
