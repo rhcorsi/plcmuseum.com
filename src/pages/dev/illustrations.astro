@@ -1,0 +1,318 @@
+---
+// Fixture page for the 10 generic hardware category silhouettes (docs/tasks/TASK-003-silhouettes.md).
+// Developer tooling, never shipped: astro.config.mjs strips /dev from production builds.
+// Renders every SVG at 160 px (10rem thumbnail) and 640 px (40rem stage scale) through <use href="...#art">.
+import FixtureSwitches from '../../components/dev/FixtureSwitches.astro';
+import Base from '../../layouts/Base.astro';
+
+const svgUrls = import.meta.glob<string>('/src/assets/illustrations/*.svg', {
+  query: '?url',
+  import: 'default',
+  eager: true,
+});
+
+interface IllustrationSpec {
+  slug: string;
+  title: string;
+  summary: string;
+}
+
+const CATALOG: IllustrationSpec[] = [
+  {
+    slug: 'rack-modular',
+    title: 'Modular PLC rack',
+    summary: 'Backplane chassis with power supply, CPU, and eight I/O modules with status LEDs and terminal strips.',
+  },
+  {
+    slug: 'rack-dcs-cabinet',
+    title: 'DCS rack / cabinet',
+    summary: 'Full-height dual-bay control cabinet with redundant controller subracks and field marshalling terminals.',
+  },
+  {
+    slug: 'compact-plc',
+    title: 'Compact / brick PLC',
+    summary: 'Single-housing DIN-rail controller with top and bottom screw terminals, status matrix, and comm ports.',
+  },
+  {
+    slug: 'micro-plc',
+    title: 'Micro / nano PLC',
+    summary:
+      'Palm-sized relay replacement with integrated four-line LCD screen, four-way keypad, and eight I/O points.',
+  },
+  {
+    slug: 'cpu-module',
+    title: 'CPU module',
+    summary:
+      'Single-slot processor module (front faceplate and side PCB profile) with keyswitch, LEDs, and twin ports.',
+  },
+  {
+    slug: 'programming-terminal-crt',
+    title: 'Portable CRT programming terminal',
+    summary:
+      'Luggable industrial programmer with 9-inch CRT showing a ladder network, softkeys, and fold-down keyboard.',
+  },
+  {
+    slug: 'programming-case',
+    title: 'Suitcase / luggable programmer',
+    summary:
+      'Clamshell metal case with mechanical programming keyboard, recessed monochrome screen, and EPROM ZIF socket.',
+  },
+  {
+    slug: 'operator-console-crt',
+    title: 'Operator CRT console',
+    summary:
+      'Angled control-room workstation with overview CRT display, process faceplates, alarm anunciator, and membrane deck.',
+  },
+  {
+    slug: 'multiloop-controller',
+    title: 'Multiloop process controller',
+    summary:
+      'Panel-mount DIN process controller with PV/SP/OUT bargraphs, digital readouts, and AUTO/MAN transfer keys.',
+  },
+  {
+    slug: 'io-remote-rack',
+    title: 'Remote I/O drop',
+    summary:
+      'DIN-rail fieldbus adapter head coupled to eight high-density slice I/O modules with removable terminal blocks.',
+  },
+];
+
+const illustrations = CATALOG.map((item) => {
+  const key = `/src/assets/illustrations/${item.slug}.svg`;
+  const url = svgUrls[key];
+  if (!url) {
+    throw new Error(`Missing illustration asset: ${key}`);
+  }
+  return {
+    ...item,
+    fileName: `${item.slug}.svg`,
+    url,
+  };
+});
+---
+
+<Base lang="en" title="Hardware silhouettes" path={null} noindex>
+  <main id="main" class="page">
+    <header class="intro">
+      <p class="eyebrow">Fixture page, development only</p>
+      <h1 class="title">Hardware category silhouettes</h1>
+      <p class="lead">
+        Ten original schematic line drawings from <code>src/assets/illustrations/</code>, rendered via{' '}
+        <code>&lt;use href="...#art" /&gt;</code> in <code>currentColor</code> at <strong>160 px</strong> (thumbnail)
+        and <strong>640 px</strong> (stage).
+      </p>
+    </header>
+
+    <FixtureSwitches page="/dev/illustrations" />
+
+    <section class="catalog" aria-label="Silhouette catalog">
+      {illustrations.map((item, index) => (
+        <article class="card" aria-labelledby={`heading-${item.slug}`}>
+          <header class="card__header">
+            <div class="card__title-group">
+              <span class="card__index">{String(index + 1).padStart(2, '0')}</span>
+              <h2 id={`heading-${item.slug}`} class="card__title">
+                {item.title}
+              </h2>
+              <code class="card__file">{item.fileName}</code>
+            </div>
+            <p class="card__summary">{item.summary}</p>
+          </header>
+
+          <div class="card__previews">
+            <figure class="preview preview--thumb">
+              <figcaption class="preview__caption">
+                <span>Thumbnail scale</span>
+                <code>160 px (10rem)</code>
+              </figcaption>
+              <div class="preview__frame preview__frame--thumb">
+                <svg
+                  class="art-svg art-svg--thumb"
+                  viewBox="0 0 640 260"
+                  role="img"
+                  aria-label={`${item.title} at 160 px`}
+                >
+                  <use href={`${item.url}#art`} />
+                </svg>
+              </div>
+            </figure>
+
+            <figure class="preview preview--stage">
+              <figcaption class="preview__caption">
+                <span>Stage scale</span>
+                <code>640 px (40rem)</code>
+              </figcaption>
+              <div class="preview__frame preview__frame--stage">
+                <svg
+                  class="art-svg art-svg--stage"
+                  viewBox="0 0 640 260"
+                  role="img"
+                  aria-label={`${item.title} at 640 px`}
+                >
+                  <use href={`${item.url}#art`} />
+                </svg>
+              </div>
+            </figure>
+          </div>
+        </article>
+      ))}
+    </section>
+  </main>
+</Base>
+
+<style>
+  .page {
+    max-inline-size: 75rem;
+    margin-inline: auto;
+    padding: var(--space-6) var(--space-4) var(--space-8);
+    font-size: var(--text-base);
+    line-height: 1.5;
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  .intro {
+    display: grid;
+    gap: var(--space-2);
+    margin-block-end: var(--space-5);
+  }
+
+  .eyebrow {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .title {
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    line-height: 1.1;
+  }
+
+  .lead {
+    max-inline-size: 65ch;
+    color: var(--color-text-muted);
+  }
+
+  .lead strong {
+    color: var(--color-text);
+  }
+
+  .catalog {
+    display: grid;
+    gap: var(--space-6);
+    padding-block-start: var(--space-4);
+  }
+
+  .card {
+    display: grid;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    background-color: var(--color-surface);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .card__header {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .card__title-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+
+  .card__index {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-accent);
+    font-weight: 700;
+  }
+
+  .card__title {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    line-height: 1.2;
+  }
+
+  .card__file {
+    color: var(--color-text-muted);
+    background-color: var(--color-bg-elevated);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    border: var(--border-width) solid var(--color-border);
+  }
+
+  .card__summary {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    max-inline-size: 70ch;
+  }
+
+  .card__previews {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-5);
+  }
+
+  .preview {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    max-inline-size: 100%;
+  }
+
+  .preview--stage {
+    flex: 1 1 20rem;
+    max-inline-size: 100%;
+  }
+
+  .preview__caption {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-3);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .preview__frame {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-3);
+    background-color: var(--color-bg-elevated);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    max-inline-size: 100%;
+    overflow: hidden;
+  }
+
+  .art-svg {
+    display: block;
+    block-size: auto;
+    aspect-ratio: 640 / 260;
+    color: var(--color-text);
+  }
+
+  /* 160 px (10rem at 16px root) thumbnail scale */
+  .art-svg--thumb {
+    inline-size: 10rem;
+    max-inline-size: 100%;
+  }
+
+  /* 640 px (40rem at 16px root) stage scale, clamped to container width on narrow mobile screens */
+  .art-svg--stage {
+    inline-size: 40rem;
+    max-inline-size: 100%;
+  }
+</style>

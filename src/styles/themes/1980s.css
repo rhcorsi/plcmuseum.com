@@ -3,46 +3,125 @@
  * Mood: phosphor CRT (green or amber), DOS terminals.
  * Type: monospace everywhere.
  * Shape: square, 1 px borders, no shadows.
- * Note: subtle scanline overlay; the tagline cursor blink belongs to its component (none under reduced motion).
- * (docs/DESIGN_SYSTEM.md section 2)
+ * Note: subtle scanline texture behind content; the tagline cursor blink belongs to its component (none under reduced
+ * motion). (docs/DESIGN_SYSTEM.md section 2)
  *
  * Rules for this file:
  * - It is unlayered on purpose (see global.css): it beats every definition in tokens.css, light and dark, without a
  *   specificity fight.
- * - Override semantic tokens only, the names listed in the block below. Never style an element, id or component
- *   class here: components read tokens and never the era (docs/ARCHITECTURE.md section 8).
- * - Motion tokens go in motion.css, so its reduced-motion block keeps winning.
+ * - Override semantic tokens only (docs/DESIGN_SYSTEM.md section 1, excluding --motion-* and --stage-*), and declare
+ *   only values that differ from tokens.css (or from this era's light block, for dark blocks). Never style an element,
+ *   id or component class here: components read tokens and never the era (docs/ARCHITECTURE.md section 8).
+ * - Motion tokens go in motion.css, so its reduced-motion block keeps winning; stage geometry (--stage-*) stays the
+ *   museum's so the stage never moves again when Era UI switches the era.
  * - Color, shadow and radius tokens only repaint. Layout tokens (--font-*, --text-*, --space-*, --border-width) may
  *   reflow on an era switch, but nothing may overflow at 390 px and no font may load late (TASK-002).
- * - Light values go in the block below. Dark values go in these two selectors, with identical values, as in
- *   tokens.css:
+ * - Light values go in the block below. Dark values (only where they differ from light) go in these two selectors,
+ *   with identical values, as in tokens.css:
  *     @media (prefers-color-scheme: dark) {
  *       html[data-era='1980s']:not([data-theme='light']) {}
  *     }
  *     html[data-era='1980s'][data-theme='dark'] {}
- * - Optional decorative layer (CSS gradients, no image over 4 KB, no flicker), only on body::before and only here:
+ * - Optional decorative layer (CSS gradients, no image over 4 KB, no flicker), only on body::before, behind content
+ *   (position: fixed and negative z-index):
  *     @media (prefers-reduced-motion: no-preference) and (prefers-contrast: no-preference) {
  *       html[data-era='1980s'] body::before {}
  *     }
- * - Same contrast targets as tokens.css (tests/styles/tokens.test.ts); state colors keep their meaning in every era.
- *
- * Until TASK-002 lands the block declares nothing, so Era UI shows the museum theme.
+ * - Same contrast targets as tokens.css (tests/styles/tokens.test.ts); --color-accent, --color-focus and --color-text
+ *   stay at least 10 CIEDE2000 from every --color-state-* so state colors keep their meaning in every era.
  */
 
 html[data-era='1980s'] {
-  /*
-   * Tokens to override (docs/DESIGN_SYSTEM.md section 1):
-   * --color-bg, --color-bg-elevated, --color-surface, --color-surface-hover,
-   * --color-text, --color-text-muted, --color-text-inverse,
-   * --color-accent, --color-accent-contrast, --color-border, --color-focus,
-   * --color-state-ok, --color-state-warn, --color-state-alarm,
-   * --font-display, --font-body, --font-mono, --font-numeric,
-   * --text-xs, --text-sm, --text-base, --text-lg, --text-xl, --text-2xl, --text-3xl,
-   * --radius-sm, --radius-md, --radius-lg, --border-width,
-   * --shadow-sm, --shadow-md, --shadow-stage,
-   * --space-1, --space-2, --space-3, --space-4, --space-5, --space-6, --space-7, --space-8,
-   * --stage-perspective, --stage-gap, --stage-tilt, --stage-scale-side.
-   * In motion.css, not here: --motion-fast, --motion-base, --motion-slow, --motion-stage, --motion-ease,
-   * --motion-ease-stage.
-   */
+  --color-bg: #e3efe5;
+  --color-bg-elevated: #ebf5ed;
+  --color-surface: #f2faf3;
+  --color-surface-hover: #d4e6d7;
+
+  --color-text: #081c0e;
+  --color-text-muted: #2b5737;
+  --color-text-inverse: #f2faf3;
+
+  --color-accent: #00594c;
+  --color-accent-contrast: #f2faf3;
+  --color-border: #6e9979;
+  --color-focus: #004d99;
+
+  --color-state-ok: #267312;
+  --color-state-warn: #8a4b00;
+  --color-state-alarm: #b32016;
+
+  --font-display: var(--font-mono);
+  --font-body: var(--font-mono);
+  /* Platform monospace first: macOS and iOS have none of Cascadia Mono, Consolas or Liberation Mono, and Courier New's
+     hairline strokes would set every word of this era. */
+  --font-mono:
+    ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-numeric: var(--font-mono);
+
+  --radius-sm: 0rem;
+  --radius-md: 0rem;
+  --radius-lg: 0rem;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-stage: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-era='1980s']:not([data-theme='light']) {
+    --color-bg: #050c07;
+    --color-bg-elevated: #0a160d;
+    --color-surface: #0f2014;
+    --color-surface-hover: #172f1e;
+
+    --color-text: #80ff9f;
+    --color-text-muted: #4cc46b;
+    --color-text-inverse: #050c07;
+
+    --color-accent: #ff9914;
+    --color-accent-contrast: #170c00;
+    --color-border: #285c37;
+    --color-focus: #5ce1ff;
+
+    --color-state-ok: #20d6c7;
+    --color-state-warn: #ffe047;
+    --color-state-alarm: #ff6b5e;
+  }
+}
+
+html[data-era='1980s'][data-theme='dark'] {
+  --color-bg: #050c07;
+  --color-bg-elevated: #0a160d;
+  --color-surface: #0f2014;
+  --color-surface-hover: #172f1e;
+
+  --color-text: #80ff9f;
+  --color-text-muted: #4cc46b;
+  --color-text-inverse: #050c07;
+
+  --color-accent: #ff9914;
+  --color-accent-contrast: #170c00;
+  --color-border: #285c37;
+  --color-focus: #5ce1ff;
+
+  --color-state-ok: #20d6c7;
+  --color-state-warn: #ffe047;
+  --color-state-alarm: #ff6b5e;
+}
+
+@media (prefers-reduced-motion: no-preference) and (prefers-contrast: no-preference) {
+  html[data-era='1980s'] body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      color-mix(in srgb, var(--color-text) 4%, transparent) 2px,
+      color-mix(in srgb, var(--color-text) 4%, transparent) 4px
+    );
+  }
 }
