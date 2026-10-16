@@ -6,12 +6,12 @@
   try {
     var root = document.documentElement;
     var home = /^\/(pt|en|es|de|it)\/$/.exec(location.pathname);
-    // Only the Worker's "/" redirect adds ?auto, so a link, a reload or a history move keeps its language.
+    // Only the Worker's "/" redirect adds ?auto, so a link without it, a reload or a history move keeps its language.
     var auto = home && location.search === '?auto';
     // Removed first, even with storage blocked: no copy or bookmark of the address keeps it.
     if (auto) history.replaceState(null, '', home[0] + location.hash);
     var store = window.localStorage;
-    var lang = auto && store.getItem('plcmuseum:lang');
+    var lang = auto ? store.getItem('plcmuseum:lang') : null;
     if (lang && lang !== home[1] && /^(pt|en|es|de|it)$/.test(lang)) {
       // Stopping the parser first leaves this home without a body: it never paints or reaches a screen reader.
       window.stop();

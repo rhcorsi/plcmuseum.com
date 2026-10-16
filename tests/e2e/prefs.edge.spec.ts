@@ -177,15 +177,15 @@ test.describe('a remembered language', () => {
     expect(errors).toEqual([]);
   });
 
-  // The marker is the redirect's query, so the browser carries a fragment of "/" over to the home, and the script on.
+  // A fragment of "/" reaches the home (the 302 has none of its own); the script keeps it on the remembered home.
   test('keeps the fragment of "/" on the remembered home', async ({ page }) => {
     await remember(page, { [STORAGE_KEYS.lang]: 'pt' });
     await page.goto('/#stage', { waitUntil: 'commit' });
     await page.waitForURL('**/pt/#stage');
   });
 
-  // The assets binding answers the other spellings of a home with a same-origin 307 to it, which Navigation Timing
-  // counts like the "/" redirect; only the "/" redirect marks the home it picks, so a link keeps its language.
+  // The assets binding answers the other spellings of a home with a same-origin 307 to it, which the first follow rule
+  // (any redirect counted by Navigation Timing) took for the "/" redirect; only that one marks its home now.
   for (const [path, status, landing] of [
     ['/en/', 200, '/en/'],
     ['/en', 307, '/en/'],
@@ -202,6 +202,13 @@ test.describe('a remembered language', () => {
       await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     });
   }
+
+  // Documented (ADR-0012, Amendment): the marker is all it takes, so a hand-made link to it acts like "/".
+  test('follows on a link that carries the marker', async ({ page }) => {
+    await remember(page, { [STORAGE_KEYS.lang]: 'pt' });
+    await page.goto('/en/?auto', { waitUntil: 'commit' });
+    await page.waitForURL('**/pt/');
+  });
 
   test('is ignored when it matches the redirect, and the address loses the marker', async ({ page }) => {
     await remember(page, { [STORAGE_KEYS.lang]: 'en' });

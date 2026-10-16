@@ -14,7 +14,7 @@ import { AUTO_QUERY } from '../../worker/src/language';
 
 // The repository's own file, run as the browser runs it, with window, document, location and history bound to the
 // stubs: a stray reference to any other global (a bare localStorage, say) throws inside its try/catch, and the
-// assertions fail.
+// audit at the end of this file names it.
 const runPrefs = new Function('window', 'document', 'location', 'history', SOURCE);
 
 type Visit = {
@@ -57,14 +57,16 @@ function visit({ path = '/en/', search = '', hash = '', storage = {}, pageEra = 
   };
   const location = { pathname: path, search, hash, replace: (url: string) => navigated.push(url) };
   let address = path + search + hash;
+  const states: unknown[] = [];
   const history = {
     replaceState: (state: unknown, _unused: string, url: string) => {
-      // Only the URL changes: the entry gets no state of the script's.
-      expect(state).toBeNull();
+      states.push(state);
       address = url;
     },
   };
   runPrefs(window, document, location, history);
+  // Checked out here, where the script's try/catch cannot swallow it: only the URL changes, the entry gets no state.
+  expect(states.filter((state) => state !== null)).toEqual([]);
   return { era: attributes.get(ERA_HOOKS.applied), navigated, reads, address };
 }
 
@@ -184,8 +186,8 @@ describe('/prefs.js never breaks the page', () => {
 // The privacy page promises that a remembered choice never leaves the device and that the site sets no cookie
 // (privacy.preferences, privacy.lead), and SECURITY.md 3.1 that /prefs.js writes nothing but the address bar. The
 // stubs above would accept a cookie write and the script swallows a failing fetch, so here every global is a proxy
-// that records what the script touches: it may read only these members, assign nothing, and give the current history
-// entry no URL but the home it is on.
+// that records what the script touches: it may name no other global, read only these members, assign nothing, and
+// give the current history entry no URL but the home it is on.
 const ALLOWED_READS = new Set([
   'window.localStorage',
   'window.stop',
@@ -201,6 +203,7 @@ const ALLOWED_READS = new Set([
 ]);
 
 function audit(source: string) {
+  const globals = new Set<string>();
   const touched = new Set<string>();
   const writes: string[] = [];
   const addresses: unknown[] = [];
@@ -223,25 +226,52 @@ function audit(source: string) {
   const storage = watch('storage', {
     getItem: (key: string) => ({ [STORAGE_KEYS.eraUi]: '1', [STORAGE_KEYS.lang]: 'pt' })[key] ?? null,
   });
-  // The era path, then the follow path on a home the "/" redirect chose.
+  // The era path, the follow path, and a marked home that stays (the remembered language is its own), with the era.
   for (const [path, search] of [
     ['/en/decades/1980s', ''],
     ['/en/', AUTO_QUERY],
+    ['/pt/', AUTO_QUERY],
   ]) {
-    const run = new Function('window', 'document', 'location', 'history', source);
-    run(
-      watch('window', { localStorage: storage, stop: () => undefined }),
-      watch('document', { documentElement: root }),
-      watch('location', { pathname: path, search, hash: '', replace: () => undefined }),
-      watch('history', { replaceState: (...args: unknown[]) => addresses.push(args) }),
-    );
+    const bound: Record<string, object> = {
+      window: watch('window', { localStorage: storage, stop: () => undefined }),
+      document: watch('document', { documentElement: root }),
+      location: watch('location', { pathname: path, search, hash: '', replace: () => undefined }),
+      history: watch('history', { replaceState: (...args: unknown[]) => addresses.push(args) }),
+    };
+    // Every free identifier of the script resolves through this scope, so a global it was not given (open, top,
+    // navigation) is recorded even when the call throws inside the script's own try/catch.
+    const scope = new Proxy(bound, {
+      has: (_target, key) => typeof key === 'string',
+      get(target, key) {
+        if (typeof key === 'string' && !(key in target)) globals.add(key);
+        return Reflect.get(target, key);
+      },
+      set(target, key, value) {
+        writes.push(`global.${String(key)}`);
+        return Reflect.set(target, key, value);
+      },
+    });
+    new Function('scope', `with (scope) {${source}}`)(scope);
   }
-  return { outside: [...touched].filter((member) => !ALLOWED_READS.has(member)).sort(), writes, addresses };
+  return {
+    globals: [...globals].sort(),
+    outside: [...touched].filter((member) => !ALLOWED_READS.has(member)).sort(),
+    writes,
+    addresses,
+  };
 }
 
 describe('/prefs.js only reads the preferences', () => {
-  it('touches only the allowed members and assigns nothing, on the era path and on the follow path', () => {
-    expect(audit(SOURCE)).toEqual({ outside: [], writes: [], addresses: [[null, '', '/en/']] });
+  it('names only its four globals, touches only the allowed members and assigns nothing, on every path', () => {
+    expect(audit(SOURCE)).toEqual({
+      globals: [],
+      outside: [],
+      writes: [],
+      addresses: [
+        [null, '', '/en/'],
+        [null, '', '/pt/'],
+      ],
+    });
   });
 
   it.each([
@@ -250,6 +280,9 @@ describe('/prefs.js only reads the preferences', () => {
     ['a storage write', "store.setItem('x', '1');"],
     ['a beacon', "window.navigator.sendBeacon('/beacon', era);"],
     ['a history entry', "history.pushState(null, '', '/x');"],
+    ['a history entry through the Navigation API', "navigation.navigate('/x', { history: 'push' });"],
+    ['a new window', "open('https://example.org/?' + era);"],
+    ['a navigation of the top window', "top.location = '/x';"],
   ])('fails the audit when the script adds %s', (_name, line) => {
     const tampered = SOURCE.replace(
       "root.setAttribute('data-era', era);",
@@ -257,12 +290,12 @@ describe('/prefs.js only reads the preferences', () => {
     );
     expect(tampered).not.toBe(SOURCE);
     const result = audit(tampered);
-    expect(result.outside.length + result.writes.length).toBeGreaterThan(0);
+    expect(result.globals.length + result.outside.length + result.writes.length).toBeGreaterThan(0);
   });
 
   it('names no network, cookie, storage-writing or history-adding API in its source', () => {
     expect(SOURCE).not.toMatch(
-      /cookie|fetch|XMLHttpRequest|sendBeacon|WebSocket|EventSource|setItem|removeItem|pushState|import\(/,
+      /cookie|fetch|XMLHttpRequest|sendBeacon|WebSocket|EventSource|setItem|removeItem|pushState|navigation\.|import\(/,
     );
   });
 });
