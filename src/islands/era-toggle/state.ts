@@ -2,7 +2,7 @@ import { STORAGE_KEYS } from '../contracts';
 import { ERA_THEMES, MUSEUM_ERA, type EraAttribute, type EraTheme } from '../../lib/era';
 
 type StorageGetter = () => Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
-type AnnouncementCause = 'init' | 'click' | 'center' | 'pageshow';
+type AnnouncementCause = 'click' | 'center' | 'pageshow';
 
 export function parseEra(value: unknown): EraTheme | null {
   return (ERA_THEMES as readonly unknown[]).includes(value) ? (value as EraTheme) : null;
@@ -38,14 +38,12 @@ export function resolveEra({
   return enabled ? (centeredEra ?? pageEra ?? MUSEUM_ERA) : MUSEUM_ERA;
 }
 
-/** null leaves the status untouched; an empty attribute name clears it. */
-export function announcementAttribute(
-  cause: AnnouncementCause,
-  enabled: boolean,
-  era: EraAttribute,
-  changed: boolean,
-): string | null {
-  if (cause === 'click') return !enabled ? 'data-announce-off' : `data-announce-${era === MUSEUM_ERA ? 'no-era' : era}`;
-  if (changed && (cause === 'pageshow' || (cause === 'center' && enabled))) return '';
-  return null;
+/**
+ * The attribute holding what the status says after a change main.ts applied; an empty name clears the status. Only
+ * the visitor's click is spoken. main.ts never calls this when nothing changed (a stage event while off or with the
+ * same era, init, an unchanged or failed resync), so those leave the status untouched.
+ */
+export function announcementAttribute(cause: AnnouncementCause, enabled: boolean, era: EraAttribute): string {
+  if (cause !== 'click') return '';
+  return enabled ? `data-announce-${era === MUSEUM_ERA ? 'no-era' : era}` : 'data-announce-off';
 }

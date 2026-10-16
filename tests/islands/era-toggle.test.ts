@@ -134,27 +134,21 @@ describe('EraToggle state', () => {
 });
 
 describe('announcement policy', () => {
+  // main.ts calls it only after applying a change; the changes that leave the status untouched (init, a stage event
+  // while off or with the same era, an unchanged, failed or non-persisted resync) never reach it, so e2e 3, 4 and 6
+  // cover them.
   it.each(ERA_THEMES)('selects the localized %s click message', (era) => {
-    expect(announcementAttribute('click', true, era, true)).toBe(`data-announce-${era}`);
+    expect(announcementAttribute('click', true, era)).toBe(`data-announce-${era}`);
   });
-  it('names the no-era and off click messages even if the applied era is unchanged', () => {
-    expect(announcementAttribute('click', true, 'museum', false)).toBe('data-announce-no-era');
-    expect(announcementAttribute('click', false, 'museum', false)).toBe('data-announce-off');
+  it('names the no-era and off click messages', () => {
+    expect(announcementAttribute('click', true, 'museum')).toBe('data-announce-no-era');
+    expect(announcementAttribute('click', false, 'museum')).toBe('data-announce-off');
   });
-  it('clears only effective automatic changes', () => {
-    expect(announcementAttribute('center', true, '1990s', true)).toBe('');
-    expect(announcementAttribute('pageshow', true, '1980s', true)).toBe('');
-    expect(announcementAttribute('pageshow', false, 'museum', true)).toBe('');
-  });
-  it('leaves init, invalid or unchanged centers, off centers and unchanged or failed resyncs untouched', () => {
-    for (const enabled of [false, true]) {
-      expect(announcementAttribute('init', enabled, '1980s', true)).toBeNull();
-      expect(announcementAttribute('center', enabled, '1980s', false)).toBeNull();
-      expect(announcementAttribute('pageshow', enabled, '1980s', false)).toBeNull();
-    }
-    expect(announcementAttribute('center', false, '1970s', true)).toBeNull();
-    // Non-persisted pageshow is ignored by the DOM listener, covered in Playwright.
-    expect(announcementAttribute('click', true, '1980s', true)).toBe('data-announce-1980s');
+  it('clears the status after a stage change while on and after a back/forward resync either way', () => {
+    expect(announcementAttribute('center', true, '1990s')).toBe('');
+    expect(announcementAttribute('pageshow', true, '1980s')).toBe('');
+    expect(announcementAttribute('pageshow', true, 'museum')).toBe('');
+    expect(announcementAttribute('pageshow', false, 'museum')).toBe('');
   });
 });
 

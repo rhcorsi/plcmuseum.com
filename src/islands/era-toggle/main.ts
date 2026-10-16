@@ -24,8 +24,8 @@ if (root && button && status) {
   }
 
   function updateStatus(cause: 'click' | 'center' | 'pageshow') {
-    const attribute = announcementAttribute(cause, enabled, appliedEra, true);
-    if (attribute !== null) status!.textContent = attribute ? (root!.getAttribute(attribute) ?? '') : '';
+    const attribute = announcementAttribute(cause, enabled, appliedEra);
+    status!.textContent = attribute ? (root!.getAttribute(attribute) ?? '') : '';
   }
 
   button.addEventListener('click', () => {
