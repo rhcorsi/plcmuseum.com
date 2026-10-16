@@ -37,7 +37,9 @@ export function enhanceStage({ list, controls, exhibits, initialId, onActive, on
   let announceCenter = false;
   let initialized = false;
   let previousCenter = center;
+  // Unparked items: the window (center plus or minus 2) and the items still fading out after leaving it.
   let visible = new Set<number>();
+  const leaving = new Map<number, ReturnType<typeof setTimeout>>();
   const offsets = new Map<number, number>();
   const frames = new Set<number>();
   const notifications = settledChange(({ id }, announce) => {
@@ -66,6 +68,8 @@ export function enhanceStage({ list, controls, exhibits, initialId, onActive, on
   function restore() {
     for (const frame of frames) cancelAnimationFrame(frame);
     frames.clear();
+    for (const timer of leaving.values()) clearTimeout(timer);
+    leaving.clear();
     visible.clear();
     offsets.clear();
     list.classList.remove('is-coverflow', 'is-initializing');
@@ -94,7 +98,8 @@ export function enhanceStage({ list, controls, exhibits, initialId, onActive, on
     frames.add(first);
   }
 
-  function paint() {
+  /** `fadeMs`: how long an item that leaves the window now may still be fading, before it is parked. */
+  function paint(fadeMs = 0) {
     const card = exhibits[center];
     const activeLink = links[center];
     if (!card || !activeLink) return;
@@ -104,27 +109,49 @@ export function enhanceStage({ list, controls, exhibits, initialId, onActive, on
     links[previousCenter]?.setAttribute('aria-selected', 'false');
     activeLink.setAttribute('aria-selected', 'true');
     previousCenter = center;
-    const nextVisible = new Set([-2, -1, 0, 1, 2].map((step) => wrapIndex(center + step, items.length)));
+    const nextWindow = new Set([-2, -1, 0, 1, 2].map((step) => wrapIndex(center + step, items.length)));
     // Only the old and new neighbors can change. Parked cards receive no repeated DOM writes.
-    for (const index of new Set([...visible, ...nextVisible])) {
+    for (const index of new Set([...visible, ...nextWindow])) {
       const item = items[index];
       if (!item) continue;
-      const offset = Math.max(-2, Math.min(2, relativeOffset(index, center, items.length)));
-      const near = Math.abs(offset) <= 1;
+      const inWindow = nextWindow.has(index);
+      // Already fading out at its outer slot: nothing changes for it until it is parked or comes back.
+      if (!inWindow && leaving.has(index)) continue;
       const previousOffset = offsets.get(index);
+      const relative = relativeOffset(index, center, items.length);
+      // Parking at once would hide a card in the middle of its fade on every step of a held arrow key, so an item
+      // leaving the window stays unparked and transparent at the outer slot on the side it left from, and is parked
+      // once its fade is over, unless it came back into the window by then.
+      const offset = inWindow ? Math.max(-2, Math.min(2, relative)) : 2 * Math.sign(previousOffset || relative);
+      const near = Math.abs(offset) <= 1;
       const jumping = !visible.has(index) || (previousOffset !== undefined && Math.abs(previousOffset - offset) > 1);
       item.classList.toggle('is-jumping', jumping);
       if (jumping) afterPaint(() => item.classList.remove('is-jumping'));
       item.classList.toggle('is-center', offset === 0);
       item.classList.toggle('is-near', near);
-      item.classList.toggle('is-parked', !nextVisible.has(index));
+      item.classList.toggle('is-parked', false);
       item.style.setProperty('--coverflow-offset', String(offset));
       item.style.setProperty('--coverflow-distance', String(Math.abs(offset)));
       item.style.setProperty('--coverflow-direction', String(Math.sign(offset)));
       item.style.setProperty('--coverflow-order', String(2 - Math.abs(offset)));
       offsets.set(index, offset);
+      if (inWindow) {
+        clearTimeout(leaving.get(index));
+        leaving.delete(index);
+      } else {
+        leaving.set(
+          index,
+          setTimeout(() => park(index), fadeMs),
+        );
+      }
     }
-    visible = nextVisible;
+    visible = new Set([...nextWindow, ...leaving.keys()]);
+  }
+
+  function park(index: number) {
+    if (!leaving.delete(index)) return;
+    visible.delete(index);
+    items[index]?.classList.toggle('is-parked', true);
   }
 
   function select(index: number, announce = false) {
@@ -132,10 +159,11 @@ export function enhanceStage({ list, controls, exhibits, initialId, onActive, on
     if (next === center) return;
     center = next;
     announceCenter = announce;
-    paint();
+    // The resolved --motion-stage, never an item's transition-duration, which is 0s while that item jumps.
+    const duration = enhanced ? transitionDurationMs(getComputedStyle(list).getPropertyValue('--motion-stage')) : 0;
+    paint(duration);
     const card = exhibits[center];
     if (!card) return;
-    const duration = enhanced ? transitionDurationMs(getComputedStyle(list).getPropertyValue('--motion-stage')) : 0;
     notifications.schedule(card, duration, announce);
   }
 

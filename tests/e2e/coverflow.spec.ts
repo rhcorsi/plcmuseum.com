@@ -365,6 +365,60 @@ test.describe('coverflow', () => {
     });
   }
 
+  test('cards that leave the window during a burst fade out before they are parked', async ({ page }) => {
+    await openStage(page);
+    await afterPaint(page);
+    // Opaque before the burst (the center and minus 1); three steps take both past minus 2.
+    const leavingIds = [INITIAL_ID, 'fx-process-hiway-ph1'];
+    const leaving = await page.evaluate((ids) => {
+      const stage = document.getElementById('stage')!;
+      for (let step = 0; step < 3; step += 1) {
+        stage.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      }
+      return ids.map((id) => {
+        const item = document.getElementById(`stage-item-${id}`)!;
+        const fade = item
+          .getAnimations()
+          .find((animation) => animation instanceof CSSTransition && animation.transitionProperty === 'opacity');
+        return {
+          id,
+          parked: item.classList.contains('is-parked'),
+          visibility: getComputedStyle(item).visibility,
+          fade: fade?.playState,
+        };
+      });
+    }, leavingIds);
+    expect(leaving).toEqual(leavingIds.map((id) => ({ id, parked: false, visibility: 'visible', fade: 'running' })));
+    for (const id of leavingIds) {
+      const item = page.locator(`#stage-item-${id}`);
+      await expect(item).toHaveClass(/\bis-parked\b/);
+      await expect(item).toHaveCSS('visibility', 'hidden');
+      await expect(item).toHaveCSS('opacity', '0');
+    }
+    await expect(page.getByRole('option')).toHaveCount(5);
+  });
+
+  test('a card that comes back before its fade time is over is never parked', async ({ page }) => {
+    await openStage(page);
+    await afterPaint(page);
+    // At minus 2 before the steps: it leaves the window on the first and is back at minus 2 on the second.
+    const returning = page.locator('#stage-item-fx-logic-cabinet-lc20');
+    const motionMs = await page.evaluate(() => {
+      const stage = document.getElementById('stage')!;
+      for (const key of ['ArrowRight', 'ArrowLeft']) {
+        stage.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+      }
+      const duration = getComputedStyle(stage).getPropertyValue('--motion-stage').trim();
+      return parseFloat(duration) * (duration.endsWith('ms') ? 1 : 1000);
+    });
+    // Past the moment its parking was due.
+    await page.waitForTimeout(motionMs + 250);
+    await expect(returning).not.toHaveClass(/\bis-parked\b/);
+    await expect(returning).toHaveCSS('visibility', 'visible');
+    await expect(page.getByRole('option')).toHaveCount(5);
+    await expectSelected(page, INITIAL_ID);
+  });
+
   test('incoming neighbor runs a transition from the transparent outer slot', async ({ page }) => {
     await openStage(page);
     await afterPaint(page);
@@ -570,6 +624,9 @@ test.describe('coverflow', () => {
     const mutations = await page.evaluate(async () => {
       const stage = document.getElementById('stage')!;
       const distant = stage.querySelector<HTMLElement>(`[data-id="fx-edge-pac-ep21"]`)!;
+      // Leaves the window (from minus 2) on this step and is parked once its fade time is over; parking it must not
+      // touch the cards that were parked already.
+      const left = stage.querySelector<HTMLElement>(`[data-id="fx-logic-cabinet-lc20"]`)!;
       const targets = [distant, ...distant.querySelectorAll<HTMLElement>('*')];
       const styles = new Set(targets.map((element) => element.style));
       const classes = new Set(targets.map((element) => element.classList));
@@ -590,13 +647,25 @@ test.describe('coverflow', () => {
       try {
         stage.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-        return { writes, visibility: getComputedStyle(distant).visibility };
+        const step = {
+          writes,
+          visibility: getComputedStyle(distant).visibility,
+          leftParked: left.matches('.is-parked'),
+        };
+        await new Promise<void>((resolve) => {
+          const waitForPark = () => (left.matches('.is-parked') ? resolve() : setTimeout(waitForPark, 50));
+          waitForPark();
+        });
+        return { step, parked: { writes, visibility: getComputedStyle(distant).visibility } };
       } finally {
         CSSStyleDeclaration.prototype.setProperty = setProperty;
         DOMTokenList.prototype.toggle = toggle;
       }
     });
-    expect(mutations).toEqual({ writes: 0, visibility: 'hidden' });
+    expect(mutations).toEqual({
+      step: { writes: 0, visibility: 'hidden', leftParked: false },
+      parked: { writes: 0, visibility: 'hidden' },
+    });
     await expectSelected(page, DISPUTED_ID);
   });
 
