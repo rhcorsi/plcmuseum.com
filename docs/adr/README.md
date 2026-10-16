@@ -65,4 +65,4 @@ Accepted 2026-10-15. EraToggle and LanguageSwitch are script components (an Astr
 
 ## ADR-0012: Preferences applied before first paint
 
-Accepted and implemented 2026-10-15. A classic, render-blocking, same-origin `/prefs.js` first in every `<head>` applies the stored era and follows the remembered language before first paint, with no CSP change and a budget of 1 KB gzip. Full record: `docs/adr/0012-preferences-before-first-paint.md`.
+Accepted and implemented 2026-10-15. A classic, render-blocking, same-origin `/prefs.js` ending every `<head>` applies the stored era and follows the remembered language before first paint, with no CSP change and a budget of 1 KB gzip. It is served under a content-hashed name in `/_astro/`, which browsers keep for a year, and verified in Chromium, Firefox and WebKit. Full record: `docs/adr/0012-preferences-before-first-paint.md`.

@@ -7,6 +7,8 @@
 import FixtureSwitches from '../../components/dev/FixtureSwitches.astro';
 import StageList from '../../components/StageList.astro';
 import { fixtureExhibits, fixtureInitialId } from '../../fixtures/exhibits';
+import { t } from '../../i18n/utils';
+import CoverFlow from '../../islands/CoverFlow';
 import Base from '../../layouts/Base.astro';
 ---
 
@@ -17,12 +19,15 @@ import Base from '../../layouts/Base.astro';
 
     <FixtureSwitches page="/dev/coverflow" />
 
-    {/*
-     * TASK-001 (Codex) mounts the island here, next to the server-rendered list below (StageList's id is "stage"):
-     *   <CoverFlow client:visible exhibits={fixtureExhibits} listId="stage" initialId={fixtureInitialId} lang="en"
-     *     eraUiEnabled labels={{ prev: t('en', 'stage.prev'), next: t('en', 'stage.next'), open: t('en', 'stage.open') }} />
-     * The island drives that list instead of rendering a second one; without JS or under reduced motion it stays as is.
-     */}
+    <CoverFlow
+      client:load
+      exhibits={fixtureExhibits}
+      listId="stage"
+      initialId={fixtureInitialId}
+      lang="en"
+      eraUiEnabled
+      labels={{ prev: t('en', 'stage.prev'), next: t('en', 'stage.next'), open: t('en', 'stage.open') }}
+    />
     <StageList exhibits={fixtureExhibits} lang="en" initialId={fixtureInitialId} label="Fixture exhibits" />
   </main>
 </Base>
@@ -45,5 +50,12 @@ import Base from '../../layouts/Base.astro';
   p {
     margin: 0;
     color: var(--color-text-muted);
+  }
+
+  @media (width < 48rem) {
+    /* Query labels resolve in the browser; keep both status rows stable before and after hydration. */
+    main :global(.fixture-switch__status) {
+      flex-direction: column;
+    }
   }
 </style>

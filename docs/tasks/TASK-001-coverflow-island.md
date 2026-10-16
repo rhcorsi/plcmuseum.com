@@ -75,6 +75,87 @@ Notes from the Phase 0 integration:
 
 ## Questions (implementer → architect)
 
+- Resolved by the owner on 2026-10-15: the required decorative year has no existing markup hook. May StageList add one `aria-hidden="true"` span per item while retaining all existing markup, ids and data attributes? Owner approved this specific addition in the task chat.
+- Superseded by the architect's review: the 26 committed Windows captures were removed. Current captures belong in the PR description, never in Git; Linux baselines and `toHaveScreenshot` remain the architect's work after TASK-002.
+- Resolved by the owner on 2026-10-15: `tests/e2e/pages.spec.ts` checks the accessible names of all 12 fixture links, including cards now parked with `visibility: hidden` as the revised contract requires. The owner authorized one line, `await page.emulateMedia({ reducedMotion: 'reduce' })`, before that test opens the fixture, so it verifies the static StageList names. This is the only exception to the task's test paths. The CoverFlow suite separately checks exposed option names and the retained ARIA references on all 12 cards.
+
 ## Implementation notes (implementer)
+
+Implemented on 2026-10-15 in `feat/task-001-coverflow`, from `main` at `7642f26`.
+
+- `CoverFlow.tsx` renders controls and a polite, atomic announcement. Its controller enhances the existing list, retaining the original 12 item nodes, links, image dimensions, silhouettes and credits. No dictionary or new dependency enters the browser bundle.
+- The list has a single keyboard focus target with listbox/options, named options, active descendant and visible focus. Arrow keys wrap, Home/End jump, Enter follows the selected link, and side clicks select before opening. Controls expose the supplied localized labels and selected exhibit URL.
+- Horizontal wheel gestures and pointer swipes navigate. Vertical scrolling, pinch zoom and modified link clicks retain native behavior. Rapid input replaces the pending notification; the last selection emits `{ id, decade, era }` and calls the optional callback after the computed CSS transition plus 120 ms. The initial selection also emits once. Unknown external exhibit ids are ignored.
+- Geometry and transition styling consume the stage and motion tokens. Only the center and its two nearest neighbors use `will-change`. The owner-approved year span contains digits only and is `aria-hidden`; readable years and announcements use the supplied localized label.
+- The reduced-motion media query restores the original vertical list, link tab order and list semantics, including live preference changes. The no-JavaScript fallback is also covered. The fixture uses `client:load`, because hidden SSR controls do not provide a reliable intersection target for `client:visible`.
+- Header rendering, Era UI updates and production CSP hydration remain the architect's integration work. Events are emitted regardless of `eraUiEnabled`; the consumer decides whether to apply the era.
+
+Verification:
+
+- `pnpm lint`: passed, including ESLint and Prettier.
+- `pnpm typecheck`: passed, zero errors, warnings or hints from Astro.
+- `pnpm test`: 367 tests passed, including six CoverFlow logic tests in the existing Node environment.
+- `pnpm build`: passed, 69 routes; fixture pages and unreachable island assets were pruned as configured.
+- `pnpm test:e2e --project pages --grep coverflow --workers=2`: 38 tests passed (36 new checks plus two existing fixture checks), including interaction, original node identity, event coalescing, image/credit structure, focus, horizontal wheel, touch input, no JavaScript and reduced motion.
+- `pnpm test:e2e tests/e2e/pages.spec.ts tests/e2e/edge.spec.ts --workers=2`: all 35 existing page and Worker regression tests passed.
+- 26 PNG captures under `tests/e2e/coverflow.spec.ts-snapshots/`: museum plus five era attributes, light/dark, 390/1280 px, and two reduced-motion views. Tests assert all 12 items, the selected item, decorative year accessibility and no horizontal overflow. These are Windows visual evidence, not Linux comparison baselines.
+- The actual minified CoverFlow chunk captured during the production build before fixture pruning is 6,383 bytes, 2,692 bytes gzip (2.63 KiB), below the 45 KB allowance. Shared React/client chunks total 68,814 bytes gzip, counted separately. The home integration and its complete 150 KB budget are not part of this fixture-only delivery.
+- Lighthouse 13.5.0 mobile on the compiled fixture: performance 99, accessibility 100, best practices 96; LCP 1.8 s, CLS 0.036, TBT 60 ms. The fixture HTML and assets were captured before the existing build hook pruned them and served locally with gzip, without modifying configuration. The best-practices deduction was a missing favicon on this temporary server. This is not a production Worker/CSP measurement. The initial Astro-dev run scored 48/97/100 and loaded development modules; its decorative-year contrast finding was corrected before the final compiled run and screenshots.
+- Chromium 1248 on Windows, 390 x 844, CDP CPU throttle 4x, eight transitions on the compiled fixture: 395 frame intervals, median 16.7 ms, p95 16.8 ms, mean 59.25 fps, one interval over 33.4 ms (maximum 49.9 ms), zero long tasks, zero layout shift during navigation, three items with `will-change`. This is the task's desktop proxy, not a physical-device claim of sustained 60 fps.
+
+Limits for integration review:
+
+- TASK-002's era files on this base are empty token overrides, so all era attributes currently inherit the museum appearance. Recheck the screenshots after Gemini's themes are integrated.
+- Playwright verified the browser's reduced-motion setting both initially and during interaction. A manual Windows accessibility-setting check and physical Android test have not been performed.
+- Lighthouse's unweighted label/content advisory lists the cards, whose accessible names intentionally follow the contract's exhibit-name labels while visible cards also contain credits, year and metadata. Review this with assistive technology during integration; the scored accessibility checks pass.
+- No merge or deployment was performed. No architecture, contracts, content, Worker, configuration, dependencies or other documentation was changed.
+
+### PR #9 review revision (2026-10-15)
+
+This revision follows the architect's review and the contracts merged in `fc24980`. The earlier measurements and screenshot handoff above describe the first implementation; the evidence below supersedes them for the revised code.
+
+- Merged `main`, retaining the stable link/maker ids and the owner-approved watermark with `STAGE_HOOKS.watermark`. The island waits for `DOMContentLoaded` when necessary, removes that listener on cleanup, attaches once per `listId`, and invokes the latest callback through a ref.
+- The links are the listbox options with position/size and selection attributes; items have only `role="none"`. The original link names and descriptions remain intact, option focus returns to the list, and deactivation restores the attributes. Open describes the selected exhibit.
+- The live region remains outside the controls in both motion modes. Initial and keyboard changes are silent; controls, gestures and external picks announce. Silent changes clear the previous text so returning through a control can announce the same exhibit again. The initial event/callback is synchronous after setup, independent of navigation debounce, with external listeners already registered.
+- Reduced-motion external picks scroll without taking focus. Runtime preference changes transfer focus from the list or controls to the selected native link; returning to the stage centers the focused static link. Controls are hidden only after the controller has transferred focus.
+- Controls reserve their block size before hydration. The initial layout uses a short initialization phase with no transitions; cards become visible after their geometry has been painted, while the listbox remains focusable. The unenhanced no-JavaScript or blocked-script fallback stays visible. Measured buffered CLS: 0.000827 at 390 px and 0.000177 at 1280 px, below 0.05.
+- Visual offsets are clamped to plus/minus 2. Distant cards are parked without transitions or repeated property writes; updates touch old/new neighbors only. Offset jumps greater than one step do not animate, including 2/3/4-item wrap-around tests. Width, pitch and depth use the new stage tokens. The watermark offset shares its font-size clamp, leaving all four digits above the card.
+- Removed all 26 committed Windows PNGs. Four museum captures at 390/1280 px in normal/reduced motion are generated as Playwright attachments and were inspected locally. The screenshot question above is superseded by the review: Linux baselines remain the architect's work after TASK-002. Uploading the four images to the PR is still pending because the available browser connection cannot operate the authenticated GitHub editor; no replacement images are committed.
+
+Verification of this revision:
+
+- `pnpm lint` and `pnpm typecheck`: passed, Astro reported zero errors, warnings or hints.
+- `pnpm test --maxWorkers=1 --testTimeout=60000`: all 395 tests passed, including 14 CoverFlow logic tests. Earlier local runs hit the default five-second timeout in unchanged content/tooling subprocess tests; the timeout override is command-line only, with no configuration change.
+- `pnpm build`: passed. The final e2e build also passed with the existing `PLCMUSEUM_E2E_FIXTURES=1` option, which includes the architect's CSP fixture and is not a deployment artifact.
+- Browser regressions cover a parser blocked before the list, immediate external selection from the initial event, exact focus token colors, names and ARIA restoration, live-region policy, both motion modes, gestures, parked writes, short collections, initial animation and buffered CLS.
+- `pnpm test:e2e --workers=2 --output=test-results/final-all`: all 66 tests passed, including 28 CoverFlow checks and 38 existing page/Worker checks. The parser-race test first warms the island module so its hydration can race the intentionally blocked parser even on a cold development server.
+- The full e2e run exposed an existing shared test that expects accessible names on parked hidden links (`tests/e2e/pages.spec.ts`). The owner authorized its one-line reduced-motion setup, recorded in Questions. The production CSP tests, including the existing island-hydration fixture, passed. This does not replace the architect's pending CoverFlow-specific CSP integration test or OS-level reduced-motion check.
+
+The Review section is untouched. No dependency, contract, token, build/CI configuration, content or Worker implementation was edited. No merge of this PR or deployment was performed.
+
+### Linux fixture follow-up (2026-10-15)
+
+The first Linux run passed 65 of 66 e2e tests. Buffered layout-shift sources isolated the 390 px failure (0.102403) to the fixture toolbar: its initial "Scheme: OS preference" status occupied two lines, then became one line after the browser resolved "dark", moving the controls and list up by 24 px. The fixture now keeps the two status spans in separate rows below 48 rem. This changes only `src/pages/dev/coverflow.astro`, without changing the shared toolbar or the 0.05 CLS budget. Local measurements after the fix were 0.001597 at 390 px and 0.000177 at 1280 px; the no-JavaScript and reduced-motion variants retain all 12 visible cards. Failed CLS assertions now include the affected elements and rectangles for diagnosis.
+
+### PR #9 review round 2 (2026-10-15)
+
+Merged `main` through #15 (`77c900c`) before this revision. These notes supersede the earlier announcement policy and screenshot handoff.
+
+- Items 1 and 2: offsets -2 through 2 remain unparked, with the outer slots transparent and only the nearest three promoted by `will-change`. Incoming neighbors now run transitions. A normal one-step write clears stale `is-jumping`; settle timing comes from the resolved `--motion-stage`, independent of temporary transition suppression.
+- Replaced item 3: timeline picks center silently in both motion modes, preserve focus, and still scroll under reduced motion. `data-center-id` is written before every emission, including the initial event, survives motion changes, and is removed on destroy. Mismatched lists receive no attribute. Tests check the attribute at emission time, quiet settles after two frames, repeated picks, motion changes and teardown.
+- Items 4 to 6: the parser test waits for the new document's barrier and records the effect observing `loading` with no list. Event timestamps prove the full transition plus 120 ms for one key and for a three-key burst, without racing an immediate empty-event snapshot.
+- Items 7 and 8: CLS checks reject sources inside the stage or controls, including text nodes, in addition to the 0.05 budget. Far-item tests intercept `setProperty` and `classList.toggle`, so same-value calls count too.
+- Item 9: cleanup reads the serialized empty style attribute before removing it. A CSSOM-only clone exposed that checking `style.length` did not synchronize the attribute before removal in Chromium; the new destroy assertions caught this and now pass for 2, 3 and 4 items.
+- Item 10: the stale Questions bullet is marked superseded. Four current museum captures at 390/1280 px, stage/reduced motion, were regenerated and inspected for the PR description. They remain outside Git; no new baseline is committed.
+
+Verification:
+
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm build`: passed. Astro reported zero errors, warnings or hints; all 498 unit tests passed with the default command. The normal build and the existing e2e-fixture build both passed.
+- Three consecutive complete `pages` runs, without retries or code changes: **64/64 (45.5 s), 64/64 (47.3 s), 64/64 (48.8 s)**. Each includes 31 CoverFlow tests.
+- The complete `edge` project passed **29/29**, including production CSP and before-first-paint preference tests.
+- Another worktree occupied a default test port. Browser verification used an ignored temporary copy of the Playwright configuration with only working-directory and port isolation (14321/18787, no server reuse); the tracked configuration was unchanged.
+- Mutation checks: unconditional `attach()` failed the parser test; hiding controls before hydration failed the new CLS-source assertion even though the page-budget assertion passed. Both mutations were restored before the three final runs.
+
+Only the controller, its e2e spec and this task file changed in round 2. The Review section is untouched. No dependency, contract, content, Worker or tracked configuration was edited; no merge of this PR or deployment was performed.
 
 ## Review (Claude Code)

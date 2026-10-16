@@ -24,6 +24,8 @@ type Visit = {
   storage?: Record<string, string> | 'blocked';
   /** The PerformanceNavigationTiming entry, or null when the browser has none. */
   navigation?: { type: string; redirectCount: number } | null;
+  /** The older performance.navigation (Navigation Timing 1), or null when the browser has dropped it. */
+  legacy?: { type: number; redirectCount: number } | null;
   pageEra?: string | null;
 };
 
@@ -31,7 +33,15 @@ type Visit = {
  * Runs /prefs.js once in a stub of the browser globals it reads and reports what it did. `navigated` lists, in order,
  * "stop" for window.stop() and the URL of each location.replace().
  */
-function visit({ path = '/en/', search = '', hash = '', storage = {}, navigation = null, pageEra = null }: Visit) {
+function visit({
+  path = '/en/',
+  search = '',
+  hash = '',
+  storage = {},
+  navigation = null,
+  legacy = null,
+  pageEra = null,
+}: Visit) {
   const attributes = new Map<string, string>([[ERA_HOOKS.applied, MUSEUM_ERA]]);
   if (pageEra !== null) attributes.set(ERA_HOOKS.page, pageEra);
   const navigated: string[] = [];
@@ -58,6 +68,7 @@ function visit({ path = '/en/', search = '', hash = '', storage = {}, navigation
   const location = { pathname: path, search, hash, replace: (url: string) => navigated.push(url) };
   const performance = {
     getEntriesByType: (type: string) => (type === 'navigation' && navigation ? [navigation] : []),
+    navigation: legacy ?? undefined,
   };
   runPrefs(window, document, location, performance);
   return { era: attributes.get(ERA_HOOKS.applied), navigated, reads };
@@ -130,6 +141,40 @@ describe('/prefs.js follows the remembered language on a redirected home', () =>
     expect(visit({ storage: { [STORAGE_KEYS.lang]: 'pt' }, navigation }).navigated).toEqual([]);
   });
 
+  // Playwright's WebKit 27.2 reports redirectCount 0 in the entry after the Worker's "/" redirect and 1 in
+  // performance.navigation (ADR-0012); both interfaces count same-origin redirects only.
+  it('follows when only performance.navigation counts the redirect, as WebKit reports it', () => {
+    const result = visit({
+      storage: { [STORAGE_KEYS.lang]: 'pt' },
+      navigation: { type: 'navigate', redirectCount: 0 },
+      legacy: { type: 0, redirectCount: 1 },
+    });
+    expect(result.navigated).toEqual(['stop', '/pt/']);
+  });
+
+  it.each([
+    ['neither interface counts a redirect', { type: 'navigate', redirectCount: 0 }, { type: 0, redirectCount: 0 }],
+    [
+      'a reload counted only by performance.navigation',
+      { type: 'reload', redirectCount: 0 },
+      { type: 1, redirectCount: 1 },
+    ],
+    ['a history move', { type: 'back_forward', redirectCount: 0 }, { type: 2, redirectCount: 1 }],
+    ['performance.navigation alone, without the entry', null, { type: 0, redirectCount: 1 }],
+  ])('does nothing after %s', (_name, navigation, legacy) => {
+    expect(visit({ storage: { [STORAGE_KEYS.lang]: 'pt' }, navigation, legacy }).navigated).toEqual([]);
+  });
+
+  it('still applies the era on a home without redirect in a browser that dropped performance.navigation', () => {
+    const result = visit({
+      storage: { ...ERA_ON, [STORAGE_KEYS.lang]: 'pt' },
+      navigation: { type: 'navigate', redirectCount: 0 },
+      pageEra: '1980s',
+    });
+    expect(result.navigated).toEqual([]);
+    expect(result.era).toBe('1980s');
+  });
+
   it.each(['/', '/en', '/en/about', '/en/decades/1980s', '/fr/', '/EN/', '/pt-br/'])(
     'never follows on %s, which is not a language home',
     (path) => {
@@ -158,7 +203,7 @@ describe('/prefs.js never breaks the page', () => {
 });
 
 // The privacy page promises that a remembered choice never leaves the device and that the site sets no cookie
-// (privacy.preferences, privacy.lead), and SECURITY.md 3.1 that /prefs.js only reads storage. The stubs above would
+// (privacy.preferences, privacy.lead), and SECURITY.md 3.1 that /prefs.js writes nothing. The stubs above would
 // accept a cookie write and the script swallows a failing fetch, so here every global is a proxy that records what
 // the script touches: it may read only these members and write nothing.
 const ALLOWED_READS = new Set([
@@ -175,6 +220,8 @@ const ALLOWED_READS = new Set([
   'performance.getEntriesByType',
   'entry.type',
   'entry.redirectCount',
+  'performance.navigation',
+  'legacy.redirectCount',
 ]);
 
 function audit(source: string) {
@@ -199,14 +246,16 @@ function audit(source: string) {
   const storage = watch('storage', {
     getItem: (key: string) => ({ [STORAGE_KEYS.eraUi]: '1', [STORAGE_KEYS.lang]: 'pt' })[key] ?? null,
   });
-  const entry = watch('entry', { type: 'navigate', redirectCount: 1 });
+  // The redirect counted only by the older interface, as WebKit reports it, so the follow path reads both.
+  const entry = watch('entry', { type: 'navigate', redirectCount: 0 });
+  const legacy = watch('legacy', { type: 0, redirectCount: 1 });
   for (const path of ['/en/decades/1980s', '/en/']) {
     const run = new Function('window', 'document', 'location', 'performance', source);
     run(
       watch('window', { localStorage: storage, stop: () => undefined }),
       watch('document', { documentElement: root }),
       watch('location', { pathname: path, search: '', hash: '', replace: () => undefined }),
-      watch('performance', { getEntriesByType: () => [entry] }),
+      watch('performance', { getEntriesByType: () => [entry], navigation: legacy }),
     );
   }
   return { outside: [...touched].filter((member) => !ALLOWED_READS.has(member)).sort(), writes };
