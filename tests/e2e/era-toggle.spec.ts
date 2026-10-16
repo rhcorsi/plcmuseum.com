@@ -10,6 +10,7 @@ import it from '../../src/i18n/it.json' with { type: 'json' };
 import {
   failStorage,
   installRecorder,
+  prefsStubRan,
   readRecorder,
   resolveDuration,
   resolveToken,
@@ -283,8 +284,11 @@ test.describe('EraToggle contract', () => {
     }) => {
       if (stubbed) await stubPrefs(page);
       await open(page);
+      expect(await prefsStubRan(page)).toBe(stubbed);
       await seedStorage(page, STORAGE_KEYS.eraUi, '1');
       await ready(page);
+      // Every document of the stubbed run must have run the stub, or the toggle's write below is unproven.
+      expect(await prefsStubRan(page)).toBe(stubbed);
       await expectState(page, true, '1980s');
       const recorded = await readRecorder(page);
       expect(recorded.events).toEqual([{ detail: { enabled: true, era: '1980s' }, era: '1980s', ready: false }]);
@@ -292,9 +296,11 @@ test.describe('EraToggle contract', () => {
       await expect(page.locator(STATUS)).toBeEmpty();
       await page.reload();
       await ready(page);
+      expect(await prefsStubRan(page)).toBe(stubbed);
       await expectState(page, true, '1980s');
       await expect(page.locator('body')).toBeFocused();
       await open(page, '/dev/era-toggle/none');
+      expect(await prefsStubRan(page)).toBe(stubbed);
       await expectState(page, true, 'museum');
       await expect(page.locator(STATUS)).toBeEmpty();
       await page.getByRole('switch').click();

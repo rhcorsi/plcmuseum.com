@@ -11,6 +11,7 @@ declare global {
   interface Window {
     headerControlsTest: HeaderControlsRecording;
     flushHeaderControlWrites: () => void;
+    headerControlsPrefsStub?: boolean;
   }
 }
 
@@ -50,8 +51,19 @@ export async function failStorage(page: Page, variant: 'getter' | 'methods'): Pr
   }, variant);
 }
 
+/**
+ * Replaces /prefs.js with a script that only marks its document, so prefsStubRan() proves the stub, not the real
+ * file, ran there: a glob that stopped matching would otherwise leave every "stubbed" test green. astro dev serves
+ * /prefs.js, a build serves it as /_astro/prefs.<hash>.js (astro.config.mjs).
+ */
 export async function stubPrefs(page: Page): Promise<void> {
-  await page.route('**/prefs.js', (route) => route.fulfill({ status: 200, contentType: 'text/javascript', body: '' }));
+  const body = 'window.headerControlsPrefsStub = true;';
+  for (const url of ['**/prefs.js', '**/_astro/prefs.*.js'])
+    await page.route(url, (route) => route.fulfill({ status: 200, contentType: 'text/javascript', body }));
+}
+
+export async function prefsStubRan(page: Page): Promise<boolean> {
+  return page.evaluate(() => window.headerControlsPrefsStub === true);
 }
 
 export async function installRecorder(page: Page): Promise<void> {
