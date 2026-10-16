@@ -44,4 +44,12 @@ Photos, logos, product-specific label artwork, animation, island code.
 
 ## Design notes (implementer)
 
+- **Visual language and stroke hierarchy**: All 10 category illustrations use a shared orthographic technical drawing language on a `viewBox="0 0 640 260"` canvas (`id="art"`, `role="img"`, `aria-labelledby="title"`). Strokes use `currentColor` exclusively (`fill="none"`, `stroke-linecap="round"`, `stroke-linejoin="round"`), organized into a three-tier hierarchy so every illustration remains legible at both `160 px` thumbnail scale and `640 px` stage scale:
+  - Primary chassis contours and mounting frames: `2.5px` stroke at `1.0` opacity.
+  - Module divisions, CRT bezels, keycaps, connectors, and faceplates: `1.5px` to `2.0px` stroke at `0.85` to `1.0` opacity.
+  - Secondary details (terminal screw heads, LED arrays, cooling vents, ladder rungs, and bargraph segments): `1.25px` stroke at `0.55` to `0.80` opacity, wrapped in a single `<g aria-hidden="true">` group.
+- **No text or brand marks**: None of the 10 SVGs contain `<text>` elements, embedded fonts, manufacturer logos, wordmarks, model numbers, or proprietary color bands. Displays and faceplates communicate function purely through geometric symbols (ladder contacts/coils, bargraphs, 7-segment figure-eight outlines, and key grids).
+- **File sizes and budget**: Individual SVG sizes range from `3.64 KB` (`operator-console-crt.svg`) to `8.56 KB` (`rack-modular.svg`), well under the `12 KB` per-file cap. The complete 10-SVG batch totals `55.34 KB` (`54.04 KiB`), well below the `80 KB` batch budget.
+- **Sidecar metadata and fixture page**: Every SVG is paired with `<name>.meta.json` (`license: "original-illustration"`, `author: "PLC Museum contributors"`, `sourceUrl: "https://plcmuseum.com"`). The `/dev/illustrations` fixture page loads all 10 SVGs via `import.meta.glob` (`?url`) and renders each at `10rem` (`160 px`) and `40rem` (`640 px`) using `<use href="...#art" />` alongside `FixtureSwitches.astro`.
+
 ## Review (Claude Code)

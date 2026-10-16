@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="art" viewBox="0 0 640 260" role="img" aria-labelledby="title">
+  <title id="title">Modular PLC processor card with front faceplate, keyswitch, communication ports, and side circuit board profile</title>
+  <g aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Left view: Front faceplate of CPU module (x=140..256, y=18..242) -->
+    <rect x="140" y="18" width="116" height="224" rx="3" stroke-width="2.5" />
+    <!-- Top and bottom card extractor latches -->
+    <polygon points="140,18 256,18 244,32 152,32" stroke-width="1.75" />
+    <polygon points="140,242 256,242 244,228 152,228" stroke-width="1.75" />
+    <!-- Vertical heatsink fins along left strip -->
+    <line x1="168" y1="32" x2="168" y2="228" stroke-width="1.75" />
+    <g stroke-width="1.25" opacity="0.65">
+      <line x1="146" y1="44" x2="164" y2="44" />
+      <line x1="146" y1="54" x2="164" y2="54" />
+      <line x1="146" y1="64" x2="164" y2="64" />
+      <line x1="146" y1="74" x2="164" y2="74" />
+      <line x1="146" y1="84" x2="164" y2="84" />
+      <line x1="146" y1="94" x2="164" y2="94" />
+      <line x1="146" y1="104" x2="164" y2="104" />
+      <line x1="146" y1="114" x2="164" y2="114" />
+      <line x1="146" y1="124" x2="164" y2="124" />
+      <line x1="146" y1="134" x2="164" y2="134" />
+      <line x1="146" y1="144" x2="164" y2="144" />
+      <line x1="146" y1="154" x2="164" y2="154" />
+      <line x1="146" y1="164" x2="164" y2="164" />
+      <line x1="146" y1="174" x2="164" y2="174" />
+      <line x1="146" y1="184" x2="164" y2="184" />
+      <line x1="146" y1="194" x2="164" y2="194" />
+      <line x1="146" y1="204" x2="164" y2="204" />
+      <line x1="146" y1="214" x2="164" y2="214" />
+    </g>
+
+    <!-- Rotary mode keyswitch (RUN / PROG / REM) -->
+    <circle cx="196" cy="58" r="14" stroke-width="2" />
+    <circle cx="196" cy="58" r="8" stroke-width="1.25" opacity="0.7" />
+    <line x1="190" y1="52" x2="202" y2="64" stroke-width="2.25" />
+    <!-- Status LED array -->
+    <g stroke-width="1.5">
+      <circle cx="228" cy="44" r="3.5" />
+      <circle cx="242" cy="44" r="3.5" />
+      <circle cx="228" cy="56" r="3.5" />
+      <circle cx="242" cy="56" r="3.5" />
+      <circle cx="228" cy="68" r="3.5" />
+      <circle cx="242" cy="68" r="3.5" />
+      <circle cx="228" cy="80" r="3.5" />
+      <circle cx="242" cy="80" r="3.5" />
+    </g>
+    <!-- Memory card / EEPROM slot -->
+    <rect x="180" y="92" width="64" height="24" rx="2" stroke-width="1.75" />
+    <rect x="188" y="98" width="36" height="12" stroke-width="1.25" opacity="0.7" />
+    <circle cx="234" cy="104" r="3" stroke-width="1.25" />
+    <!-- Serial 9-pin D-sub port -->
+    <polygon points="182,126 212,126 208,164 186,164" stroke-width="1.75" />
+    <circle cx="197" cy="134" r="2" stroke-width="1.25" />
+    <circle cx="197" cy="156" r="2" stroke-width="1.25" />
+    <!-- Dual RJ-45 network ports -->
+    <rect x="220" y="126" width="26" height="40" rx="2" stroke-width="1.75" />
+    <rect x="225" y="131" width="16" height="12" stroke-width="1.25" opacity="0.75" />
+    <rect x="225" y="149" width="16" height="12" stroke-width="1.25" opacity="0.75" />
+    <!-- Lower battery door compartment -->
+    <rect x="180" y="176" width="64" height="44" rx="2" stroke-width="1.75" />
+    <line x1="190" y1="188" x2="234" y2="188" stroke-width="1.25" opacity="0.5" />
+    <line x1="190" y1="198" x2="234" y2="198" stroke-width="1.25" opacity="0.5" />
+
+    <!-- Right view: Orthographic side profile of CPU PCB and backplane connector (x=304..500, y=24..236) -->
+    <path d="M304,24 L328,24 L328,36 L476,36 L476,72 L496,72 L496,188 L476,188 L476,224 L328,224 L328,236 L304,236 Z" stroke-width="2.5" />
+    <!-- Backplane edge connector fingers at right -->
+    <g stroke-width="1.5" opacity="0.75">
+      <line x1="476" y1="82" x2="496" y2="82" />
+      <line x1="476" y1="92" x2="496" y2="92" />
+      <line x1="476" y1="102" x2="496" y2="102" />
+      <line x1="476" y1="112" x2="496" y2="112" />
+      <line x1="476" y1="122" x2="496" y2="122" />
+      <line x1="476" y1="132" x2="496" y2="132" />
+      <line x1="476" y1="142" x2="496" y2="142" />
+      <line x1="476" y1="152" x2="496" y2="152" />
+      <line x1="476" y1="162" x2="496" y2="162" />
+      <line x1="476" y1="172" x2="496" y2="172" />
+      <line x1="476" y1="182" x2="496" y2="182" />
+    </g>
+    <!-- Microprocessor PGA/QFP package, RAM chips, and cylindrical lithium backup battery on PCB -->
+    <rect x="352" y="64" width="68" height="68" rx="3" stroke-width="2" />
+    <rect x="364" y="76" width="44" height="44" rx="2" stroke-width="1.5" opacity="0.7" />
+    <!-- IC pins around CPU package -->
+    <g stroke-width="1.25" opacity="0.55">
+      <line x1="364" y1="58" x2="364" y2="64" /><line x1="376" y1="58" x2="376" y2="64" />
+      <line x1="388" y1="58" x2="388" y2="64" /><line x1="400" y1="58" x2="400" y2="64" />
+      <line x1="364" y1="132" x2="364" y2="138" /><line x1="376" y1="132" x2="376" y2="138" />
+      <line x1="388" y1="132" x2="388" y2="138" /><line x1="400" y1="132" x2="400" y2="138" />
+    </g>
+    <!-- EPROM / SRAM DIP packages and backup battery cylinder -->
+    <rect x="436" y="64" width="24" height="48" rx="1" stroke-width="1.5" opacity="0.8" />
+    <rect x="436" y="122" width="24" height="48" rx="1" stroke-width="1.5" opacity="0.8" />
+    <rect x="348" y="156" width="64" height="32" rx="10" stroke-width="1.75" />
+    <line x1="364" y1="156" x2="364" y2="188" stroke-width="1.25" opacity="0.65" />
+    <line x1="396" y1="156" x2="396" y2="188" stroke-width="1.25" opacity="0.65" />
+  </g>
+</svg>

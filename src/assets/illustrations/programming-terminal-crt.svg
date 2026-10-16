@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="art" viewBox="0 0 640 260" role="img" aria-labelledby="title">
+  <title id="title">Industrial CRT ladder-logic programming terminal with recessed screen, softkeys, and membrane keypad</title>
+  <g aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Outer ruggedized portable terminal chassis and tilt bail stand -->
+    <rect x="88" y="22" width="464" height="204" rx="8" stroke-width="2.5" />
+    <path d="M124,226 L112,244 L528,244 L516,226" stroke-width="2.5" />
+    <!-- Protective corner bumpers -->
+    <path d="M88,44 L88,26 C88,23 90,22 94,22 L112,22" stroke-width="4" />
+    <path d="M528,22 L546,22 C550,22 552,23 552,26 L552,44" stroke-width="4" />
+    <path d="M88,204 L88,222 C88,225 90,226 94,226 L112,226" stroke-width="4" />
+    <path d="M528,226 L546,226 C550,226 552,225 552,222 L552,204" stroke-width="4" />
+
+    <!-- Left section: Recessed 9-inch CRT bezel and curved phosphor tube (x=108..372, y=38..184) -->
+    <rect x="108" y="38" width="264" height="146" rx="4" stroke-width="2" />
+    <rect x="120" y="48" width="240" height="126" rx="14" stroke-width="2.25" />
+
+    <!-- Ladder logic diagram displayed on the CRT screen -->
+    <g stroke-width="1.5" opacity="0.85">
+      <!-- Left and right power rails -->
+      <line x1="136" y1="60" x2="136" y2="162" stroke-width="2" />
+      <line x1="344" y1="60" x2="344" y2="162" stroke-width="2" />
+
+      <!-- Rung 1: two contacts in series and a parallel branch driving a coil -->
+      <line x1="136" y1="78" x2="168" y2="78" />
+      <line x1="168" y1="70" x2="168" y2="86" />
+      <line x1="178" y1="70" x2="178" y2="86" />
+      <line x1="178" y1="78" x2="216" y2="78" />
+      <line x1="216" y1="70" x2="216" y2="86" />
+      <line x1="226" y1="70" x2="226" y2="86" />
+      <line x1="214" y1="84" x2="228" y2="72" />
+      <line x1="226" y1="78" x2="306" y2="78" />
+      <circle cx="316" cy="78" r="8" />
+      <line x1="324" y1="78" x2="344" y2="78" />
+
+      <!-- Parallel branch under first contact -->
+      <polyline points="152,78 152,104 168,104" />
+      <line x1="168" y1="96" x2="168" y2="112" />
+      <line x1="178" y1="96" x2="178" y2="112" />
+      <polyline points="178,104 196,104 196,78" />
+
+      <!-- Rung 2: contact driving a timer/counter function block and coil -->
+      <line x1="136" y1="138" x2="168" y2="138" />
+      <line x1="168" y1="130" x2="168" y2="146" />
+      <line x1="178" y1="130" x2="178" y2="146" />
+      <line x1="178" y1="138" x2="220" y2="138" />
+      <rect x="220" y="122" width="56" height="32" rx="2" />
+      <line x1="276" y1="138" x2="306" y2="138" />
+      <circle cx="316" cy="138" r="8" />
+      <line x1="324" y1="138" x2="344" y2="138" />
+    </g>
+
+    <!-- Bottom row of 6 CRT softkeys (F1-F6) -->
+    <g stroke-width="1.75">
+      <rect x="114" y="194" width="36" height="20" rx="2" />
+      <rect x="158" y="194" width="36" height="20" rx="2" />
+      <rect x="202" y="194" width="36" height="20" rx="2" />
+      <rect x="246" y="194" width="36" height="20" rx="2" />
+      <rect x="290" y="194" width="36" height="20" rx="2" />
+      <rect x="334" y="194" width="36" height="20" rx="2" />
+    </g>
+
+    <!-- Right section: Keyswitch, status LEDs, and ladder/numeric membrane keypad (x=388..532) -->
+    <circle cx="412" cy="56" r="12" stroke-width="1.75" />
+    <line x1="406" y1="50" x2="418" y2="62" stroke-width="2" />
+    <circle cx="448" cy="50" r="3.5" stroke-width="1.5" />
+    <circle cx="464" cy="50" r="3.5" stroke-width="1.5" />
+    <circle cx="448" cy="62" r="3.5" stroke-width="1.5" />
+    <circle cx="464" cy="62" r="3.5" stroke-width="1.5" />
+    <!-- Contrast and brightness thumbwheels -->
+    <rect x="496" y="42" width="32" height="10" rx="2" stroke-width="1.5" />
+    <rect x="496" y="58" width="32" height="10" rx="2" stroke-width="1.5" />
+
+    <!-- 4x4 Programming Keypad Matrix -->
+    <rect x="388" y="82" width="144" height="132" rx="3" stroke-width="1.75" />
+    <g stroke-width="1.5" opacity="0.8">
+      <rect x="398" y="92" width="26" height="22" rx="2" />
+      <rect x="431" y="92" width="26" height="22" rx="2" />
+      <rect x="464" y="92" width="26" height="22" rx="2" />
+      <rect x="497" y="92" width="26" height="22" rx="2" />
+
+      <rect x="398" y="122" width="26" height="22" rx="2" />
+      <rect x="431" y="122" width="26" height="22" rx="2" />
+      <rect x="464" y="122" width="26" height="22" rx="2" />
+      <rect x="497" y="122" width="26" height="22" rx="2" />
+
+      <rect x="398" y="152" width="26" height="22" rx="2" />
+      <rect x="431" y="152" width="26" height="22" rx="2" />
+      <rect x="464" y="152" width="26" height="22" rx="2" />
+      <rect x="497" y="152" width="26" height="22" rx="2" />
+
+      <rect x="398" y="182" width="26" height="22" rx="2" />
+      <rect x="431" y="182" width="26" height="22" rx="2" />
+      <rect x="464" y="182" width="59" height="22" rx="2" />
+    </g>
+  </g>
+</svg>

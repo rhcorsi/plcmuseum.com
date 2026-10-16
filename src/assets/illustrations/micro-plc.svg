@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="art" viewBox="0 0 640 260" role="img" aria-labelledby="title">
+  <title id="title">Micro programmable logic controller with integrated LCD screen, keypad buttons, and screw terminals</title>
+  <g aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Horizontal DIN rail behind micro PLC -->
+    <line x1="96" y1="108" x2="204" y2="108" stroke-width="2" opacity="0.6" />
+    <line x1="96" y1="152" x2="204" y2="152" stroke-width="2" opacity="0.6" />
+    <line x1="436" y1="108" x2="544" y2="108" stroke-width="2" opacity="0.6" />
+    <line x1="436" y1="152" x2="544" y2="152" stroke-width="2" opacity="0.6" />
+
+    <!-- Top and bottom DIN mounting latches -->
+    <rect x="304" y="10" width="32" height="10" rx="2" stroke-width="1.75" />
+    <rect x="304" y="240" width="32" height="10" rx="2" stroke-width="1.75" />
+
+    <!-- Main vertical micro-PLC housing -->
+    <rect x="204" y="20" width="232" height="220" rx="6" stroke-width="2.5" />
+
+    <!-- Top screw terminal block (Power + 8 Inputs) -->
+    <rect x="218" y="28" width="204" height="28" rx="2" stroke-width="1.75" />
+    <g stroke-width="1.5" opacity="0.8">
+      <circle cx="232" cy="42" r="5.5" /><line x1="228" y1="42" x2="236" y2="42" />
+      <circle cx="250" cy="42" r="5.5" /><line x1="246" y1="42" x2="254" y2="42" />
+      <circle cx="272" cy="42" r="5.5" /><line x1="268" y1="42" x2="276" y2="42" />
+      <circle cx="290" cy="42" r="5.5" /><line x1="286" y1="42" x2="294" y2="42" />
+      <circle cx="308" cy="42" r="5.5" /><line x1="304" y1="42" x2="312" y2="42" />
+      <circle cx="326" cy="42" r="5.5" /><line x1="322" y1="42" x2="330" y2="42" />
+      <circle cx="348" cy="42" r="5.5" /><line x1="344" y1="42" x2="352" y2="42" />
+      <circle cx="366" cy="42" r="5.5" /><line x1="362" y1="42" x2="370" y2="42" />
+      <circle cx="384" cy="42" r="5.5" /><line x1="380" y1="42" x2="388" y2="42" />
+      <circle cx="402" cy="42" r="5.5" /><line x1="398" y1="42" x2="406" y2="42" />
+    </g>
+
+    <!-- Front raised bezel -->
+    <rect x="216" y="64" width="208" height="132" rx="4" stroke-width="2" />
+    <!-- Built-in 4-line LCD display window -->
+    <rect x="230" y="76" width="136" height="64" rx="2" stroke-width="2" />
+    <!-- Ladder logic contacts and coil graphic inside LCD -->
+    <g stroke-width="1.5" opacity="0.75">
+      <line x1="240" y1="94" x2="254" y2="94" />
+      <line x1="254" y1="88" x2="254" y2="100" />
+      <line x1="262" y1="88" x2="262" y2="100" />
+      <line x1="262" y1="94" x2="282" y2="94" />
+      <line x1="282" y1="88" x2="282" y2="100" />
+      <line x1="290" y1="88" x2="290" y2="100" />
+      <line x1="280" y1="99" x2="292" y2="89" />
+      <line x1="290" y1="94" x2="334" y2="94" />
+      <circle cx="342" cy="94" r="6" />
+      <line x1="348" y1="94" x2="356" y2="94" />
+
+      <line x1="240" y1="120" x2="270" y2="120" />
+      <rect x="270" y="112" width="32" height="16" rx="1" />
+      <line x1="302" y1="120" x2="334" y2="120" />
+      <circle cx="342" cy="120" r="6" />
+      <line x1="348" y1="120" x2="356" y2="120" />
+    </g>
+
+    <!-- Right-side expansion bus cover and cable port -->
+    <rect x="378" y="76" width="34" height="50" rx="2" stroke-width="1.5" opacity="0.8" />
+    <rect x="386" y="86" width="18" height="30" rx="1" stroke-width="1.25" opacity="0.6" />
+
+    <!-- Tactile keypad: ESC, OK, and 4-way directional cursor pad -->
+    <rect x="234" y="156" width="32" height="22" rx="4" stroke-width="1.75" />
+    <rect x="374" y="156" width="32" height="22" rx="4" stroke-width="1.75" />
+    <!-- Diamond cursor pad at center (cx=320, cy=167) -->
+    <polygon points="320,145 330,157 310,157" stroke-width="1.75" />
+    <polygon points="320,189 330,177 310,177" stroke-width="1.75" />
+    <polygon points="294,167 306,158 306,176" stroke-width="1.75" />
+    <polygon points="346,167 334,158 334,176" stroke-width="1.75" />
+
+    <!-- Bottom screw terminal block (4 Relay Output Pairs) -->
+    <rect x="218" y="204" width="204" height="28" rx="2" stroke-width="1.75" />
+    <g stroke-width="1.5" opacity="0.8">
+      <circle cx="238" cy="218" r="5.5" /><line x1="234" y1="218" x2="242" y2="218" />
+      <circle cx="256" cy="218" r="5.5" /><line x1="252" y1="218" x2="260" y2="218" />
+      <circle cx="286" cy="218" r="5.5" /><line x1="282" y1="218" x2="290" y2="218" />
+      <circle cx="304" cy="218" r="5.5" /><line x1="300" y1="218" x2="308" y2="218" />
+      <circle cx="334" cy="218" r="5.5" /><line x1="330" y1="218" x2="338" y2="218" />
+      <circle cx="352" cy="218" r="5.5" /><line x1="348" y1="218" x2="356" y2="218" />
+      <circle cx="382" cy="218" r="5.5" /><line x1="378" y1="218" x2="386" y2="218" />
+      <circle cx="400" cy="218" r="5.5" /><line x1="396" y1="218" x2="404" y2="218" />
+    </g>
+  </g>
+</svg>
