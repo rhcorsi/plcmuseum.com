@@ -72,6 +72,19 @@ async function expectState(page: Page, enabled: boolean, era: string) {
   await expect(page.locator(BUTTON)).toHaveAccessibleName(en['era.toggle']);
 }
 
+/** Tailwind sr-only (Contract): still rendered and spoken, but a clipped box of at most 1 x 1 px. */
+async function expectStatusVisuallyHidden(page: Page) {
+  const status = await page.locator(STATUS).evaluate((element) => {
+    const { width, height } = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return { width, height, overflow: style.overflow, clipPath: style.clipPath };
+  });
+  expect(status.width).toBeLessThanOrEqual(1);
+  expect(status.height).toBeLessThanOrEqual(1);
+  expect(status.overflow).toBe('hidden');
+  expect(status.clipPath).not.toBe('none');
+}
+
 async function dispatch(page: Page, kind: 'center' | 'pageshow', detail: unknown) {
   return page.evaluate(
     ({ kind, detail, eventName }) => {
@@ -152,6 +165,7 @@ test.describe('EraToggle contract', () => {
     await expect(page.locator(STATUS)).toBeEmpty();
     await expect(page.locator(STATUS)).not.toHaveCSS('display', 'none');
     await expect(page.locator(STATUS)).toHaveCSS('visibility', 'visible');
+    await expectStatusVisuallyHidden(page);
     await expect(page.locator(ROOT)).toHaveAttribute('data-announce-off', en['era.announce_off']);
     await expect(page.locator(ROOT)).toHaveAttribute('data-announce-no-era', en['era.announce_on_no_era']);
     for (const era of ERA_THEMES)
@@ -189,6 +203,8 @@ test.describe('EraToggle contract', () => {
     await expect(page.locator(STATUS)).toBeEmpty();
     await page.getByRole('switch').click();
     await expect(page.locator(STATUS)).toHaveText(onMessage('1980s'));
+    // With a message in it, an unhidden status would draw a line of text in the header.
+    await expectStatusVisuallyHidden(page);
     expect(await dispatch(page, 'center', NINETIES)).toMatchObject({ era: '1990s', status: '', added: [], events: 1 });
     await page.getByRole('switch').click();
     await expect(page.locator(STATUS)).toHaveText(en['era.announce_off']);
