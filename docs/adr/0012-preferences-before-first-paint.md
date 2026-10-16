@@ -1,6 +1,6 @@
 # ADR-0012: Preferences applied before first paint
 
-Status: accepted by the owner, 2026-10-15 (option b), and implemented the same day.
+Status: accepted by the owner, 2026-10-15 (option b), and implemented the same day. Amended the same day (Amendment, option c): only the home the `/` redirect chose follows the remembered language.
 
 ## Context
 
@@ -16,7 +16,7 @@ ADR-0011 builds EraToggle and LanguageSwitch as module scripts, which run after 
 
 Option (b). `/prefs.js` runs before anything paints and only reads localStorage:
 
-- on a language home (`/<lang>/`) reached through a same-origin redirect (Navigation Timing `type: 'navigate'`, and `redirectCount > 0` in the entry or in the older `performance.navigation`; see Cross-browser verification), when `STORAGE_KEYS.lang` holds another of the five languages, it stops the parser and replaces the page with that language's home, keeping query and fragment;
+- on the language home (`/<lang>/`) the Worker's `/` redirect chose, the one whose query is exactly `?auto` (since the Amendment; first written as any home reached through a same-origin redirect counted by Navigation Timing), it removes the marker from the address bar, and when `STORAGE_KEYS.lang` holds another of the five languages it stops the parser and replaces the page with that language's home, keeping the fragment;
 - otherwise, when `STORAGE_KEYS.eraUi` is "1", it sets `html[data-era]` to `html[data-page-era]` if that is one of the five eras;
 - any failure (storage blocked, no timing) leaves the museum theme and the language the page was served in.
 
@@ -56,3 +56,41 @@ Every response of the assets binding carried `Cache-Control: public, max-age=0, 
 - WebKit reports `redirectCount` 0 in the `PerformanceNavigationTiming` entry of the home the `/` 302 led to, where Chromium and Firefox report 1; its older `performance.navigation.redirectCount` says 1 (and 0 without the redirect). The follow rule never fired there: the visitor kept the home of `Accept-Language`. `/prefs.js` now accepts either count; both interfaces count same-origin redirects only, and a browser without `performance.navigation` falls back to the entry. Not verified on Safari for macOS or iOS, whose network stack differs from this Windows build.
 - WebKit fires no `pagehide` for a document stopped in its `<head>`, so the test no longer reads the body there: a mutation observer records whether the parser ever gave each document a body. In all three engines the replaced English home never got one, and Back skips it.
 - After the fix: Chromium 36 of 36 edge tests, Firefox 7 of 7 and WebKit 7 of 7 prefs tests pass.
+
+## Amendment: follow only after the `/` redirect (2026-10-15)
+
+Status: accepted by the owner, 2026-10-15 (option c), and implemented the same day.
+
+### Context
+
+As first written, the follow rule fired on a language home reached through any same-origin redirect, because Navigation Timing counts redirects but cannot say which one happened. The Worker answers `/` itself, but the assets binding's `html_handling: "auto-trailing-slash"` also answers the other spellings of a home with a same-origin 307. A link to `/pt` (no slash, the way people type and some apps shorten links) is therefore replaced by the visitor's remembered language, although ADR-0011 promises that a link keeps its language. ADR-0011 already lists `/en` as following like `/`; the security review of the caching change flagged it, and since that change it holds in WebKit too.
+
+Measured under `wrangler dev` over the production build (Chromium on HTTP, Firefox 157 and WebKit 27.2 on HTTPS), `Accept-Language: en`, the redirect counts read on the home that loads, and where a visitor who remembered Italian lands:
+
+| Request                                    | Answer                                          | Counted (entry; WebKit `performance.navigation`) | Remembered `it` lands on                     |
+| ------------------------------------------ | ----------------------------------------------- | ------------------------------------------------ | -------------------------------------------- |
+| `/`                                        | Worker 302 to `/en/`                            | 1 (WebKit: 0; 1)                                 | `/it/` (intended)                            |
+| `/index.html`, `/index`                    | binding 307 to `/`, then the Worker's 302       | 2 (WebKit: 0; 2)                                 | `/it/` (it asks for the root, so intended)   |
+| `/pt`, `/de`, any `/<lang>`                | binding 307 to `/<lang>/`                       | 1 (WebKit: 0; 1)                                 | `/it/` (the problem)                         |
+| `/pt?x=1#f`                                | binding 307 to `/pt/?x=1`, fragment kept        | 1 (WebKit: 0; 1)                                 | `/it/?x=1#f` (the problem)                   |
+| `/pt/index.html`, `/pt/index`              | binding 307 to `/pt/`                           | 1 (WebKit: 0; 1)                                 | `/it/` (the problem)                         |
+| `/pt/`                                     | 200                                             | 0                                                | `/pt/` (kept)                                |
+
+The same happens in all three engines. Any same-origin redirect added later onto a home (a Cloudflare redirect rule on the zone, a renamed page) would follow as well.
+
+### Options
+
+- **(a) Accept and document.** No code change; the prefs.js comment and the Decision above say "a link to a home with its trailing slash keeps its language", and an edge test pins that `/pt` follows. Cost: a link to `plcmuseum.com/pt` sends a returning visitor who picked another language to that language instead.
+- **(b) The Worker serves a home at its other spellings.** `/<lang>`, `/<lang>/index` and `/<lang>/index.html` get the home itself (200, query kept, the binding asked for `/<lang>/`) instead of the binding's 307, so the Worker's `/` answer is the only redirect that lands on a home today. `/prefs.js` is unchanged (955 bytes gzip). Costs: each home answers at four URLs (every page already carries `<link rel="canonical">` to `/<lang>/`, and every link in the built pages is absolute, so they render the same); a Worker route for one class of path; the follow rule is still "any same-origin redirect", so the next redirect onto a home brings the problem back without any test failing; the WebKit special case stays.
+- **(c) The `/` redirect marks its target.** The Worker answers `/` with `Location: /<lang>/?auto`. `/prefs.js` follows only on a language home whose query is exactly `?auto`, and drops the marker from the address bar with `history.replaceState()` before it reads storage, whether it follows or not. Navigation Timing leaves the script, and with it the WebKit special case and the gap for browsers without Navigation Timing Level 2. Prototype: 855 bytes gzip (from 955). Costs: the `/` redirect target changes (worker README, docs/ARCHITECTURE.md, docs/I18N.md, unit and edge tests); `/prefs.js` gets its first write, to the current history entry only (no storage, cookie or request), which docs/SECURITY.md 3.1 must say; with JavaScript off the address bar keeps `/en/?auto` (crawlers see it as the redirect target, and the canonical link names `/en/`); a link that carries `?auto` acts like `/` and sends the visitor to their own remembered home, a fixed path built from the five languages, so nothing leaves the device; `/en/?auto` is a second HTTP cache entry beside `/en/` (both revalidate).
+- **(d) The Worker serves the negotiated home at `/` (200) and `/prefs.js` follows on `/`.** Rejected: `/` becomes a page whose content depends on `Accept-Language`, links to `/` no longer name their language, and it changes the URL scheme of docs/ARCHITECTURE.md for a problem a redirect target can solve.
+
+Recommended: (c). It ties the follow rule to the one answer meant to trigger it, so no present or future redirect can, and the special case for WebKit disappears instead of growing. Its price (a marker visible without JavaScript, one write to the address bar, a changed redirect target) is smaller than serving each home at four URLs and still depending on how many redirects a browser counts.
+
+### Implementation (2026-10-15)
+
+- `worker/src/index.ts` answers `/` with `Location: /<lang>/?auto` (`AUTO_QUERY` in `worker/src/language.ts`; the query of `/` is still dropped, a fragment of `/` still reaches the home).
+- `/prefs.js`, on `/<lang>/` with the query `?auto`: `history.replaceState(null, '', '/<lang>/' + fragment)` first, so blocked storage still leaves a clean address; then it reads `STORAGE_KEYS.lang` (only there now) and follows as before, `window.stop()` then `location.replace()`. Any other query (`?auto=1`, `?ref=post&auto`) or none keeps the language and the address. 858 bytes gzip by Node's zlib (from 955), with no Navigation Timing.
+- Changed by the marker, beyond `/pt`: a cross-origin redirect before `/` (http to https, a link shortener) and a browser without Navigation Timing Level 2 now follow too, since the marker reaches the home in both cases; the WebKit special case of Cross-browser verification is gone with the counts it read.
+- `tests/islands/prefs-head.test.ts` drives the follow cases with the Worker's `AUTO_QUERY`, so a marker changed on one side fails the other, and checks the address after each run; its audit allows `history.replaceState` with the home's own path and nothing else from `history`. `worker/test/worker.test.ts` and `tests/e2e/edge.spec.ts` expect the marked `Location`. `tests/e2e/prefs.edge.spec.ts` adds that `/en`, `/en?ref=post` and `/en/index.html` (each a 307 from the binding) keep English for a visitor who remembered Portuguese, and that the address loses the marker when the home stays.
+- docs/SECURITY.md 3.1 says the script writes nothing but the address bar, worker/README.md documents the marker, and ADR-0011 (decision 2b and its consequences), docs/I18N.md, docs/ARCHITECTURE.md and TASK-005 follow the new rule.

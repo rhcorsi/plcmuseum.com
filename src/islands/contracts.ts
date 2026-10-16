@@ -249,8 +249,8 @@ export const STORAGE_KEYS = {
   eraUi: 'plcmuseum:era-ui',
   /**
    * Lang of the last language link the visitor activated with a plain click; written only by LanguageSwitch. Read only
-   * by /prefs.js, before first paint, on a language home reached through a same-origin redirect, to follow the
-   * visitor's choice instead of Accept-Language (ADR-0011, ADR-0012).
+   * by /prefs.js, before first paint, on the language home the Worker's "/" redirect chose (marked `?auto`), to follow
+   * the visitor's choice instead of Accept-Language (ADR-0011, ADR-0012).
    */
   lang: 'plcmuseum:lang',
 } as const;

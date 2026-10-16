@@ -53,13 +53,13 @@ function collectErrors(page: Page): string[] {
 
 test.describe('language redirect on /', () => {
   for (const [acceptLanguage, location] of [
-    ['pt-BR,pt;q=0.9,en;q=0.8', '/pt/'],
-    ['de-DE', '/de/'],
-    ['fr-FR,es;q=0.5', '/es/'],
-    ['it-CH', '/it/'],
-    ['en;q=0,pt;q=0.1', '/pt/'],
-    ['fr-FR', '/en/'],
-    ['*', '/en/'],
+    ['pt-BR,pt;q=0.9,en;q=0.8', '/pt/?auto'],
+    ['de-DE', '/de/?auto'],
+    ['fr-FR,es;q=0.5', '/es/?auto'],
+    ['it-CH', '/it/?auto'],
+    ['en;q=0,pt;q=0.1', '/pt/?auto'],
+    ['fr-FR', '/en/?auto'],
+    ['*', '/en/?auto'],
   ] as const) {
     test(`Accept-Language "${acceptLanguage}" goes to ${location}`, async ({ request }) => {
       const response = await request.get('/', { ...NO_REDIRECTS, headers: { 'Accept-Language': acceptLanguage } });

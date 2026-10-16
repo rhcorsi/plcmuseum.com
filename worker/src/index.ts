@@ -4,7 +4,7 @@
 // (docs/SECURITY.md 3.2).
 import { BASE_POLICY, readPolicy } from './csp';
 import { readHealth } from './health';
-import { negotiateLanguage } from './language';
+import { AUTO_QUERY, negotiateLanguage } from './language';
 import { withSecurityHeaders } from './security-headers';
 
 /** The bindings this Worker reads. DB stays out until Phase 3, so no route can reach it by accident. */
@@ -40,7 +40,8 @@ function languageRedirect(request: Request): Response {
   return new Response(null, {
     status: 302,
     headers: {
-      Location: `/${lang}/`,
+      // The marker tells /prefs.js that this home was chosen for the visitor rather than asked for.
+      Location: `/${lang}/${AUTO_QUERY}`,
       // The target depends on the visitor's languages: no shared cache may store one answer for everyone.
       Vary: 'Accept-Language',
       'Cache-Control': 'private, max-age=0',

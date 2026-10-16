@@ -12,7 +12,7 @@ const NODE_GLOBALS = Object.fromEntries(
   ]),
 );
 const BROWSER_GLOBALS = Object.fromEntries(
-  ['window', 'document', 'location', 'performance'].map((name) => [name, 'readonly']),
+  ['window', 'document', 'location', 'history'].map((name) => [name, 'readonly']),
 );
 
 export default defineConfig([

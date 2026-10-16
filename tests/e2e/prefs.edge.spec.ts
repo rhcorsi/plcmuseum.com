@@ -1,7 +1,8 @@
 // /prefs.js (ADR-0012) against `wrangler dev` over the production build (project "edge", which runs every
 // *edge.spec.ts): the head ends with it, classic and blocking, under a content-hashed name the browser keeps; the
 // first frame already wears the stored era; a remembered language replaces the home the "/" redirect chose before
-// that home gets a body. Only the Worker answers "/" with a redirect, so this cannot run against `astro dev`.
+// that home gets a body, and no home a link asked for. Only the Worker answers "/" with a redirect, so this cannot run
+// against `astro dev`.
 import { expect, test, type Page } from '@playwright/test';
 import { ERA_HOOKS, STORAGE_KEYS } from '../../src/islands/contracts';
 
@@ -176,16 +177,39 @@ test.describe('a remembered language', () => {
     expect(errors).toEqual([]);
   });
 
-  test('leaves a home the visitor asked for alone', async ({ page }) => {
+  // The marker is the redirect's query, so the browser carries a fragment of "/" over to the home, and the script on.
+  test('keeps the fragment of "/" on the remembered home', async ({ page }) => {
     await remember(page, { [STORAGE_KEYS.lang]: 'pt' });
-    await page.goto('/en/');
-    await page.waitForLoadState('load');
-    expect(new URL(page.url()).pathname).toBe('/en/');
+    await page.goto('/#stage', { waitUntil: 'commit' });
+    await page.waitForURL('**/pt/#stage');
   });
 
-  test('is ignored when it matches the redirect', async ({ page }) => {
+  // The assets binding answers the other spellings of a home with a same-origin 307 to it, which Navigation Timing
+  // counts like the "/" redirect; only the "/" redirect marks the home it picks, so a link keeps its language.
+  for (const [path, status, landing] of [
+    ['/en/', 200, '/en/'],
+    ['/en', 307, '/en/'],
+    ['/en?ref=post', 307, '/en/?ref=post'],
+    ['/en/index.html', 307, '/en/'],
+  ] as const) {
+    test(`leaves the home a link to ${path} asked for alone`, async ({ page, request }) => {
+      expect((await request.get(path, { maxRedirects: 0 })).status()).toBe(status);
+      await remember(page, { [STORAGE_KEYS.lang]: 'pt' });
+      await page.goto(path);
+      await page.waitForLoadState('load');
+      const url = new URL(page.url());
+      expect(url.pathname + url.search).toBe(landing);
+      await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    });
+  }
+
+  test('is ignored when it matches the redirect, and the address loses the marker', async ({ page }) => {
     await remember(page, { [STORAGE_KEYS.lang]: 'en' });
     await page.goto('/');
-    expect(new URL(page.url()).pathname).toBe('/en/');
+    const url = new URL(page.url());
+    expect(url.pathname + url.search).toBe('/en/');
+    // Replaced, not pushed: Back leads to the page before "/".
+    await page.goBack();
+    expect(new URL(page.url()).pathname).toBe('/en/about');
   });
 });
