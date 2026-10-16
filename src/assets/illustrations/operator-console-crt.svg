@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="art" viewBox="0 0 640 260" role="img" aria-labelledby="title">
+  <title id="title">Process control room operator console with hooded CRT monitor, alarm annunciator strip, and operator keyboard</title>
+  <g aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Upper monitor cabinet with angled anti-glare hood (x=152..488, y=16..168) -->
+    <polygon points="164,16 476,16 492,32 492,168 148,168 148,32" stroke-width="2.5" />
+    <!-- Top alarm annunciator tile window strip -->
+    <rect x="168" y="24" width="304" height="18" rx="1" stroke-width="1.5" />
+    <g stroke-width="1.25" opacity="0.75">
+      <line x1="206" y1="24" x2="206" y2="42" />
+      <line x1="244" y1="24" x2="244" y2="42" />
+      <line x1="282" y1="24" x2="282" y2="42" />
+      <line x1="320" y1="24" x2="320" y2="42" />
+      <line x1="358" y1="24" x2="358" y2="42" />
+      <line x1="396" y1="24" x2="396" y2="42" />
+      <line x1="434" y1="24" x2="434" y2="42" />
+    </g>
+
+    <!-- CRT monitor bezel and curved screen (x=168..472, y=48..158) -->
+    <rect x="168" y="48" width="304" height="110" rx="3" stroke-width="1.75" />
+    <rect x="180" y="54" width="248" height="98" rx="10" stroke-width="2" />
+
+    <!-- Process overview faceplates and trend graph inside CRT -->
+    <g stroke-width="1.5" opacity="0.8">
+      <!-- 3 loop faceplate bars on left of screen -->
+      <rect x="196" y="66" width="24" height="72" rx="1" />
+      <line x1="196" y1="90" x2="220" y2="90" />
+      <rect x="202" y="96" width="12" height="36" />
+
+      <rect x="230" y="66" width="24" height="72" rx="1" />
+      <line x1="230" y1="82" x2="254" y2="82" />
+      <rect x="236" y="88" width="12" height="44" />
+
+      <rect x="264" y="66" width="24" height="72" rx="1" />
+      <line x1="264" y1="102" x2="288" y2="102" />
+      <rect x="270" y="108" width="12" height="24" />
+
+      <!-- Process vessel and trend window on right of screen -->
+      <rect x="302" y="66" width="112" height="72" rx="1" />
+      <polyline points="308,118 326,104 344,110 362,86 380,92 398,78 408,82" />
+      <line x1="302" y1="102" x2="414" y2="102" stroke-dasharray="4 3" opacity="0.6" />
+    </g>
+
+    <!-- Right-side monitor controls and keylock -->
+    <circle cx="450" cy="70" r="8" stroke-width="1.5" />
+    <line x1="446" y1="66" x2="454" y2="74" stroke-width="1.5" />
+    <rect x="440" y="92" width="20" height="12" rx="1" stroke-width="1.5" />
+    <rect x="440" y="112" width="20" height="12" rx="1" stroke-width="1.5" />
+    <rect x="440" y="132" width="20" height="12" rx="1" stroke-width="1.5" />
+
+    <!-- Sloped operator keyboard desk and trackball module (y=168..224) -->
+    <polygon points="136,168 504,168 536,216 104,216" stroke-width="2.5" />
+    <rect x="104" y="216" width="432" height="10" rx="2" stroke-width="2.25" />
+    <!-- Operator membrane keypad groups -->
+    <polygon points="148,176 420,176 434,208 130,208" stroke-width="1.5" />
+    <g stroke-width="1.25" opacity="0.7">
+      <line x1="142" y1="186" x2="424" y2="186" />
+      <line x1="136" y1="197" x2="429" y2="197" />
+      <line x1="216" y1="176" x2="206" y2="208" />
+      <line x1="336" y1="176" x2="338" y2="208" />
+    </g>
+    <!-- Trackball assembly on right of desk -->
+    <ellipse cx="476" cy="192" rx="22" ry="14" stroke-width="1.75" />
+    <circle cx="476" cy="190" r="10" stroke-width="1.75" />
+
+    <!-- Console pedestal base -->
+    <rect x="168" y="226" width="304" height="18" rx="2" stroke-width="2.25" />
+    <line x1="140" y1="244" x2="500" y2="244" stroke-width="2.5" />
+  </g>
+</svg>

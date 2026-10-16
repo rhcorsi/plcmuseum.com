@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="art" viewBox="0 0 640 260" role="img" aria-labelledby="title">
+  <title id="title">Dual-bay distributed control system cabinet with redundant controller subracks and marshalling panels</title>
+  <g aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Floor plinth and outer double-bay enclosure -->
+    <rect x="92" y="232" width="456" height="14" rx="1" stroke-width="2.5" />
+    <rect x="100" y="16" width="440" height="216" rx="3" stroke-width="2.5" />
+    <!-- Center vertical frame mullion -->
+    <line x1="320" y1="16" x2="320" y2="232" stroke-width="2.5" />
+    <!-- Top lifting eyes -->
+    <circle cx="124" cy="11" r="5" stroke-width="1.75" />
+    <circle cx="516" cy="11" r="5" stroke-width="1.75" />
+
+    <!-- Left Bay: Redundant DCS Controller and Power Racks (x=112..308) -->
+    <!-- Top redundant power distribution unit -->
+    <rect x="114" y="28" width="192" height="36" rx="2" stroke-width="1.75" />
+    <rect x="122" y="34" width="82" height="24" rx="1" stroke-width="1.25" opacity="0.75" />
+    <rect x="216" y="34" width="82" height="24" rx="1" stroke-width="1.25" opacity="0.75" />
+    <circle cx="132" cy="46" r="3" stroke-width="1.25" />
+    <circle cx="144" cy="46" r="3" stroke-width="1.25" />
+    <circle cx="226" cy="46" r="3" stroke-width="1.25" />
+    <circle cx="238" cy="46" r="3" stroke-width="1.25" />
+
+    <!-- Primary and Redundant Controller Subrack A -->
+    <rect x="114" y="72" width="192" height="64" rx="2" stroke-width="2" />
+    <line x1="146" y1="72" x2="146" y2="136" stroke-width="1.5" />
+    <line x1="178" y1="72" x2="178" y2="136" stroke-width="1.5" />
+    <line x1="210" y1="72" x2="210" y2="136" stroke-width="1.5" />
+    <line x1="242" y1="72" x2="242" y2="136" stroke-width="1.5" />
+    <line x1="274" y1="72" x2="274" y2="136" stroke-width="1.5" />
+    <g stroke-width="1.25" opacity="0.7">
+      <circle cx="130" cy="84" r="2.5" />
+      <circle cx="162" cy="84" r="2.5" />
+      <circle cx="194" cy="84" r="2.5" />
+      <circle cx="226" cy="84" r="2.5" />
+      <circle cx="258" cy="84" r="2.5" />
+      <circle cx="290" cy="84" r="2.5" />
+      <rect x="122" y="96" width="16" height="30" rx="1" />
+      <rect x="154" y="96" width="16" height="30" rx="1" />
+      <rect x="186" y="96" width="16" height="30" rx="1" />
+      <rect x="218" y="96" width="16" height="30" rx="1" />
+      <rect x="250" y="96" width="16" height="30" rx="1" />
+      <rect x="282" y="96" width="16" height="30" rx="1" />
+    </g>
+
+    <!-- I/O Subrack B -->
+    <rect x="114" y="144" width="192" height="56" rx="2" stroke-width="1.75" />
+    <line x1="138" y1="144" x2="138" y2="200" stroke-width="1.25" opacity="0.75" />
+    <line x1="162" y1="144" x2="162" y2="200" stroke-width="1.25" opacity="0.75" />
+    <line x1="186" y1="144" x2="186" y2="200" stroke-width="1.25" opacity="0.75" />
+    <line x1="210" y1="144" x2="210" y2="200" stroke-width="1.25" opacity="0.75" />
+    <line x1="234" y1="144" x2="234" y2="200" stroke-width="1.25" opacity="0.75" />
+    <line x1="258" y1="144" x2="258" y2="200" stroke-width="1.25" opacity="0.75" />
+    <line x1="282" y1="144" x2="282" y2="200" stroke-width="1.25" opacity="0.75" />
+
+    <!-- Bottom exhaust louver grille in left bay -->
+    <rect x="114" y="206" width="192" height="18" rx="1" stroke-width="1.25" opacity="0.65" />
+    <line x1="124" y1="212" x2="296" y2="212" stroke-width="1.25" opacity="0.5" />
+    <line x1="124" y1="218" x2="296" y2="218" stroke-width="1.25" opacity="0.5" />
+
+    <!-- Right Bay: Field Marshalling and Termination Panels (x=334..526) -->
+    <!-- Vertical wire ducts (left, center, right) -->
+    <rect x="334" y="28" width="18" height="196" rx="1" stroke-width="1.5" opacity="0.65" />
+    <rect x="421" y="28" width="18" height="196" rx="1" stroke-width="1.5" opacity="0.65" />
+    <rect x="508" y="28" width="18" height="196" rx="1" stroke-width="1.5" opacity="0.65" />
+
+    <!-- Marshalling terminal rails (two columns of FTB modules) -->
+    <g stroke-width="1.5">
+      <rect x="360" y="32" width="53" height="42" rx="1" />
+      <rect x="360" y="82" width="53" height="42" rx="1" />
+      <rect x="360" y="132" width="53" height="42" rx="1" />
+      <rect x="360" y="182" width="53" height="40" rx="1" />
+
+      <rect x="447" y="32" width="53" height="42" rx="1" />
+      <rect x="447" y="82" width="53" height="42" rx="1" />
+      <rect x="447" y="132" width="53" height="42" rx="1" />
+      <rect x="447" y="182" width="53" height="40" rx="1" />
+    </g>
+    <!-- Terminal block rungs inside marshalling modules -->
+    <g stroke-width="1.25" opacity="0.55">
+      <line x1="368" y1="42" x2="405" y2="42" />
+      <line x1="368" y1="52" x2="405" y2="52" />
+      <line x1="368" y1="62" x2="405" y2="62" />
+      <line x1="368" y1="92" x2="405" y2="92" />
+      <line x1="368" y1="102" x2="405" y2="102" />
+      <line x1="368" y1="112" x2="405" y2="112" />
+      <line x1="368" y1="142" x2="405" y2="142" />
+      <line x1="368" y1="152" x2="405" y2="152" />
+      <line x1="368" y1="162" x2="405" y2="162" />
+      <line x1="455" y1="42" x2="492" y2="42" />
+      <line x1="455" y1="52" x2="492" y2="52" />
+      <line x1="455" y1="62" x2="492" y2="62" />
+      <line x1="455" y1="92" x2="492" y2="92" />
+      <line x1="455" y1="102" x2="492" y2="102" />
+      <line x1="455" y1="112" x2="492" y2="112" />
+      <line x1="455" y1="142" x2="492" y2="142" />
+      <line x1="455" y1="152" x2="492" y2="152" />
+      <line x1="455" y1="162" x2="492" y2="162" />
+    </g>
+  </g>
+</svg>
