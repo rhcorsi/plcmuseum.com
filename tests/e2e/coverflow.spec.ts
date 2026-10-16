@@ -135,6 +135,17 @@ async function selectExhibit(page: Page, id: string) {
   );
 }
 
+/** One CENTER_CHANGE_EVENT after the initial one, at least the resolved --motion-stage plus 120 ms after the last key. */
+async function expectOneSettledEmission(page: Page, keyCount: number) {
+  const { emissions, keys } = await page.evaluate(() => window.coverFlowTest);
+  expect(keys).toHaveLength(keyCount);
+  expect(emissions).toHaveLength(2);
+  const lastKey = keys.at(-1)!;
+  expect(emissions[1]!.at - lastKey.at).toBeGreaterThanOrEqual(lastKey.motionMs + 120);
+  await page.waitForTimeout(lastKey.motionMs + 120);
+  expect(await centerChanges(page)).toHaveLength(2);
+}
+
 async function expectAnnouncement(page: Page, id: string) {
   const item = page.locator(`#stage-item-${id}`);
   const live = page.locator('[aria-live="polite"]');
@@ -346,24 +357,46 @@ test.describe('coverflow', () => {
     await expect(page).toHaveURL(/\/dev\/coverflow\?/);
   });
 
-  for (const steps of [1, 3]) {
-    test(`emits once after the complete motion delay for ${steps} keyboard steps`, async ({ page }) => {
+  // End jumps the new center in from a parked slot, so its own transition-duration is 0s: the delay must come from
+  // the resolved --motion-stage all the same.
+  for (const [key, selectedId] of [
+    ['ArrowRight', DISPUTED_ID],
+    ['End', LAST_ID],
+  ] as const) {
+    test(`emits once after the complete motion delay for ${key}`, async ({ page }) => {
       await openStage(page);
       await afterPaint(page);
       await page.getByRole('listbox').focus();
-      for (let step = 0; step < steps; step += 1) await page.keyboard.press('ArrowRight');
-      const selectedId = steps === 1 ? DISPUTED_ID : 'fx-bevel-station-bs95';
+      await page.keyboard.press(key);
       await expectSelected(page, selectedId);
       await expectSilentSettle(page, selectedId);
-      const { emissions, keys } = await page.evaluate(() => window.coverFlowTest);
-      expect(keys).toHaveLength(steps);
-      expect(emissions).toHaveLength(2);
-      const lastKey = keys.at(-1)!;
-      expect(emissions[1]!.at - lastKey.at).toBeGreaterThanOrEqual(lastKey.motionMs + 120);
-      await page.waitForTimeout(lastKey.motionMs + 120);
-      expect(await centerChanges(page)).toHaveLength(2);
+      await expectOneSettledEmission(page, 1);
     });
   }
+
+  // Three keydowns in one task, so the steps always land within one frame (Playwright's key presses may not): the
+  // card entering at plus 2 on the first step must lose is-jumping on the next ones and animate into the center.
+  test('a burst of three steps animates the new center and emits once after the last step', async ({ page }) => {
+    await openStage(page);
+    await afterPaint(page);
+    const selectedId = 'fx-bevel-station-bs95';
+    const center = await page.evaluate(() => {
+      const stage = document.getElementById('stage')!;
+      for (let step = 0; step < 3; step += 1) {
+        stage.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      }
+      const item = stage.querySelector<HTMLElement>('.stage-item.is-center')!;
+      const running = item
+        .getAnimations()
+        .filter((animation) => animation instanceof CSSTransition && animation.playState === 'running')
+        .map((animation) => (animation as CSSTransition).transitionProperty);
+      return { id: item.dataset.id, running };
+    });
+    expect(center).toEqual({ id: selectedId, running: expect.arrayContaining(['transform']) });
+    await expectSelected(page, selectedId);
+    await expectSilentSettle(page, selectedId);
+    await expectOneSettledEmission(page, 3);
+  });
 
   test('cards that leave the window during a burst fade out before they are parked', async ({ page }) => {
     await openStage(page);
