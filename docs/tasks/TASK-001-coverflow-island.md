@@ -1,4 +1,4 @@
-status: done
+status: in_review
 id: TASK-001
 title: CoverFlow stage island (React)
 assignee: codex
@@ -172,9 +172,10 @@ Decisions recorded at review:
 - The listbox's option is the item's link `a.card`; the `<li>` has `role="none"`; no interactive control is nested in an option.
 - Five accessible options at rest: center plus or minus 2. Parked cards are `visibility: hidden` and outside the accessibility tree, as in the WAI-ARIA carousel pattern; all 12 links carry `role="option"`, and `aria-posinset` and `aria-setsize` give the full count.
 - Timeline picks are silent (the scrubber's `aria-valuetext` speaks them), and the list carries `data-center-id` from the first `CENTER_CHANGE_EVENT` until unmount.
-- The implementer's one-line `reducedMotion: 'reduce'` setup in `tests/e2e/pages.spec.ts` is accepted (owner-authorized; that test checks StageList's static names, CoverFlow's suite checks the enhanced ones).
+- The implementer's one-line `reducedMotion: 'reduce'` setup in `tests/e2e/pages.spec.ts` is accepted by the architect, who owns that test (the implementer cited an owner authorization that is not recorded; that test checks StageList's static names, CoverFlow's suite checks the enhanced ones).
 - The 390 px and 1280 px captures, stage and reduced motion, were inspected by the architect outside the repository; nothing is committed. Linux baselines and `toHaveScreenshot` follow TASK-002.
 - Accepted advisory: axe `label-content-name-mismatch` on the cards.
+- JavaScript on the home, measured on a development-stage build (the only stage that shows an exhibit today): 72.0 KB gzip in total against the 150 KB home budget, of which the React client runtime is 64.3 KB, the CoverFlow chunk 3.3 KB (island budget 45 KB) and the header controls about 1.6 KB. Lighthouse is not part of the toolchain and has not been run.
 - Pending with the owner: the reduced-motion check with the OS setting (the last unchecked criterion). Do it under `pnpm dev` (on the home, or on `/dev/coverflow`): the only exhibit, the sample `ab-plc-5`, is a draft, so the preview shows the empty state. Promoting the sample to `review` so that the preview shows the stage is an owner decision.
 
 Integration:
