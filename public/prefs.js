@@ -1,6 +1,7 @@
-// Preferences applied before first paint (docs/adr/0012-preferences-before-first-paint.md): Base.astro writes this
-// classic script into <head> and the build moves it to the end of <head>, after the stylesheets. It only reads storage. Its literals mirror src/islands/contracts.ts, src/lib/era.ts
-// and src/i18n/langs.ts; tests/islands/prefs-head.test.ts keeps them in step and the file under 1 KB gzip.
+// Preferences applied before first paint (docs/adr/0012-preferences-before-first-paint.md). Base.astro writes this
+// classic script into <head>; the build moves it to the end of <head> as /_astro/prefs.<hash>.js. It writes
+// nothing. Its literals mirror src/islands/contracts.ts, src/lib/era.ts and src/i18n/langs.ts;
+// tests/islands/prefs-head.test.ts keeps them in step and the file under 1 KB gzip.
 (function () {
   try {
     var root = document.documentElement;
@@ -11,7 +12,10 @@
       // Only a home reached through a same-origin redirect (the Worker's "/" answer) follows the remembered
       // language (ADR-0011); a link, a reload or a history move keeps its language.
       var nav = performance.getEntriesByType('navigation')[0];
-      if (nav && nav.type === 'navigate' && nav.redirectCount > 0) {
+      // WebKit can leave the redirect out of this entry and count it only in the older performance.navigation; both
+      // count same-origin redirects only.
+      var legacy = performance.navigation || nav;
+      if (nav && nav.type === 'navigate' && (nav.redirectCount > 0 || legacy.redirectCount > 0)) {
         // Stopping the parser first leaves this home without a body: it never paints or reaches a screen reader.
         window.stop();
         location.replace('/' + lang + '/' + location.search + location.hash);

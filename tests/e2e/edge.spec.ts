@@ -112,6 +112,67 @@ test.describe('security headers', () => {
   });
 });
 
+// Files under /_astro/ have content-hashed names, so browsers may keep them for a year without asking; everything
+// else keeps the assets binding default and is revalidated on every use, so a deploy reaches visitors at once.
+test.describe('Cache-Control', () => {
+  const IMMUTABLE = 'private, max-age=31536000, immutable';
+  const REVALIDATE = 'public, max-age=0, must-revalidate';
+
+  test('a year, immutable, on every /_astro/ file a page names', async ({ request }) => {
+    const urls = new Set<string>();
+    for (const path of ['/en/about', '/e2e/islands']) {
+      const html = await (await request.get(path, NO_REDIRECTS)).text();
+      for (const [, url = ''] of html.matchAll(/"(\/_astro\/[^"]+)"/g)) urls.add(url);
+    }
+    // Stylesheets, /prefs.js, island components and the React renderer.
+    expect(
+      [...urls].filter((url) => url.endsWith('.css')),
+      'stylesheets',
+    ).not.toHaveLength(0);
+    expect([...urls].filter((url) => url.endsWith('.js')).length, 'scripts').toBeGreaterThan(2);
+    for (const url of urls) {
+      const response = await request.get(url, NO_REDIRECTS);
+      expect(response.status(), url).toBe(200);
+      expect(response.headers()['cache-control'], url).toBe(IMMUTABLE);
+    }
+  });
+
+  for (const [name, path, status] of [
+    ['an HTML page', '/en/about', 200],
+    ['a 404 page', '/en/does-not-exist', 404],
+    ['a missing file under /_astro/', '/_astro/missing.AAAAAAAA.js', 404],
+    ['a file outside /_astro/', '/favicon.svg', 200],
+    ['csp.json', '/csp.json', 200],
+  ] as const) {
+    test(`revalidated on ${name}`, async ({ request }) => {
+      const response = await request.get(path, NO_REDIRECTS);
+      expect(response.status()).toBe(status);
+      expect(response.headers()['cache-control']).toBe(REVALIDATE);
+    });
+  }
+
+  // The binding answers a matching If-None-Match with a 304 for its 404 page too; the Worker asks it about /_astro/
+  // without validators, so a stored 404 can never come back immutable.
+  test('asked again with its ETag, a missing /_astro/ file stays a revalidating 404', async ({ request }) => {
+    const path = '/_astro/missing.AAAAAAAA.js';
+    const etag = (await request.get(path, NO_REDIRECTS)).headers()['etag'] ?? '';
+    expect(etag, 'the 404 page carries an ETag').not.toBe('');
+    const response = await request.get(path, { ...NO_REDIRECTS, headers: { 'If-None-Match': etag } });
+    expect(response.status()).toBe(404);
+    expect(response.headers()['cache-control']).toBe(REVALIDATE);
+  });
+
+  test('asked again with its ETag, a /_astro/ file comes back whole and immutable', async ({ request }) => {
+    const html = await (await request.get('/en/about', NO_REDIRECTS)).text();
+    const href = /<link rel="stylesheet" href="(\/_astro\/[^"]+\.css)"/.exec(html)?.[1] ?? '';
+    const etag = (await request.get(href, NO_REDIRECTS)).headers()['etag'] ?? '';
+    expect(etag, `${href} carries an ETag`).not.toBe('');
+    const response = await request.get(href, { ...NO_REDIRECTS, headers: { 'If-None-Match': etag } });
+    expect(response.status()).toBe(200);
+    expect(response.headers()['cache-control']).toBe(IMMUTABLE);
+  });
+});
+
 test.describe('/api', () => {
   test('GET /api/health answers ok, the build and its date, nothing else', async ({ request }) => {
     const response = await request.get('/api/health', NO_REDIRECTS);
