@@ -1,4 +1,4 @@
-status: in_review
+status: done
 id: TASK-001
 title: CoverFlow stage island (React)
 assignee: codex
@@ -55,15 +55,15 @@ Era theme files, data loading, routing, header rendering, share cards, timeline 
 - Tests: unit tests (`tests/islands/coverflow.test.ts` or `.tsx`) run in Vitest's node environment with no DOM (no jsdom or testing-library: adding one needs the owner's approval). Test pure logic there (index math, wrap-around, debounce, event payloads); keyboard, swipe, aria-live and reduced motion go in `tests/e2e/coverflow.spec.ts` (Playwright, `reducedMotion: 'reduce'` for the reduced variant).
 
 ## Acceptance criteria
-- [ ] Keyboard, swipe and wheel navigation work; centered item is announced via `aria-live="polite"`.
-- [ ] Once per settled change and once after attaching, `onCenterChange` (when given) receives the id and `CENTER_CHANGE_EVENT` is dispatched on `document` with `{ id, decade, era }`; the initial emission is not announced; an `EXHIBIT_SELECT_EVENT` centers the given exhibit without announcing it and leaves focus on the sender, in both motion modes.
-- [ ] `#<listId>[data-center-id]` equals `detail.id` at every `CENTER_CHANGE_EVENT`, the initial one included, in both motion modes; it is removed on unmount.
-- [ ] No interactive control nested in an option: an e2e test in the active stage finds 12 `option` roles and no match for `[role=option] :is(a[href], button, input, select, textarea, summary, [tabindex])`; every attribute the island sets is restored when the stage deactivates (except `data-center-id`, which stays until unmount).
-- [ ] Stage geometry uses only the stage tokens (no literal widths, pitches or depths); a review check, not covered by tests/styles/tokens-only.test.ts.
-- [ ] No layout shift when images load (aspect ratio reserved from fixtures); a photo always shows its `credit` next to it.
-- [ ] Fixture page renders 12 items at 390 px and 1280 px; captures attached to the PR (Linux baselines and `toHaveScreenshot` are added by the architect after TASK-002, decided at review on 2026-10-15).
-- [ ] Reduced-motion variant verified with the OS setting.
-- [ ] `pnpm lint && pnpm typecheck && pnpm test && pnpm build` green.
+- [x] Keyboard, swipe and wheel navigation work; centered item is announced via `aria-live="polite"`.
+- [x] Once per settled change and once after attaching, `onCenterChange` (when given) receives the id and `CENTER_CHANGE_EVENT` is dispatched on `document` with `{ id, decade, era }`; the initial emission is not announced; an `EXHIBIT_SELECT_EVENT` centers the given exhibit without announcing it and leaves focus on the sender, in both motion modes.
+- [x] `#<listId>[data-center-id]` equals `detail.id` at every `CENTER_CHANGE_EVENT`, the initial one included, in both motion modes; it is removed on unmount.
+- [x] No interactive control nested in an option: an e2e test in the active stage finds 12 `option` roles and no match for `[role=option] :is(a[href], button, input, select, textarea, summary, [tabindex])`; every attribute the island sets is restored when the stage deactivates (except `data-center-id`, which stays until unmount).
+- [x] Stage geometry uses only the stage tokens (no literal widths, pitches or depths); a review check, not covered by tests/styles/tokens-only.test.ts.
+- [x] No layout shift when images load (aspect ratio reserved from fixtures); a photo always shows its `credit` next to it.
+- [x] Fixture page renders 12 items at 390 px and 1280 px; captures inspected by the architect outside the repository (Linux baselines and `toHaveScreenshot` are added by the architect after TASK-002, decided at review on 2026-10-15).
+- [ ] Reduced-motion variant verified with the OS setting (pending with the owner; Playwright covers the browser setting, initially and during interaction).
+- [x] `pnpm lint && pnpm typecheck && pnpm test && pnpm build` green.
 
 ## Verification steps
 `pnpm dev` → `/dev/coverflow?era=1980s&theme=dark`; `pnpm test`; `pnpm test:e2e --grep coverflow` (first time: `pnpm exec playwright install chromium`); Lighthouse on the fixture page.
@@ -160,3 +160,29 @@ Verification:
 Only the controller, its e2e spec and this task file changed in round 2. The Review section is untouched. No dependency, contract, content, Worker or tracked configuration was edited; no merge of this PR or deployment was performed.
 
 ## Review (Claude Code)
+
+Three review rounds on PR #9 (2026-10-15), each finding confirmed by two independent verifiers, then the integration on `feat/task-001-integration` (2026-10-16).
+
+- **Round 1** (changes requested, 15 items and three test fixes): attach after `DOMContentLoaded` when the list is not parsed yet; the latest callback through a ref and one attach per `listId`; the sender keeps focus on `EXHIBIT_SELECT_EVENT`; the listbox pattern with no interactive control nested in an option; the live region outside the controls, in both motion modes; the Open link described by the centered exhibit; no announcement of the initial exhibit; focus carried across motion-preference changes; controls that reserve their block size (layout shift); an init class without transitions; jumps without transitions on short wrap-arounds; far items parked; the watermark clear of the card; the stage geometry tokens; the committed Windows captures removed.
+- **Round 2** (changes requested, 10 items): neighbors no longer pop in and out (unparked window of plus or minus 2, transparent outer slots, `is-jumping` only on a jump); the settle delay from the resolved `--motion-stage`; deterministic parser-deferral and burst-timing tests; layout-shift sources inside the stage rejected; same-value writes counted on parked items; no `style=""` left behind. Item 3 was replaced by an owner decision: timeline picks center silently, and `data-center-id` is written before every `CENTER_CHANGE_EVENT`.
+- **Round 3** (re-review of the round 2 head, merged as `f64db8c`): the round 2 items verified. Two findings moved to the integration: a card that left the window while its fade from plus or minus 1 was still running was parked at once, so holding an arrow key made one card vanish on every step; and the three-step burst test guarded the jump write only when Playwright's key presses landed within two frames.
+
+Decisions recorded at review:
+- The aria-hidden watermark span (`STAGE_HOOKS.watermark`, digits only) is approved by the owner, the one exception to "StageList markup stays".
+- The listbox's option is the item's link `a.card`; the `<li>` has `role="none"`; no interactive control is nested in an option.
+- Five accessible options at rest: center plus or minus 2. Parked cards are `visibility: hidden` and outside the accessibility tree, as in the WAI-ARIA carousel pattern; all 12 links carry `role="option"`, and `aria-posinset` and `aria-setsize` give the full count.
+- Timeline picks are silent (the scrubber's `aria-valuetext` speaks them), and the list carries `data-center-id` from the first `CENTER_CHANGE_EVENT` until unmount.
+- The implementer's one-line `reducedMotion: 'reduce'` setup in `tests/e2e/pages.spec.ts` is accepted (owner-authorized; that test checks StageList's static names, CoverFlow's suite checks the enhanced ones).
+- The 390 px and 1280 px captures, stage and reduced motion, were inspected by the architect outside the repository; nothing is committed. Linux baselines and `toHaveScreenshot` follow TASK-002.
+- Accepted advisory: axe `label-content-name-mismatch` on the cards.
+- Pending with the owner: the reduced-motion check with the OS setting (the last unchecked criterion).
+
+Integration:
+- Home (`src/pages/[lang]/index.astro`): CoverFlow `client:load` before the StageList, `listId` equal to the list's id, `initialId` the first card (also the page era), labels from `t()`. The empty state and the decade grid are unchanged (the grid waits on an owner decision). One card: the island mounts from one exhibit up, as a listbox of one option with Prev and Next disabled, so the home keeps one presentation and the same stage hooks as the collection grows; development and preview currently show one exhibit. Covered by `tests/e2e/home.spec.ts` (written for any count) and by the one-exhibit case of the short-stage test.
+- `CoverFlowProps.eraUiEnabled` is optional, deprecated and ignored; no page passes it.
+- Pop-out: a card leaving the window stays unparked and transparent at the outer slot on the side it left from, and is parked once the resolved `--motion-stage` has elapsed, unless it came back by then. New tests: cards leaving during a burst keep a running opacity transition; a card that comes back is never parked; the parked-writes test now runs through that settle-time parking and still sees no write on a card that was already parked.
+- Burst determinism: the three keydowns are dispatched in one `page.evaluate`, and the test asserts a running transform transition on the new center, the emission delay and the single emission. An End case covers a center that jumps in from a parked slot. Mutation checks: add-only `is-jumping` fails the burst test (no running transition); the settle delay read from the center item's `transition-duration` fails the End case (127 ms instead of at least 870 ms); both together fail the burst test's transition and delay assertions; the pre-fix parking fails the leaving-cards and parked-writes tests; a parking that ignores a card's return fails the comes-back test; a parking that re-parks every card outside the window fails the parked-writes test. Every mutation was reverted.
+- CSP: `tests/e2e/fixtures/coverflow.astro` (served at `/e2e/coverflow` in `PLCMUSEUM_E2E_FIXTURES=1` builds) renders the fixture stage in the page layout; the edge test waits for the initial `CENTER_CHANGE_EVENT` and the listbox, checks the CSSOM geometry, turns Era UI on and follows the stage to the last exhibit's era, with no `securitypolicyviolation` and no console error.
+- `tests/e2e/pages.spec.ts`: the 320 px column check no longer measures an absolutely positioned box against its parent's column (the decorative year is wider than its card on purpose); its glyphs are still checked against its own box.
+
+Verification (Windows, Chromium, an untracked Playwright configuration with unique ports and no server reuse): `node scripts/check-public-safety.mjs`, `pnpm validate:content`, `pnpm lint`, `pnpm typecheck` (zero errors, warnings or hints), `pnpm test` (664 tests; the first run hit the five-second timeout in the unchanged validate-content subprocess test, the rerun passed) and `pnpm build` green; the `pages` project three times in a row, 137/137 each; after `PLCMUSEUM_E2E_FIXTURES=1 pnpm build`, the `edge` project 48/48; a plain `pnpm build` last.
