@@ -48,7 +48,7 @@ React islands (owner: Codex):
 
 Script components (owner: Codex; an Astro component plus a TypeScript module under `src/islands/<name>/` loaded with `<script src>`, no framework; ADR-0011):
 - `EraToggle`: props `{ lang }` (`EraToggleProps`); a native switch button that persists `STORAGE_KEYS.eraUi`, applies `html[data-page-era]`, follows `CENTER_CHANGE_EVENT`, emits `ERA_CHANGE_EVENT` and announces only the visitor's own changes (hooks `ERA_HOOKS`, `ERA_TOGGLE_HOOKS`). `/prefs.js` has already applied the stored state before first paint (ADR-0012), so the toggle starts without a museum-first flash.
-- `LanguageSwitch`: behavior on `LanguageLinks` (hooks `LANGUAGE_HOOKS`) that stores a plain click in `STORAGE_KEYS.lang`; `/prefs.js` follows it on a language home reached through the `/` redirect (ADR-0012). The links work without JS.
+- `LanguageSwitch`: behavior on `LanguageLinks` (hooks `LANGUAGE_HOOKS`) that stores a plain click in `STORAGE_KEYS.lang`; `/prefs.js` follows it on the language home the `/` redirect chose (`?auto`, ADR-0012). The links work without JS.
 
 `public/prefs.js` (ADR-0012, owner: Claude Code) is not a component: a classic script ending every built page's `<head>` that applies the stored era and follows the remembered language before first paint. It only reads storage, and stays at most 1 KB gzip.
 

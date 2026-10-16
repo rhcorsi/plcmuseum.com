@@ -2,6 +2,7 @@
 // Static language switch: plain links to the same page in every language, readable without JS. The
 // LanguageSwitch script (ADR-0011, docs/DESIGN_SYSTEM.md section 3) only adds remembering the choice on top of this.
 import { alternates, LANG_TAGS, LANGS, type Lang, t } from '../i18n/utils';
+import { LANGUAGE_HOOKS } from '../islands/contracts';
 
 interface Props {
   lang: Lang;
@@ -15,7 +16,7 @@ const hrefs = alternates(path ?? '/');
 const currentMark = path === null ? 'true' : 'page';
 ---
 
-<nav class="languages" aria-label={t(lang, 'nav.languages')}>
+<nav class:list={['languages', LANGUAGE_HOOKS.nav]} aria-label={t(lang, 'nav.languages')}>
   <ul>
     {LANGS.map((code) => (
       <li>
@@ -23,6 +24,7 @@ const currentMark = path === null ? 'true' : 'page';
           href={hrefs[code]}
           hreflang={LANG_TAGS[code]}
           lang={LANG_TAGS[code]}
+          {...{ [LANGUAGE_HOOKS.lang]: code }}
           aria-current={code === lang ? currentMark : undefined}
         >
           {t(lang, `lang.${code}`)}
@@ -31,6 +33,7 @@ const currentMark = path === null ? 'true' : 'page';
     ))}
   </ul>
 </nav>
+<script src="../islands/language-switch/main.ts"></script>
 
 <style>
   ul {

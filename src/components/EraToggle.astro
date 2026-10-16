@@ -1,0 +1,103 @@
+---
+// Header preference control; localized text is resolved here and read by the small external script.
+import { t } from '../i18n/utils';
+import { ERA_TOGGLE_HOOKS, type EraToggleProps } from '../islands/contracts';
+import { ERA_THEMES } from '../lib/era';
+
+type Props = EraToggleProps;
+const { lang } = Astro.props;
+const announcements = Object.fromEntries(
+  ERA_THEMES.map((era) => [`data-announce-${era}`, t(lang, 'era.announce_on', { decade: t(lang, `decade.${era}`) })]),
+);
+---
+
+<div
+  class={ERA_TOGGLE_HOOKS.root}
+  data-announce-off={t(lang, 'era.announce_off')}
+  data-announce-no-era={t(lang, 'era.announce_on_no_era')}
+  {...announcements}
+>
+  <button type="button" class="era-toggle__button" role="switch" aria-checked="false">
+    <span class="era-toggle__label">{t(lang, 'era.toggle')}</span>
+    <span class="era-toggle__track" aria-hidden="true">
+      <span class="era-toggle__thumb"></span>
+    </span>
+  </button>
+  <span class="era-toggle__status sr-only" aria-live="polite" aria-atomic="true"></span>
+</div>
+<script src="../islands/era-toggle/main.ts"></script>
+
+<style>
+  .era-toggle,
+  .era-toggle__button {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+  }
+
+  .era-toggle__button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-block-size: 2.75rem;
+    padding-inline: var(--space-2);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+  }
+
+  .era-toggle__button:hover {
+    background: var(--color-surface-hover);
+  }
+
+  .era-toggle:not([data-ready]) .era-toggle__button {
+    visibility: hidden;
+  }
+
+  .era-toggle__track {
+    flex-shrink: 0;
+    inline-size: calc(var(--space-4) * 2 + var(--space-1) * 2 + var(--border-width) * 2);
+    block-size: calc(var(--space-4) + var(--space-1) * 2 + var(--border-width) * 2);
+    padding: var(--space-1);
+    border: var(--border-width) solid var(--color-text-muted);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+
+  .era-toggle__thumb {
+    display: block;
+    inline-size: var(--space-4);
+    block-size: var(--space-4);
+    border: var(--border-width) solid var(--color-text-muted);
+    border-radius: var(--radius-md);
+    background: var(--color-text-muted);
+    transform: none;
+  }
+
+  .era-toggle__button[aria-checked='true'] .era-toggle__track {
+    border-color: var(--color-text);
+    background: var(--color-accent);
+  }
+
+  .era-toggle__button[aria-checked='true'] .era-toggle__thumb {
+    border-color: var(--color-accent-contrast);
+    background: var(--color-accent-contrast);
+    transform: translateX(100%);
+  }
+
+  .era-toggle[data-animate] .era-toggle__thumb {
+    transition: transform var(--motion-fast) var(--motion-ease);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .era-toggle[data-animate] .era-toggle__thumb {
+      transition: none;
+    }
+  }
+
+  @media (scripting: none) {
+    .era-toggle {
+      display: none;
+    }
+  }
+</style>

@@ -61,8 +61,8 @@ Accepted 2026-10-15. Astro islands need inline hydration scripts, which the CSP 
 
 ## ADR-0011: Header controls without React
 
-Accepted 2026-10-15. EraToggle and LanguageSwitch are script components (an Astro component plus a same-origin TypeScript module, no framework, at most 3.5 KB gzip together), so exhibit pages stay within their JS budget; the language picked with a plain click is remembered in localStorage and followed on a language home reached through the `/` redirect, with no cookie and no Worker change. Full record: `docs/adr/0011-header-controls-without-react.md`.
+Accepted 2026-10-15. EraToggle and LanguageSwitch are script components (an Astro component plus a same-origin TypeScript module, no framework, at most 3.5 KB gzip together), so exhibit pages stay within their JS budget; the language picked with a plain click is remembered in localStorage and followed on the language home the `/` redirect chose, with no cookie (amended by ADR-0012: the redirect marks that home with `?auto`). Full record: `docs/adr/0011-header-controls-without-react.md`.
 
 ## ADR-0012: Preferences applied before first paint
 
-Accepted and implemented 2026-10-15. A classic, render-blocking, same-origin `/prefs.js` first in every `<head>` applies the stored era and follows the remembered language before first paint, with no CSP change and a budget of 1 KB gzip. Full record: `docs/adr/0012-preferences-before-first-paint.md`.
+Accepted and implemented 2026-10-15. A classic, render-blocking, same-origin `/prefs.js` ending every `<head>` applies the stored era and follows the remembered language before first paint, with no CSP change and a budget of 1 KB gzip. It is served under a content-hashed name in `/_astro/`, which browsers keep for a year, and verified in Chromium, Firefox and WebKit. Amended the same day: the Worker's `/` redirect marks its target `?auto` and only that home follows, so a link to `/pt` keeps Portuguese; the script drops Navigation Timing and removes the marker with `history.replaceState()`. Full record: `docs/adr/0012-preferences-before-first-paint.md`.
