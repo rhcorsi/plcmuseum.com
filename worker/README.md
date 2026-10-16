@@ -28,7 +28,9 @@ The Content-Security-Policy also carries the hashes of the inline scripts and st
 
 ### `GET /` and `HEAD /` (edge redirect)
 
-Reads `Accept-Language` and redirects 302 to `/<lang>/` for the supported language (pt, en, es, de, it) with the highest quality, the earliest one on a tie. The primary subtag decides (`pt-BR` picks pt, `de-CH` picks de); ranges with `q=0`, `*` and unsupported or malformed entries are skipped. Fallback `/en/`. Headers: `Vary: Accept-Language`, `Cache-Control: private, max-age=0`. No cookies.
+Reads `Accept-Language` and redirects 302 to `/<lang>/?auto` for the supported language (pt, en, es, de, it) with the highest quality, the earliest one on a tie. The primary subtag decides (`pt-BR` picks pt, `de-CH` picks de); ranges with `q=0`, `*` and unsupported or malformed entries are skipped. Fallback `/en/?auto`. The query of `/` is not kept. Headers: `Vary: Accept-Language`, `Cache-Control: private, max-age=0`. No cookies.
+
+`?auto` (`AUTO_QUERY` in `src/language.ts`) tells `/prefs.js` that the home was chosen for the visitor, not asked for: only there it follows the language the visitor picked in the header, then removes the marker from the address bar (ADR-0012). The binding's own redirects onto a home (`/pt` and `/pt/index.html` to `/pt/`) carry no marker, so a link keeps its language.
 
 ### `GET /api/health` and `HEAD /api/health`
 
@@ -41,6 +43,8 @@ Reads `Accept-Language` and redirects 302 to `/<lang>/` for the supported langua
 ### Static site
 
 `GET` and `HEAD` go to the assets binding, which applies `html_handling: "auto-trailing-slash"` and `not_found_handling: "404-page"` (the nearest `404.html`, so `/pt/...` gets the Portuguese page). Any other method: `405` with `Allow: GET, HEAD`.
+
+Caching: the binding sends `Cache-Control: public, max-age=0, must-revalidate` on every file, so browsers revalidate each use. Every name under `/_astro/` carries a hash of its content (Vite's output, and `/_astro/prefs.<hash>.js`, which the build copies from `public/prefs.js`), so when the binding answers a path there with 200 the Worker replaces that with `private, max-age=31536000, immutable`: a changed file gets a new URL, and repeat page views fetch nothing but the HTML before first paint. `private` keeps shared caches out, so no proxy serves preview's files past Cloudflare Access; Cloudflare does not cache Worker responses either way. The Worker sends those requests to the binding without `If-None-Match` and `If-Modified-Since`: the binding answers a matching ETag with a 304 before it looks at what it would serve, its 404 page included, so a 304 could make a stored 404 immutable. A revalidation therefore gets the file whole, once. Everything else keeps the binding's header, a 404 page under `/_astro/` included; the build refuses a `public/_astro/` folder, whose files would keep their names.
 
 ### Logging
 

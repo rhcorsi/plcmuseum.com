@@ -1,6 +1,8 @@
 // @ts-check
 import { execFileSync } from 'node:child_process';
-import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@astrojs/react';
@@ -92,16 +94,25 @@ async function collectCspHashes(dir) {
 const PREFS_SCRIPT = '<script src="/prefs.js"></script>';
 
 /**
- * Moves /prefs.js (ADR-0012) from where Base.astro writes it to the end of <head>, after the CSP meta element and the
- * stylesheets Astro injects there. Chromium's preload scanner holds back every request that follows a CSP meta until
- * the parser has read that meta, so a parser-blocking script in front of it delayed the stylesheets by one round trip
- * on every page view. At the end it still blocks rendering, and it runs once the stylesheets have arrived.
+ * Serves /prefs.js (ADR-0012) under a content-hashed name in _astro/, which the Worker lets browsers cache for a year,
+ * and moves it from where Base.astro writes it to the end of <head>, after the CSP meta element and the stylesheets
+ * Astro injects there. Chromium's preload scanner holds back every request that follows a CSP meta until the parser
+ * has read that meta, so a parser-blocking script in front of it delayed the stylesheets by one round trip on every
+ * page view. At the end it still blocks rendering, and it runs once the stylesheets have arrived.
+ * The file is public/prefs.js byte for byte, and dist/prefs.js goes, so the hashed name is the only one served.
  * Every built page has the script once (Base.astro); a page without it is a layout regression and fails the build.
  * @param {URL} dir
- * @returns {Promise<number>} pages rewritten
+ * @returns {Promise<{ src: string, pages: number }>} the script's URL and the pages rewritten
  */
-async function placePrefsScriptLast(dir) {
+async function placePrefsScript(dir) {
   const root = fileURLToPath(dir);
+  const source = await readFile(path.join(root, 'prefs.js'));
+  const name = `prefs.${createHash('sha256').update(source).digest('base64url').slice(0, 8)}.js`;
+  await mkdir(path.join(root, '_astro'), { recursive: true });
+  await writeFile(path.join(root, '_astro', name), source);
+  await rm(path.join(root, 'prefs.js'));
+  const src = `/_astro/${name}`;
+  const script = `<script src="${src}"></script>`;
   const pages = (await readdir(root, { recursive: true })).filter((file) => file.endsWith('.html'));
   for (const page of pages) {
     const file = path.join(root, page);
@@ -112,9 +123,9 @@ async function placePrefsScriptLast(dir) {
       throw new Error(`${page}: expected exactly one ${PREFS_SCRIPT} in <head> (src/layouts/Base.astro)`);
     const without = html.slice(0, at) + html.slice(at + PREFS_SCRIPT.length);
     const end = without.search(/<\/head>/i);
-    await writeFile(file, without.slice(0, end) + PREFS_SCRIPT + without.slice(end));
+    await writeFile(file, without.slice(0, end) + script + without.slice(end));
   }
-  return pages.length;
+  return { src, pages: pages.length };
 }
 
 /**
@@ -123,7 +134,9 @@ async function placePrefsScriptLast(dir) {
  * - removes the fixture pages under /dev, which exist for component work only (docs/DESIGN_SYSTEM.md section 7),
  *   and every asset no remaining page reaches;
  * - writes csp.json, the island hashes the Worker adds to its Content-Security-Policy header;
- * - moves /prefs.js to the end of <head>, after the CSP meta and the stylesheets (ADR-0012);
+ * - serves /prefs.js under a content-hashed name in _astro/ and moves it to the end of <head>, after the CSP meta and
+ *   the stylesheets (ADR-0012);
+ * - refuses a public/_astro/ folder: the Worker caches /_astro/ for a year, which only content-hashed names survive;
  * - with PLCMUSEUM_E2E_FIXTURES=1 (the e2e job only), adds one test page per tests/e2e/fixtures/*.astro under /e2e/.
  * @returns {import('astro').AstroIntegration}
  */
@@ -131,7 +144,11 @@ function siteBuild() {
   return {
     name: 'plcmuseum:build',
     hooks: {
-      'astro:config:setup': async ({ injectRoute, logger }) => {
+      'astro:config:setup': async ({ config, injectRoute, logger }) => {
+        // public/ is copied as is, so its files keep their names from one deploy to the next: under /_astro/, which
+        // browsers keep for a year without asking (worker/src/index.ts), a changed file would never reach them.
+        if (existsSync(path.join(fileURLToPath(config.publicDir), '_astro')))
+          throw new Error('public/_astro/ is not allowed: /_astro/ holds content-hashed build output only');
         if (process.env.PLCMUSEUM_E2E_FIXTURES !== '1') return;
         // One test page per .astro file in tests/e2e/fixtures/, so an island task adds its page without editing config.
         // Helper components in that folder are .tsx or .ts (HydrationProbe.tsx), never .astro.
@@ -153,11 +170,11 @@ function siteBuild() {
         // Once /dev and the unreachable assets are gone: only published pages contribute, and the pruner never sees it.
         const csp = await collectCspHashes(dir);
         await writeFile(new URL('csp.json', dir), `${JSON.stringify(csp)}\n`);
-        const placed = await placePrefsScriptLast(dir);
+        const prefs = await placePrefsScript(dir);
         logger.info(
           `build.json written (${info.build.slice(0, 12)}); /dev removed; ${pruned.length} unreachable assets pruned; ` +
             `csp.json written (${csp['script-src'].length} script and ${csp['style-src'].length} style hashes); ` +
-            `/prefs.js moved to the end of <head> on ${placed} pages`,
+            `/prefs.js served as ${prefs.src} at the end of <head> on ${prefs.pages} pages`,
         );
         for (const file of pruned) logger.debug(`pruned ${file}`);
       },

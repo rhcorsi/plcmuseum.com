@@ -39,6 +39,9 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
         data-era={card.era}
         data-year={card.year}
       >
+        <span class={STAGE_HOOKS.watermark} aria-hidden="true">
+          {card.year}
+        </span>
         {/* Named by name, maker and year, described by the tagline: the full card text would make a long link name.
             CoverFlow turns this link into the listbox option, so the option keeps the same name and description. */}
         <a
@@ -73,6 +76,10 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
 </ol>
 
 <style>
+  .stage-watermark {
+    display: none;
+  }
+
   .stage-list {
     display: grid;
     gap: var(--space-4);
@@ -134,6 +141,106 @@ const { exhibits, lang, initialId = exhibits[0]?.id, label, id = 'stage' } = Ast
     .card {
       grid-template-columns: 18rem 1fr;
       align-items: center;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .stage-list.is-coverflow {
+      --coverflow-watermark-size: clamp(5rem, 15vw, 12rem);
+
+      position: relative;
+      isolation: isolate;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+      padding-block: calc(var(--coverflow-watermark-size) + var(--space-4)) var(--space-6);
+      overflow: hidden;
+      perspective: var(--stage-perspective);
+      touch-action: pan-y pinch-zoom;
+    }
+
+    .is-coverflow .stage-item {
+      position: relative;
+      grid-area: 1 / 1;
+      justify-self: center;
+      inline-size: var(--stage-item-width);
+      min-inline-size: 0;
+      z-index: var(--coverflow-order);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(calc(var(--coverflow-offset) * (var(--stage-pitch) + var(--stage-gap))))
+        translateZ(calc(var(--coverflow-distance) * var(--stage-depth) * -1))
+        rotateY(calc(var(--coverflow-direction) * var(--stage-tilt) * -1)) scale(var(--stage-scale-side));
+      transition:
+        transform var(--motion-stage) var(--motion-ease-stage),
+        opacity var(--motion-stage) var(--motion-ease-stage);
+    }
+
+    .is-coverflow .stage-item.is-near {
+      opacity: 1;
+      pointer-events: auto;
+      will-change: transform, opacity;
+    }
+
+    .is-coverflow .stage-item.is-center {
+      transform: translateX(0) translateZ(0) rotateY(0) scale(1);
+    }
+
+    .is-coverflow .stage-item.is-parked {
+      visibility: hidden;
+      transition: none;
+      will-change: auto;
+    }
+
+    .is-coverflow .card {
+      position: relative;
+      block-size: 100%;
+      grid-template-columns: minmax(0, 1fr);
+      align-content: start;
+      box-shadow: var(--shadow-stage);
+      transition: none;
+      overflow-wrap: anywhere;
+    }
+
+    .is-coverflow .stage-watermark {
+      position: absolute;
+      display: block;
+      inset-inline: -25%;
+      inset-block-start: calc((var(--coverflow-watermark-size) + var(--space-4)) * -1);
+      font-family: var(--font-numeric);
+      font-size: var(--coverflow-watermark-size);
+      line-height: 1;
+      text-align: center;
+      color: var(--color-text-muted);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--motion-stage) var(--motion-ease-stage);
+    }
+
+    .is-coverflow .is-center .stage-watermark {
+      opacity: 1;
+    }
+
+    /* Settle geometry before exposing cards on the first paint, keeping the listbox focusable. */
+    .is-coverflow.is-initializing .stage-item {
+      visibility: hidden;
+    }
+
+    .is-coverflow.is-initializing .stage-item,
+    .is-coverflow.is-initializing .stage-watermark,
+    .is-coverflow .stage-item.is-jumping,
+    .is-coverflow .is-jumping .stage-watermark,
+    .is-coverflow .is-parked .stage-watermark {
+      transition: none;
+    }
+
+    .stage-list.is-coverflow:focus-visible {
+      outline: calc(var(--border-width) * 2) solid var(--color-focus);
+      outline-offset: var(--space-1);
+    }
+
+    .is-coverflow:focus-visible .is-center .card {
+      outline: calc(var(--border-width) * 2) solid var(--color-focus);
+      outline-offset: var(--space-1);
     }
   }
 

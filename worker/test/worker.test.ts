@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createWorker, type Bindings } from '../src/index';
+import { AUTO_QUERY } from '../src/language';
 import { SECURITY_HEADERS } from '../src/security-headers';
 
 const ORIGIN = 'https://plcmuseum.com';
@@ -21,9 +22,31 @@ function immutable(response: Response): Response {
   return response;
 }
 
-function page(status: number, lang: string, text: string): Response {
+// What the assets binding sends on every file it serves, HTML pages and 404 pages included.
+const REVALIDATE = 'public, max-age=0, must-revalidate';
+const IMMUTABLE = 'private, max-age=31536000, immutable';
+
+const FILE_ETAG = '"v1"';
+const NOT_FOUND_ETAG = '"404"';
+
+/**
+ * An answer as the binding sends it, with its ETag, or a 304 when If-None-Match holds that ETag. Like the real
+ * binding, it compares before it looks at the status, so its 404 page answers a matching request with a 304 too.
+ */
+function served(request: Request, status: number, body: string, contentType: string, etag: string): Response {
+  const headers = { 'Content-Type': contentType, 'Cache-Control': REVALIDATE, ETag: etag };
+  if (request.headers.get('If-None-Match') === etag) return new Response(null, { status: 304, headers });
+  return new Response(request.method === 'HEAD' ? null : body, { status, headers });
+}
+
+function page(request: Request, status: number, lang: string, text: string): Response {
   const html = `<!doctype html><html lang="${lang}"><head><title>${text}</title></head><body>${text}</body></html>`;
-  return new Response(html, { status, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+  const etag = status === 404 ? NOT_FOUND_ETAG : `"${status}-${lang}"`;
+  return served(request, status, html, 'text/html; charset=utf-8', etag);
+}
+
+function file(request: Request, body: string, contentType: string): Response {
+  return served(request, 200, body, contentType, FILE_ETAG);
 }
 
 type BuildFile = 'present' | 'absent' | 'not-json' | 'wrong-shape' | 'throws';
@@ -56,14 +79,13 @@ function assets(buildFile: BuildFile = 'present', cspFile: CspFile = 'present') 
         }
         if (buildFile === 'present') return immutable(Response.json({ ...BUILD, extra: 'never echoed' }));
       }
-      if (pathname === '/en/') return immutable(page(200, 'en', 'Home'));
-      if (pathname === '/_astro/site.css') {
-        return immutable(
-          new Response('body{}', { headers: { 'Content-Type': 'text/css', 'Cache-Control': 'max-age=1' } }),
-        );
-      }
+      if (pathname === '/en/') return immutable(page(request, 200, 'en', 'Home'));
+      if (pathname === '/_astro/site.CbC1d2Ef.css') return immutable(file(request, 'body{}', 'text/css'));
+      if (pathname === '/favicon.svg') return immutable(file(request, '<svg/>', 'image/svg+xml'));
+      // A real file whose path only starts like /_astro/: the prefix check alone must keep it revalidating.
+      if (pathname === '/_astroid/site.CbC1d2Ef.css') return immutable(file(request, 'body{}', 'text/css'));
       // not_found_handling "404-page": the nearest 404.html, in the language of the path.
-      return immutable(page(404, pathname.startsWith('/pt/') ? 'pt-BR' : 'en', 'Not found'));
+      return immutable(page(request, 404, pathname.startsWith('/pt/') ? 'pt-BR' : 'en', 'Not found'));
     },
   };
   return { env: { ASSETS: binding } satisfies Bindings, requests, cspRequests };
@@ -81,11 +103,11 @@ function expectSecurityHeaders(response: Response, policy: string = POLICY): voi
 
 describe('GET /', () => {
   it.each([
-    ['pt-BR,pt;q=0.9,en;q=0.8', '/pt/'],
-    ['de-DE', '/de/'],
-    ['fr-FR,es;q=0.5', '/es/'],
-    ['it-CH', '/it/'],
-    ['*', '/en/'],
+    ['pt-BR,pt;q=0.9,en;q=0.8', '/pt/?auto'],
+    ['de-DE', '/de/?auto'],
+    ['fr-FR,es;q=0.5', '/es/?auto'],
+    ['it-CH', '/it/?auto'],
+    ['*', '/en/?auto'],
   ])('redirects Accept-Language %j to %s', async (acceptLanguage, location) => {
     const response = await call('/', { headers: { 'Accept-Language': acceptLanguage } });
     expect(response.status).toBe(302);
@@ -99,14 +121,20 @@ describe('GET /', () => {
   it('redirects to English without Accept-Language', async () => {
     const response = await call('/');
     expect(response.status).toBe(302);
-    expect(response.headers.get('Location')).toBe('/en/');
+    expect(response.headers.get('Location')).toBe('/en/?auto');
   });
 
   it('redirects HEAD the same way, without a body', async () => {
     const response = await call('/', { method: 'HEAD', headers: { 'Accept-Language': 'de' } });
     expect(response.status).toBe(302);
-    expect(response.headers.get('Location')).toBe('/de/');
+    expect(response.headers.get('Location')).toBe('/de/?auto');
     expect(response.body).toBeNull();
+  });
+
+  // /prefs.js follows the remembered language only on a home whose query is exactly the marker (ADR-0012).
+  it('gives its target the marker and no other query', async () => {
+    const response = await call('/?ref=post', { headers: { 'Accept-Language': 'pt' } });
+    expect(response.headers.get('Location')).toBe(`/pt/${AUTO_QUERY}`);
   });
 
   it('asks the assets binding for nothing but csp.json', async () => {
@@ -204,10 +232,11 @@ describe('static assets', () => {
   });
 
   it('keeps the asset headers and adds the security headers', async () => {
-    const response = await call('/_astro/site.css');
+    const response = await call('/favicon.svg');
     expect(response.status).toBe(200);
-    expect(response.headers.get('Content-Type')).toBe('text/css');
-    expect(response.headers.get('Cache-Control')).toBe('max-age=1');
+    expect(response.headers.get('Content-Type')).toBe('image/svg+xml');
+    expect(response.headers.get('Cache-Control')).toBe(REVALIDATE);
+    expect(response.headers.get('ETag')).toBe('"v1"');
     expectSecurityHeaders(response);
   });
 
@@ -244,10 +273,68 @@ describe('static assets', () => {
   );
 });
 
+// Files under /_astro/ have content-hashed names (Vite's output and the build's /prefs.js copy), so a changed file
+// gets a new URL and a stored copy never goes stale.
+describe('Cache-Control', () => {
+  it.each(['GET', 'HEAD'])('lets browsers keep a /_astro/ file for a year on %s', async (method) => {
+    const response = await call('/_astro/site.CbC1d2Ef.css', { method });
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe(IMMUTABLE);
+    expect(response.headers.get('Content-Type')).toBe('text/css');
+    expect(response.headers.get('ETag')).toBe(FILE_ETAG);
+    expectSecurityHeaders(response);
+  });
+
+  // A 304 from the binding cannot tell the file from the 404 page, so /_astro/ is asked without validators.
+  it('answers a revalidation of a /_astro/ file with the file, which a copy stored without the header then keeps', async () => {
+    const { env, requests } = assets();
+    const validators = { 'If-None-Match': FILE_ETAG, 'If-Modified-Since': 'Thu, 15 Oct 2026 12:00:00 GMT' };
+    const response = await call('/_astro/site.CbC1d2Ef.css', { headers: validators }, env);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe(IMMUTABLE);
+    expect(await response.text()).toBe('body{}');
+    expect(requests[0]?.headers.get('If-None-Match')).toBeNull();
+    expect(requests[0]?.headers.get('If-Modified-Since')).toBeNull();
+    expectSecurityHeaders(response);
+  });
+
+  it('never lets a revalidated 404 page under /_astro/ stick for a year', async () => {
+    // What a browser holding the 404 page for that path sends, and the binding would answer with a 304.
+    const response = await call('/_astro/missing.AbC1d2Ef.js', { headers: { 'If-None-Match': NOT_FOUND_ETAG } });
+    expect(response.status).toBe(404);
+    expect(response.headers.get('Cache-Control')).toBe(REVALIDATE);
+    expectSecurityHeaders(response);
+  });
+
+  it.each<[string, string, string | null, number]>([
+    ['an HTML page', '/en/', null, 200],
+    ['a revalidated HTML page', '/en/', '"200-en"', 304],
+    ['a file outside /_astro/', '/favicon.svg', null, 200],
+    ['a revalidated file outside /_astro/', '/favicon.svg', FILE_ETAG, 304],
+    ['a missing file under /_astro/', '/_astro/missing.AbC1d2Ef.js', null, 404],
+    ['a 404 page', '/pt/does-not-exist', null, 404],
+    ['a revalidated 404 page', '/pt/does-not-exist', NOT_FOUND_ETAG, 304],
+    ['a file under a lookalike of /_astro/', '/_astroid/site.CbC1d2Ef.css', null, 200],
+    ['/_astro without its slash', '/_astro', null, 404],
+  ])('keeps the revalidating default of the binding on %s', async (_name, path, etag, status) => {
+    const response = await call(path, etag === null ? {} : { headers: { 'If-None-Match': etag } });
+    expect(response.status).toBe(status);
+    expect(response.headers.get('Cache-Control')).toBe(REVALIDATE);
+    expectSecurityHeaders(response);
+  });
+});
+
 describe('Content-Security-Policy', () => {
   it('is the documented policy with the csp.json hashes in script-src and style-src', async () => {
     expect(POLICY).not.toBe(BASE_POLICY);
-    for (const path of ['/', '/en/', '/_astro/site.css', '/pt/does-not-exist', '/api/health', '/api/anything']) {
+    for (const path of [
+      '/',
+      '/en/',
+      '/_astro/site.CbC1d2Ef.css',
+      '/pt/does-not-exist',
+      '/api/health',
+      '/api/anything',
+    ]) {
       expect((await call(path)).headers.get('Content-Security-Policy'), path).toBe(POLICY);
     }
   });

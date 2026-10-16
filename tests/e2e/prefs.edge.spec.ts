@@ -1,11 +1,22 @@
 // /prefs.js (ADR-0012) against `wrangler dev` over the production build (project "edge", which runs every
-// *edge.spec.ts): the head ends with it, classic and blocking, the first frame already wears the stored era, and a
-// remembered language replaces the home the "/" redirect chose before that home gets a body. Only the Worker
-// answers "/" with a redirect, so this cannot run against `astro dev`.
+// *edge.spec.ts): the head ends with it, classic and blocking, under a content-hashed name the browser keeps; the
+// first frame already wears the stored era; a remembered language replaces the home the "/" redirect chose before
+// that home gets a body, and no home a link asked for. Only the Worker answers "/" with a redirect, so this cannot run
+// against `astro dev`.
 import { expect, test, type Page } from '@playwright/test';
 import { ERA_HOOKS, STORAGE_KEYS } from '../../src/islands/contracts';
 
 const DECADE_PAGE = '/en/decades/1980s';
+// The build serves public/prefs.js as /_astro/prefs.<hash>.js (astro.config.mjs, placePrefsScript), named the way
+// Vite names its own output: the first 8 characters of the base64url SHA-256 of the content.
+const PREFS_SRC = /^\/_astro\/prefs\.([A-Za-z0-9_-]{8})\.js$/;
+const IMMUTABLE = 'private, max-age=31536000, immutable';
+
+async function contentHash(body: Uint8Array): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(body)));
+  const base64 = btoa(String.fromCharCode(...digest));
+  return base64.replaceAll('+', '-').replaceAll('/', '_').slice(0, 8);
+}
 
 /** Console errors and uncaught exceptions; Chrome reports a script refused by the CSP as a console error. */
 function collectErrors(page: Page): string[] {
@@ -47,40 +58,82 @@ async function framesOf(page: Page, path: string): Promise<(string | null)[]> {
   return page.evaluate((key) => JSON.parse(sessionStorage.getItem(key) ?? '[]'), `frames ${path}`);
 }
 
-/** Records, in sessionStorage, whether each document the tab leaves ever got a body (the parser reached it). */
-async function recordBodyOnLeave(page: Page): Promise<void> {
+/**
+ * Records, in sessionStorage, every document the tab opens ("false") and whether the parser ever gave it a body
+ * ("true"). A mutation observer rather than pagehide: WebKit fires no pagehide for a document stopped in its <head>.
+ */
+async function recordBodies(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    addEventListener('pagehide', () =>
-      sessionStorage.setItem(`left ${location.pathname}`, String(document.body !== null)),
-    );
+    const key = `body ${location.pathname}`;
+    sessionStorage.setItem(key, 'false');
+    new MutationObserver((_records, observer) => {
+      if (document.body === null) return;
+      sessionStorage.setItem(key, 'true');
+      observer.disconnect();
+    }).observe(document, { childList: true, subtree: true });
   });
 }
 
-// The build moves the script to the end of <head> (astro.config.mjs, placePrefsScriptLast): in front of Astro's CSP
+// The build moves the script to the end of <head> (astro.config.mjs, placePrefsScript): in front of Astro's CSP
 // meta it held back every stylesheet request in Chromium by one round trip. It still blocks rendering there.
 test('every page ends <head> with /prefs.js, classic and blocking, after the CSP meta and the stylesheets', async ({
   request,
 }) => {
+  const sources = new Set<string>();
   for (const path of [DECADE_PAGE, '/en/', '/en/about', '/en/does-not-exist']) {
     const html = await (await request.get(path, { maxRedirects: 0 })).text();
     const head = html.slice(0, html.search(/<\/head>/i));
     const scripts = head.match(/<script\b[^>]*>/g) ?? [];
-    expect(scripts.at(-1), `${path}: no async, defer or type, a classic parser-blocking script`).toBe(
-      '<script src="/prefs.js">',
-    );
-    expect(head.trimEnd().endsWith('<script src="/prefs.js"></script>'), `${path}: the last element of <head>`).toBe(
-      true,
-    );
+    const src = /^<script src="([^"]+)">$/.exec(scripts.at(-1) ?? '')?.[1] ?? '';
+    expect(src, `${path}: no async, defer or type, a classic parser-blocking script`).toMatch(PREFS_SRC);
+    expect(head.trimEnd().endsWith(`<script src="${src}"></script>`), `${path}: the last element of <head>`).toBe(true);
     const lastStylesheet = [...head.matchAll(/<link\b[^>]*\brel="stylesheet"/g)].at(-1)?.index ?? -1;
     const cspMeta = head.search(/<meta http-equiv="content-security-policy"/);
     expect(lastStylesheet, `${path}: a stylesheet in <head>`).toBeGreaterThan(-1);
     expect(cspMeta, `${path}: Astro's CSP meta in <head>`).toBeGreaterThan(-1);
-    expect(head.indexOf('<script src="/prefs.js">')).toBeGreaterThan(Math.max(lastStylesheet, cspMeta));
+    expect(head.indexOf(`<script src="${src}">`)).toBeGreaterThan(Math.max(lastStylesheet, cspMeta));
+    sources.add(src);
   }
+  expect(sources.size, 'one script URL on every page').toBe(1);
 
-  const script = await request.get('/prefs.js', { maxRedirects: 0 });
+  const [src = ''] = sources;
+  const script = await request.get(src, { maxRedirects: 0 });
   expect(script.status()).toBe(200);
   expect(script.headers()['content-type']).toContain('javascript');
+  expect(script.headers()['cache-control']).toBe(IMMUTABLE);
+  const body = await script.body();
+  expect(await contentHash(body), 'the name carries the hash of what it serves').toBe(PREFS_SRC.exec(src)?.[1]);
+  expect(await script.text()).toContain(STORAGE_KEYS.eraUi);
+  // The hashed name is the only one: nothing is left to revalidate at /prefs.js.
+  expect((await request.get('/prefs.js', { maxRedirects: 0 })).status()).toBe(404);
+});
+
+// Before, a page view revalidated every stylesheet and /prefs.js (one 304 each) before first paint.
+test('a second page view takes the stylesheets and /prefs.js from the browser cache, asking the server nothing', async ({
+  page,
+}) => {
+  const resources = () =>
+    page.evaluate(() =>
+      performance
+        .getEntriesByType('resource')
+        .map((entry) => [new URL(entry.name).pathname, (entry as PerformanceResourceTiming).transferSize] as const),
+    );
+  await page.goto('/en/about');
+  const first = new Map(await resources());
+  await page.goto('/en/privacy');
+  // transferSize is 0 only when the cache answered alone; a revalidation counts the headers of the 304.
+  const shared = (await resources()).filter(([path]) => first.has(path));
+  expect(shared.map(([path]) => path)).toEqual(
+    expect.arrayContaining([expect.stringMatching(PREFS_SRC), expect.stringMatching(/^\/_astro\/.+\.css$/)]),
+  );
+  expect(
+    shared.filter(([path]) => !first.get(path)),
+    'fetched from the server on the first view',
+  ).toEqual([]);
+  expect(
+    shared.filter(([, transferSize]) => transferSize !== 0),
+    'reached the server on the second view',
+  ).toEqual([]);
 });
 
 test('the first frame of a page already wears the stored era', async ({ page }) => {
@@ -108,29 +161,62 @@ test.describe('a remembered language', () => {
   test('replaces the home the "/" redirect chose, before it gets a body', async ({ page }) => {
     const errors = collectErrors(page);
     await remember(page, { [STORAGE_KEYS.lang]: 'pt' });
-    await recordBodyOnLeave(page);
+    await recordBodies(page);
     // Wait only for the redirected /en/ document to commit: /prefs.js stops it before its load event.
     await page.goto('/', { waitUntil: 'commit' });
     await page.waitForURL('**/pt/');
     await expect(page.locator('html')).toHaveAttribute('lang', 'pt-BR');
-    // Without a body the English home had nothing to paint and nothing for a screen reader to read.
-    expect(await page.evaluate(() => sessionStorage.getItem('left /en/'))).toBe('false');
+    const bodyOf = (path: string) => page.evaluate((key) => sessionStorage.getItem(key), `body ${path}`);
+    // The probe sees a body where there is one, so its silence on /en/ means something.
+    await expect.poll(() => bodyOf('/pt/')).toBe('true');
+    // Opened but never given a body: the English home had nothing to paint and nothing for a screen reader to read.
+    expect(await bodyOf('/en/')).toBe('false');
     // Replaced, not pushed: Back leads to the page before "/", never to the English home.
     await page.goBack();
     expect(new URL(page.url()).pathname).toBe('/en/about');
     expect(errors).toEqual([]);
   });
 
-  test('leaves a home the visitor asked for alone', async ({ page }) => {
+  // A fragment of "/" reaches the home (the 302 has none of its own); the script keeps it on the remembered home.
+  test('keeps the fragment of "/" on the remembered home', async ({ page }) => {
     await remember(page, { [STORAGE_KEYS.lang]: 'pt' });
-    await page.goto('/en/');
-    await page.waitForLoadState('load');
-    expect(new URL(page.url()).pathname).toBe('/en/');
+    await page.goto('/#stage', { waitUntil: 'commit' });
+    await page.waitForURL('**/pt/#stage');
   });
 
-  test('is ignored when it matches the redirect', async ({ page }) => {
+  // The assets binding answers the other spellings of a home with a same-origin 307 to it, which the first follow rule
+  // (any redirect counted by Navigation Timing) took for the "/" redirect; only that one marks its home now.
+  for (const [path, status, landing] of [
+    ['/en/', 200, '/en/'],
+    ['/en', 307, '/en/'],
+    ['/en?ref=post', 307, '/en/?ref=post'],
+    ['/en/index.html', 307, '/en/'],
+  ] as const) {
+    test(`leaves the home a link to ${path} asked for alone`, async ({ page, request }) => {
+      expect((await request.get(path, { maxRedirects: 0 })).status()).toBe(status);
+      await remember(page, { [STORAGE_KEYS.lang]: 'pt' });
+      await page.goto(path);
+      await page.waitForLoadState('load');
+      const url = new URL(page.url());
+      expect(url.pathname + url.search).toBe(landing);
+      await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    });
+  }
+
+  // Documented (ADR-0012, Amendment): the marker is all it takes, so a hand-made link to it acts like "/".
+  test('follows on a link that carries the marker', async ({ page }) => {
+    await remember(page, { [STORAGE_KEYS.lang]: 'pt' });
+    await page.goto('/en/?auto', { waitUntil: 'commit' });
+    await page.waitForURL('**/pt/');
+  });
+
+  test('is ignored when it matches the redirect, and the address loses the marker', async ({ page }) => {
     await remember(page, { [STORAGE_KEYS.lang]: 'en' });
     await page.goto('/');
-    expect(new URL(page.url()).pathname).toBe('/en/');
+    const url = new URL(page.url());
+    expect(url.pathname + url.search).toBe('/en/');
+    // Replaced, not pushed: Back leads to the page before "/".
+    await page.goBack();
+    expect(new URL(page.url()).pathname).toBe('/en/about');
   });
 });

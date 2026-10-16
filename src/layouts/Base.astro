@@ -3,7 +3,7 @@
 // stylesheet. No author-written inline scripts or styles anywhere below: the Worker sends `script-src 'self';
 // style-src 'self'`, plus build-time hashes for Astro's own island scripts and style only
 // (docs/adr/0010-csp-hashes-for-islands.md).
-// /prefs.js comes first in <head> and is classic, render-blocking and same-origin on purpose (ADR-0012): it applies
+// /prefs.js is in <head> and is classic, render-blocking and same-origin on purpose (ADR-0012): it applies
 // the stored Era UI choice and follows the remembered language before first paint. `is:inline` only keeps Astro from
 // bundling it into a deferred module; with `src` it is still an external script.
 import '../styles/global.css';
@@ -62,7 +62,8 @@ const robots = noindex || currentStage() !== 'production' ? 'noindex, nofollow' 
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     {/* Before first paint (ADR-0012). The build moves it to the end of <head>, after the CSP meta and stylesheets
-        Astro injects there, so it does not hold back the stylesheet requests (astro.config.mjs, placePrefsScriptLast). */}
+        Astro injects there, so it does not hold back the stylesheet requests, and serves it under a content-hashed
+        name in /_astro/, which browsers cache for a year (astro.config.mjs, placePrefsScript). */}
     <script is:inline src="/prefs.js"></script>
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
