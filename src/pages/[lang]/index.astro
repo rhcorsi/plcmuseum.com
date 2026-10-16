@@ -1,12 +1,16 @@
 ---
 // Language home: the stage of every visible exhibit, oldest first. The production build shows only published
-// exhibits, so until the first one is published the home shows the empty state. The page era is the first card's,
-// where the stage starts (ERA_HOOKS.page); whoever integrates CoverFlow keeps its initialId equal to cards[0].id.
+// exhibits, so until the first one is published the home shows the empty state. The stage starts on the first card:
+// StageList and CoverFlow both start there, and the page era is that card's (ERA_HOOKS.page).
+// CoverFlow mounts from one card up: with a single exhibit the stage is a listbox of one option with Prev and Next
+// disabled, so the home keeps one presentation and one set of stage hooks (data-center-id, CENTER_CHANGE_EVENT) as
+// the collection grows from its first exhibit.
 import DecadeSelector from '../../components/DecadeSelector.astro';
 import EmptyState from '../../components/EmptyState.astro';
 import StageList from '../../components/StageList.astro';
 import { getVisibleExhibits } from '../../content/queries';
 import { type Lang, LANGS, localizedPath, t } from '../../i18n/utils';
+import CoverFlow from '../../islands/CoverFlow';
 import Page from '../../layouts/Page.astro';
 import { toExhibitCard } from '../../lib/exhibit-card';
 
@@ -20,10 +24,13 @@ interface Props {
 
 const { lang } = Astro.props;
 const cards = (await getVisibleExhibits()).map((exhibit) => toExhibitCard(exhibit, lang));
+const initial = cards[0];
 const siteName = t(lang, 'site.name');
+// The <ol> id: StageList renders it, CoverFlow enhances it (listId).
+const STAGE_ID = 'stage';
 ---
 
-<Page lang={lang} title={siteName} path="/" pageEra={cards[0]?.era ?? null}>
+<Page lang={lang} title={siteName} path="/" pageEra={initial?.era ?? null}>
   <section class="intro">
     <h1>{siteName}</h1>
     <p class="tagline">{t(lang, 'home.tagline')}</p>
@@ -34,8 +41,24 @@ const siteName = t(lang, 'site.name');
     <DecadeSelector lang={lang} label={t(lang, 'home.decades_label')} layout="grid" />
   </section>
 
-  {cards.length > 0 ? (
-    <StageList exhibits={cards} lang={lang} label={t(lang, 'home.stage_label')} />
+  {initial ? (
+    <>
+      <CoverFlow
+        client:load
+        exhibits={cards}
+        listId={STAGE_ID}
+        initialId={initial.id}
+        lang={lang}
+        labels={{ prev: t(lang, 'stage.prev'), next: t(lang, 'stage.next'), open: t(lang, 'stage.open') }}
+      />
+      <StageList
+        exhibits={cards}
+        lang={lang}
+        id={STAGE_ID}
+        initialId={initial.id}
+        label={t(lang, 'home.stage_label')}
+      />
+    </>
   ) : (
     <EmptyState
       message={t(lang, 'home.empty')}

@@ -115,7 +115,7 @@ Rules enforced by the validator: ids unique and equal to file names; `review_sta
 
 ## 9. Cover Flow contract
 
-`CoverFlow` island receives `CoverFlowProps` (`src/islands/contracts.ts`: the `ExhibitCard` list, the id of the StageList it enhances, `initialId`, `lang` and its labels; `eraUiEnabled` is deprecated and ignored since ADR-0011, which leaves the theme to the EraToggle). It turns the server-rendered StageList into a horizontally navigable stage (CSS 3D transforms, arrow keys, Home and End, swipe, horizontal wheel), emits `CENTER_CHANGE_EVENT` (and `onCenterChange(id)`) with the exhibit's era, and leaves the vertical list as it is when `prefers-reduced-motion` is set or JS is unavailable (the list is server-rendered first; the island enhances it). No WebGL.
+`CoverFlow` island receives `CoverFlowProps` (`src/islands/contracts.ts`: the `ExhibitCard` list, the id of the StageList it enhances, `initialId`, `lang` and its labels; `eraUiEnabled` is deprecated and ignored since ADR-0011, which leaves the theme to the EraToggle). It turns the server-rendered StageList into a horizontally navigable stage (CSS 3D transforms, arrow keys, Home and End, swipe, horizontal wheel), emits `CENTER_CHANGE_EVENT` (and `onCenterChange(id)`) with the exhibit's era, and leaves the vertical list as it is when `prefers-reduced-motion` is set or JS is unavailable (the list is server-rendered first; the island enhances it). The home mounts it whenever it has an exhibit, a single one included. No WebGL.
 
 ## 10. Scaling and performance
 

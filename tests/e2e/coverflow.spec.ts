@@ -702,8 +702,10 @@ test.describe('coverflow', () => {
     await expectSelected(page, DISPUTED_ID);
   });
 
-  for (const count of [2, 3, 4]) {
-    test(`wrap-around parks jumps without transitions with ${count} exhibits`, async ({ page }) => {
+  for (const count of [1, 2, 3, 4]) {
+    test(`a stage of ${count}: wrap-around without transitions, one option per exhibit, clean teardown`, async ({
+      page,
+    }) => {
       await openStage(page);
       const result = await page.evaluate(async (size) => {
         const stageModule = '/src/islands/coverflow/stage.ts';
@@ -771,6 +773,11 @@ test.describe('coverflow', () => {
           });
           await afterPaint();
         }
+        const options = [...list.querySelectorAll('[role="option"]')].map((option) => ({
+          posinset: option.getAttribute('aria-posinset'),
+          setsize: option.getAttribute('aria-setsize'),
+        }));
+        const active = list.getAttribute('aria-activedescendant');
         const beforeDestroy = list.dataset.centerId;
         controller.destroy();
         const restored = {
@@ -793,12 +800,19 @@ test.describe('coverflow', () => {
           selections,
           expected: [exhibits[size - 1]!.id, exhibits[0]!.id],
           emitted,
+          options,
+          active,
           beforeDestroy,
           restored,
           mismatchedCenter,
         };
       }, count);
+      // A single exhibit is a listbox of one option that the keys leave selected.
       expect(result.selections).toEqual(result.expected);
+      expect(result.options).toEqual(
+        Array.from({ length: count }, (_, index) => ({ posinset: String(index + 1), setsize: String(count) })),
+      );
+      expect(result.active).toBe(`short-${count}-stage-link-${result.expected[1]}`);
       expect(result.emitted[0]).toEqual({ id: result.expected[1], centerId: result.expected[1] });
       for (const emission of result.emitted) expect(emission.centerId).toBe(emission.id);
       expect(result.beforeDestroy).toBe(result.emitted.at(-1)!.id);
