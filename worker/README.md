@@ -28,7 +28,9 @@ The Content-Security-Policy also carries the hashes of the inline scripts and st
 
 ### `GET /` and `HEAD /` (edge redirect)
 
-Reads `Accept-Language` and redirects 302 to `/<lang>/` for the supported language (pt, en, es, de, it) with the highest quality, the earliest one on a tie. The primary subtag decides (`pt-BR` picks pt, `de-CH` picks de); ranges with `q=0`, `*` and unsupported or malformed entries are skipped. Fallback `/en/`. Headers: `Vary: Accept-Language`, `Cache-Control: private, max-age=0`. No cookies.
+Reads `Accept-Language` and redirects 302 to `/<lang>/?auto` for the supported language (pt, en, es, de, it) with the highest quality, the earliest one on a tie. The primary subtag decides (`pt-BR` picks pt, `de-CH` picks de); ranges with `q=0`, `*` and unsupported or malformed entries are skipped. Fallback `/en/?auto`. The query of `/` is not kept. Headers: `Vary: Accept-Language`, `Cache-Control: private, max-age=0`. No cookies.
+
+`?auto` (`AUTO_QUERY` in `src/language.ts`) tells `/prefs.js` that the home was chosen for the visitor, not asked for: only there it follows the language the visitor picked in the header, then removes the marker from the address bar (ADR-0012). The binding's own redirects onto a home (`/pt` and `/pt/index.html` to `/pt/`) carry no marker, so a link keeps its language.
 
 ### `GET /api/health` and `HEAD /api/health`
 

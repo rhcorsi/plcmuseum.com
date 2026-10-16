@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createWorker, type Bindings } from '../src/index';
+import { AUTO_QUERY } from '../src/language';
 import { SECURITY_HEADERS } from '../src/security-headers';
 
 const ORIGIN = 'https://plcmuseum.com';
@@ -102,11 +103,11 @@ function expectSecurityHeaders(response: Response, policy: string = POLICY): voi
 
 describe('GET /', () => {
   it.each([
-    ['pt-BR,pt;q=0.9,en;q=0.8', '/pt/'],
-    ['de-DE', '/de/'],
-    ['fr-FR,es;q=0.5', '/es/'],
-    ['it-CH', '/it/'],
-    ['*', '/en/'],
+    ['pt-BR,pt;q=0.9,en;q=0.8', '/pt/?auto'],
+    ['de-DE', '/de/?auto'],
+    ['fr-FR,es;q=0.5', '/es/?auto'],
+    ['it-CH', '/it/?auto'],
+    ['*', '/en/?auto'],
   ])('redirects Accept-Language %j to %s', async (acceptLanguage, location) => {
     const response = await call('/', { headers: { 'Accept-Language': acceptLanguage } });
     expect(response.status).toBe(302);
@@ -120,14 +121,20 @@ describe('GET /', () => {
   it('redirects to English without Accept-Language', async () => {
     const response = await call('/');
     expect(response.status).toBe(302);
-    expect(response.headers.get('Location')).toBe('/en/');
+    expect(response.headers.get('Location')).toBe('/en/?auto');
   });
 
   it('redirects HEAD the same way, without a body', async () => {
     const response = await call('/', { method: 'HEAD', headers: { 'Accept-Language': 'de' } });
     expect(response.status).toBe(302);
-    expect(response.headers.get('Location')).toBe('/de/');
+    expect(response.headers.get('Location')).toBe('/de/?auto');
     expect(response.body).toBeNull();
+  });
+
+  // /prefs.js follows the remembered language only on a home whose query is exactly the marker (ADR-0012).
+  it('gives its target the marker and no other query', async () => {
+    const response = await call('/?ref=post', { headers: { 'Accept-Language': 'pt' } });
+    expect(response.headers.get('Location')).toBe(`/pt/${AUTO_QUERY}`);
   });
 
   it('asks the assets binding for nothing but csp.json', async () => {

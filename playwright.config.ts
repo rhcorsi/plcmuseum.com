@@ -10,8 +10,9 @@ const PAGES_URL = 'http://localhost:4321';
 const EDGE_URL = 'http://localhost:8787';
 const EDGE_HTTPS_URL = 'https://localhost:8788';
 
-// /prefs.js leans on what each engine does before first paint (Navigation Timing, window.stop(), render blocking, the
-// HTTP cache), so its edge spec also runs in Firefox and WebKit, on demand and before a production deploy (ADR-0012).
+// /prefs.js leans on what each engine does before first paint (history.replaceState(), window.stop(), render
+// blocking, the HTTP cache), so its edge spec also runs in Firefox and WebKit, on demand and before a production
+// deploy (ADR-0012).
 // CI installs Chromium only. Once: `pnpm exec playwright install firefox webkit`; then, over the same build:
 //   PLCMUSEUM_E2E_ALL_BROWSERS=1 pnpm exec playwright test --project=edge-firefox --project=edge-webkit
 // They use a second `wrangler dev` over HTTPS (its own self-signed certificate), as production is: WebKit applies the

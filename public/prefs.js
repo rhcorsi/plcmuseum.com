@@ -1,31 +1,27 @@
 // Preferences applied before first paint (docs/adr/0012-preferences-before-first-paint.md). Base.astro writes this
-// classic script into <head>; the build moves it to the end of <head> as /_astro/prefs.<hash>.js. It writes
-// nothing. Its literals mirror src/islands/contracts.ts, src/lib/era.ts and src/i18n/langs.ts;
-// tests/islands/prefs-head.test.ts keeps them in step and the file under 1 KB gzip.
+// classic script into <head>; the build moves it to the end of <head> as /_astro/prefs.<hash>.js. It writes nothing
+// but the address bar. Its literals mirror src/islands/contracts.ts, src/lib/era.ts, src/i18n/langs.ts and
+// worker/src/language.ts; tests/islands/prefs-head.test.ts keeps them in step and the file under 1 KB gzip.
 (function () {
   try {
     var root = document.documentElement;
-    var store = window.localStorage;
     var home = /^\/(pt|en|es|de|it)\/$/.exec(location.pathname);
-    var lang = store.getItem('plcmuseum:lang');
-    if (home && lang !== home[1] && /^(pt|en|es|de|it)$/.test(lang || '')) {
-      // Only a home reached through a same-origin redirect (the Worker's "/" answer) follows the remembered
-      // language (ADR-0011); a link, a reload or a history move keeps its language.
-      var nav = performance.getEntriesByType('navigation')[0];
-      // WebKit can leave the redirect out of this entry and count it only in the older performance.navigation; both
-      // count same-origin redirects only.
-      var legacy = performance.navigation || nav;
-      if (nav && nav.type === 'navigate' && (nav.redirectCount > 0 || legacy.redirectCount > 0)) {
-        // Stopping the parser first leaves this home without a body: it never paints or reaches a screen reader.
-        window.stop();
-        location.replace('/' + lang + '/' + location.search + location.hash);
-        return;
-      }
+    // Only the Worker's "/" redirect adds ?auto, so a link without it, a reload or a history move keeps its language.
+    var auto = home && location.search === '?auto';
+    // Removed first, even with storage blocked: no copy or bookmark of the address keeps it.
+    if (auto) history.replaceState(null, '', home[0] + location.hash);
+    var store = window.localStorage;
+    var lang = auto ? store.getItem('plcmuseum:lang') : null;
+    if (lang && lang !== home[1] && /^(pt|en|es|de|it)$/.test(lang)) {
+      // Stopping the parser first leaves this home without a body: it never paints or reaches a screen reader.
+      window.stop();
+      location.replace('/' + lang + '/' + location.hash);
+      return;
     }
     if (store.getItem('plcmuseum:era-ui') !== '1') return;
     var era = root.getAttribute('data-page-era');
     if (['1970s', '1980s', '1990s', '2000s', '2020s'].indexOf(era) !== -1) root.setAttribute('data-era', era);
   } catch {
-    // Storage or timing unavailable: the page keeps the museum theme and its language.
+    // Storage or history unavailable: the page keeps the museum theme and its language.
   }
 })();

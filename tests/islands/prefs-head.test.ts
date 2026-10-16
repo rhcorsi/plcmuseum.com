@@ -1,20 +1,21 @@
 // /prefs.js (public/prefs.js, ADR-0012) runs before first paint as a classic script that no bundler reaches, so it
-// repeats the storage keys, the era themes and the languages as literals. Run here against stubs of the four browser
-// globals it reads (no DOM library), it must agree with src/islands/contracts.ts, src/lib/era.ts and
-// src/i18n/langs.ts, follow the remembered language only on a language home reached through a redirect, and stay
-// within its budget of 1 KB gzip.
+// repeats the storage keys, the era themes, the languages and the marker of the "/" redirect as literals. Run here
+// against stubs of the four browser globals it reads (no DOM library), it must agree with src/islands/contracts.ts,
+// src/lib/era.ts, src/i18n/langs.ts and worker/src/language.ts, follow the remembered language only on a language
+// home the "/" redirect chose, and stay within its budget of 1 KB gzip.
 import { describe, expect, it } from 'vitest';
 import SOURCE from '../../public/prefs.js?raw';
 import { DECADES } from '../../src/content/schemas';
 import { LANGS } from '../../src/i18n/langs';
 import { ERA_HOOKS, STORAGE_KEYS } from '../../src/islands/contracts';
 import { ERA_THEMES, MUSEUM_ERA } from '../../src/lib/era';
+// Test-only reach into the Worker: the query its "/" redirect adds to the home it picks.
+import { AUTO_QUERY } from '../../worker/src/language';
 
-// The repository's own file, run as the browser runs it, with window, document, location and performance bound to
-// the stubs: a stray reference to any other global (a bare localStorage, say) throws inside its try/catch, and the
-// assertions fail.
-const runPrefs = new Function('window', 'document', 'location', 'performance', SOURCE);
-const REDIRECTED = { type: 'navigate', redirectCount: 1 };
+// The repository's own file, run as the browser runs it, with window, document, location and history bound to the
+// stubs: a stray reference to any other global (a bare localStorage, say) throws inside its try/catch, and the
+// audit at the end of this file names it.
+const runPrefs = new Function('window', 'document', 'location', 'history', SOURCE);
 
 type Visit = {
   path?: string;
@@ -22,26 +23,15 @@ type Visit = {
   hash?: string;
   /** localStorage content, or 'blocked' when reading window.localStorage throws (storage disabled). */
   storage?: Record<string, string> | 'blocked';
-  /** The PerformanceNavigationTiming entry, or null when the browser has none. */
-  navigation?: { type: string; redirectCount: number } | null;
-  /** The older performance.navigation (Navigation Timing 1), or null when the browser has dropped it. */
-  legacy?: { type: number; redirectCount: number } | null;
   pageEra?: string | null;
 };
 
 /**
  * Runs /prefs.js once in a stub of the browser globals it reads and reports what it did. `navigated` lists, in order,
- * "stop" for window.stop() and the URL of each location.replace().
+ * "stop" for window.stop() and the URL of each location.replace(); `address` is what the address bar shows after
+ * every history.replaceState().
  */
-function visit({
-  path = '/en/',
-  search = '',
-  hash = '',
-  storage = {},
-  navigation = null,
-  legacy = null,
-  pageEra = null,
-}: Visit) {
+function visit({ path = '/en/', search = '', hash = '', storage = {}, pageEra = null }: Visit) {
   const attributes = new Map<string, string>([[ERA_HOOKS.applied, MUSEUM_ERA]]);
   if (pageEra !== null) attributes.set(ERA_HOOKS.page, pageEra);
   const navigated: string[] = [];
@@ -66,12 +56,18 @@ function visit({
     },
   };
   const location = { pathname: path, search, hash, replace: (url: string) => navigated.push(url) };
-  const performance = {
-    getEntriesByType: (type: string) => (type === 'navigation' && navigation ? [navigation] : []),
-    navigation: legacy ?? undefined,
+  let address = path + search + hash;
+  const states: unknown[] = [];
+  const history = {
+    replaceState: (state: unknown, _unused: string, url: string) => {
+      states.push(state);
+      address = url;
+    },
   };
-  runPrefs(window, document, location, performance);
-  return { era: attributes.get(ERA_HOOKS.applied), navigated, reads };
+  runPrefs(window, document, location, history);
+  // Checked out here, where the script's try/catch cannot swallow it: only the URL changes, the entry gets no state.
+  expect(states.filter((state) => state !== null)).toEqual([]);
+  return { era: attributes.get(ERA_HOOKS.applied), navigated, reads, address };
 }
 
 const ERA_ON = { [STORAGE_KEYS.eraUi]: '1' };
@@ -103,96 +99,81 @@ describe('/prefs.js applies the stored era before first paint', () => {
   });
 });
 
-describe('/prefs.js follows the remembered language on a redirected home', () => {
+describe('/prefs.js follows the remembered language only on a home the "/" redirect chose', () => {
   const pairs = LANGS.flatMap((home) => LANGS.filter((lang) => lang !== home).map((lang) => [home, lang] as const));
 
-  it.each(pairs)('stops /%s/ and replaces it with the remembered %s, keeping query and fragment', (home, lang) => {
+  it.each(pairs)('stops /%s/ and replaces it with the remembered %s, keeping the fragment', (home, lang) => {
     const result = visit({
       path: `/${home}/`,
-      search: '?ref=post',
+      search: AUTO_QUERY,
       hash: '#stage',
       storage: { [STORAGE_KEYS.lang]: lang },
-      navigation: REDIRECTED,
     });
-    expect(result.navigated).toEqual(['stop', `/${lang}/?ref=post#stage`]);
+    expect(result.navigated).toEqual(['stop', `/${lang}/#stage`]);
+  });
+
+  it('removes the marker from the address bar, whether it follows or not', () => {
+    const remembered = visit({ search: AUTO_QUERY, hash: '#stage', storage: { [STORAGE_KEYS.lang]: 'pt' } });
+    expect(remembered.address).toBe('/en/#stage');
+    expect(visit({ search: AUTO_QUERY }).address).toBe('/en/');
+    // Before storage is read: blocked storage still leaves a clean address.
+    expect(visit({ search: AUTO_QUERY, storage: 'blocked' }).address).toBe('/en/');
   });
 
   it('leaves the theme alone once it has replaced the page', () => {
     const storage = { ...ERA_ON, [STORAGE_KEYS.lang]: 'pt' };
-    expect(visit({ storage, navigation: REDIRECTED, pageEra: '1980s' }).era).toBe(MUSEUM_ERA);
+    expect(visit({ search: AUTO_QUERY, storage, pageEra: '1980s' }).era).toBe(MUSEUM_ERA);
   });
 
   it('stays on the home of the remembered language, and still applies the era there', () => {
     const result = visit({
+      search: AUTO_QUERY,
       storage: { ...ERA_ON, [STORAGE_KEYS.lang]: 'en' },
-      navigation: REDIRECTED,
       pageEra: '1980s',
     });
     expect(result.navigated).toEqual([]);
     expect(result.era).toBe('1980s');
   });
 
-  it.each([
-    ['a navigation without redirect', { type: 'navigate', redirectCount: 0 }],
-    ['a reload', { type: 'reload', redirectCount: 1 }],
-    ['a history move', { type: 'back_forward', redirectCount: 1 }],
-    ['a browser without Navigation Timing', null],
-  ])('does nothing after %s', (_name, navigation) => {
-    expect(visit({ storage: { [STORAGE_KEYS.lang]: 'pt' }, navigation }).navigated).toEqual([]);
-  });
-
-  // Playwright's WebKit 27.2 reports redirectCount 0 in the entry after the Worker's "/" redirect and 1 in
-  // performance.navigation (ADR-0012); both interfaces count same-origin redirects only.
-  it('follows when only performance.navigation counts the redirect, as WebKit reports it', () => {
-    const result = visit({
-      storage: { [STORAGE_KEYS.lang]: 'pt' },
-      navigation: { type: 'navigate', redirectCount: 0 },
-      legacy: { type: 0, redirectCount: 1 },
-    });
-    expect(result.navigated).toEqual(['stop', '/pt/']);
-  });
-
-  it.each([
-    ['neither interface counts a redirect', { type: 'navigate', redirectCount: 0 }, { type: 0, redirectCount: 0 }],
-    [
-      'a reload counted only by performance.navigation',
-      { type: 'reload', redirectCount: 0 },
-      { type: 1, redirectCount: 1 },
-    ],
-    ['a history move', { type: 'back_forward', redirectCount: 0 }, { type: 2, redirectCount: 1 }],
-    ['performance.navigation alone, without the entry', null, { type: 0, redirectCount: 1 }],
-  ])('does nothing after %s', (_name, navigation, legacy) => {
-    expect(visit({ storage: { [STORAGE_KEYS.lang]: 'pt' }, navigation, legacy }).navigated).toEqual([]);
-  });
-
-  it('still applies the era on a home without redirect in a browser that dropped performance.navigation', () => {
-    const result = visit({
-      storage: { ...ERA_ON, [STORAGE_KEYS.lang]: 'pt' },
-      navigation: { type: 'navigate', redirectCount: 0 },
-      pageEra: '1980s',
-    });
-    expect(result.navigated).toEqual([]);
-    expect(result.era).toBe('1980s');
-  });
+  // A link (the binding's redirect of /en to /en/ included, which keeps the query of /en), a reload or a history
+  // move: none carries the marker, which the first visit removed from its entry.
+  it.each(['', '?auto=1', '?ref=post', '?ref=post&auto', '?auto&ref=post', '?AUTO', '?auto/'])(
+    'keeps the language and the address of a home whose query is "%s"',
+    (search) => {
+      const result = visit({ search, storage: { ...ERA_ON, [STORAGE_KEYS.lang]: 'pt' }, pageEra: '1980s' });
+      expect(result.navigated).toEqual([]);
+      expect(result.address).toBe(`/en/${search}`);
+      expect(result.era).toBe('1980s');
+    },
+  );
 
   it.each(['/', '/en', '/en/about', '/en/decades/1980s', '/fr/', '/EN/', '/pt-br/'])(
     'never follows on %s, which is not a language home',
     (path) => {
-      expect(visit({ path, storage: { [STORAGE_KEYS.lang]: 'pt' }, navigation: REDIRECTED }).navigated).toEqual([]);
+      const result = visit({ path, search: AUTO_QUERY, storage: { [STORAGE_KEYS.lang]: 'pt' } });
+      expect(result.navigated).toEqual([]);
+      expect(result.address).toBe(path + AUTO_QUERY);
     },
   );
 
   it.each(['fr', 'PT', 'pt-BR', 'pt/', '//example.org', ''])('ignores the stored value "%s"', (lang) => {
-    expect(visit({ storage: { [STORAGE_KEYS.lang]: lang }, navigation: REDIRECTED }).navigated).toEqual([]);
+    expect(visit({ search: AUTO_QUERY, storage: { [STORAGE_KEYS.lang]: lang } }).navigated).toEqual([]);
+  });
+
+  it('reads the remembered language only on a home the "/" redirect chose', () => {
+    const storage = { ...ERA_ON, [STORAGE_KEYS.lang]: 'pt' };
+    expect(visit({ storage, pageEra: '1980s' }).reads).toEqual([STORAGE_KEYS.eraUi]);
+    expect(visit({ search: AUTO_QUERY, storage, pageEra: '1980s' }).reads).toEqual([STORAGE_KEYS.lang]);
   });
 });
 
 describe('/prefs.js never breaks the page', () => {
   it('does nothing and throws nothing when storage is blocked', () => {
-    expect(visit({ storage: 'blocked', navigation: REDIRECTED, pageEra: '1980s' })).toEqual({
+    expect(visit({ search: AUTO_QUERY, storage: 'blocked', pageEra: '1980s' })).toEqual({
       era: MUSEUM_ERA,
       navigated: [],
       reads: [],
+      address: '/en/',
     });
   });
 
@@ -203,9 +184,10 @@ describe('/prefs.js never breaks the page', () => {
 });
 
 // The privacy page promises that a remembered choice never leaves the device and that the site sets no cookie
-// (privacy.preferences, privacy.lead), and SECURITY.md 3.1 that /prefs.js writes nothing. The stubs above would
-// accept a cookie write and the script swallows a failing fetch, so here every global is a proxy that records what
-// the script touches: it may read only these members and write nothing.
+// (privacy.preferences, privacy.lead), and SECURITY.md 3.1 that /prefs.js writes nothing but the address bar. The
+// stubs above would accept a cookie write and the script swallows a failing fetch, so here every global is a proxy
+// that records what the script touches: it may name no other global, read only these members, assign nothing, and
+// give the current history entry no URL but the home it is on.
 const ALLOWED_READS = new Set([
   'window.localStorage',
   'window.stop',
@@ -217,16 +199,14 @@ const ALLOWED_READS = new Set([
   'location.search',
   'location.hash',
   'location.replace',
-  'performance.getEntriesByType',
-  'entry.type',
-  'entry.redirectCount',
-  'performance.navigation',
-  'legacy.redirectCount',
+  'history.replaceState',
 ]);
 
 function audit(source: string) {
+  const globals = new Set<string>();
   const touched = new Set<string>();
   const writes: string[] = [];
+  const addresses: unknown[] = [];
   const watch = <T extends object>(name: string, target: T): T =>
     new Proxy(target, {
       get(object, key, receiver) {
@@ -246,24 +226,52 @@ function audit(source: string) {
   const storage = watch('storage', {
     getItem: (key: string) => ({ [STORAGE_KEYS.eraUi]: '1', [STORAGE_KEYS.lang]: 'pt' })[key] ?? null,
   });
-  // The redirect counted only by the older interface, as WebKit reports it, so the follow path reads both.
-  const entry = watch('entry', { type: 'navigate', redirectCount: 0 });
-  const legacy = watch('legacy', { type: 0, redirectCount: 1 });
-  for (const path of ['/en/decades/1980s', '/en/']) {
-    const run = new Function('window', 'document', 'location', 'performance', source);
-    run(
-      watch('window', { localStorage: storage, stop: () => undefined }),
-      watch('document', { documentElement: root }),
-      watch('location', { pathname: path, search: '', hash: '', replace: () => undefined }),
-      watch('performance', { getEntriesByType: () => [entry], navigation: legacy }),
-    );
+  // The era path, the follow path, and a marked home that stays (the remembered language is its own), with the era.
+  for (const [path, search] of [
+    ['/en/decades/1980s', ''],
+    ['/en/', AUTO_QUERY],
+    ['/pt/', AUTO_QUERY],
+  ]) {
+    const bound: Record<string, object> = {
+      window: watch('window', { localStorage: storage, stop: () => undefined }),
+      document: watch('document', { documentElement: root }),
+      location: watch('location', { pathname: path, search, hash: '', replace: () => undefined }),
+      history: watch('history', { replaceState: (...args: unknown[]) => addresses.push(args) }),
+    };
+    // Every free identifier of the script resolves through this scope, so a global it was not given (open, top,
+    // navigation) is recorded even when the call throws inside the script's own try/catch.
+    const scope = new Proxy(bound, {
+      has: (_target, key) => typeof key === 'string',
+      get(target, key) {
+        if (typeof key === 'string' && !(key in target)) globals.add(key);
+        return Reflect.get(target, key);
+      },
+      set(target, key, value) {
+        writes.push(`global.${String(key)}`);
+        return Reflect.set(target, key, value);
+      },
+    });
+    new Function('scope', `with (scope) {${source}}`)(scope);
   }
-  return { outside: [...touched].filter((member) => !ALLOWED_READS.has(member)).sort(), writes };
+  return {
+    globals: [...globals].sort(),
+    outside: [...touched].filter((member) => !ALLOWED_READS.has(member)).sort(),
+    writes,
+    addresses,
+  };
 }
 
 describe('/prefs.js only reads the preferences', () => {
-  it('touches only the allowed members and assigns nothing, on the era path and on the follow path', () => {
-    expect(audit(SOURCE)).toEqual({ outside: [], writes: [] });
+  it('names only its four globals, touches only the allowed members and assigns nothing, on every path', () => {
+    expect(audit(SOURCE)).toEqual({
+      globals: [],
+      outside: [],
+      writes: [],
+      addresses: [
+        [null, '', '/en/'],
+        [null, '', '/pt/'],
+      ],
+    });
   });
 
   it.each([
@@ -271,6 +279,10 @@ describe('/prefs.js only reads the preferences', () => {
     ['a request', "window.fetch('/beacon');"],
     ['a storage write', "store.setItem('x', '1');"],
     ['a beacon', "window.navigator.sendBeacon('/beacon', era);"],
+    ['a history entry', "history.pushState(null, '', '/x');"],
+    ['a history entry through the Navigation API', "navigation.navigate('/x', { history: 'push' });"],
+    ['a new window', "open('https://example.org/?' + era);"],
+    ['a navigation of the top window', "top.location = '/x';"],
   ])('fails the audit when the script adds %s', (_name, line) => {
     const tampered = SOURCE.replace(
       "root.setAttribute('data-era', era);",
@@ -278,12 +290,12 @@ describe('/prefs.js only reads the preferences', () => {
     );
     expect(tampered).not.toBe(SOURCE);
     const result = audit(tampered);
-    expect(result.outside.length + result.writes.length).toBeGreaterThan(0);
+    expect(result.globals.length + result.outside.length + result.writes.length).toBeGreaterThan(0);
   });
 
-  it('names no network, cookie or storage-writing API in its source', () => {
+  it('names no network, cookie, storage-writing or history-adding API in its source', () => {
     expect(SOURCE).not.toMatch(
-      /cookie|fetch|XMLHttpRequest|sendBeacon|WebSocket|EventSource|setItem|removeItem|import\(/,
+      /cookie|fetch|XMLHttpRequest|sendBeacon|WebSocket|EventSource|setItem|removeItem|pushState|navigation\.|import\(/,
     );
   });
 });

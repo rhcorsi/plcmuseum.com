@@ -4,6 +4,12 @@
 export const SUPPORTED_LANGS = ['pt', 'en', 'es', 'de', 'it'] as const;
 export type Lang = (typeof SUPPORTED_LANGS)[number];
 export const DEFAULT_LANG: Lang = 'en';
+/**
+ * The query the "/" redirect adds to the home it picks. /prefs.js follows the visitor's remembered language only on a
+ * home that carries it, then removes it from the address bar (ADR-0012), so no other redirect onto a home (the assets
+ * binding answers /pt with /pt/) replaces the language a link asked for. public/prefs.js repeats it as a literal.
+ */
+export const AUTO_QUERY = '?auto';
 
 // RFC 9110 language range and weight ("q=" and a quality value, no spaces around "="); anything else in the header
 // is ignored rather than guessed at.
